@@ -1,0 +1,96 @@
+# GitAgent Agent Export Configuration
+version: "1.0"
+updated: "2026-03-30"
+
+export_defaults:
+  output_dir: "integrations/gitagent/exported_agents"
+  include_karl: true
+  force_overwrite: false
+  create_subagents: true
+
+agents:
+  astro_council:
+    priority: 1
+    canonical: "agents.astro_council_agent.AstroCouncilAgent"
+    has_sub_agents: true
+  astro_agent_synthesis:
+    priority: 2
+    canonical: "agents.astro_council_agent.AstroCouncilAgent"
+    has_sub_agents: false
+  bradley_agent:
+    priority: 3
+    canonical: "agents._impl.bradley_agent"
+    has_sub_agents: false
+  gann_agent:
+    priority: 4
+    canonical: "agents._impl.gann_agent"
+    has_sub_agents: false
+  cycle_agent:
+    priority: 5
+    canonical: "agents._impl.cycle_agent"
+    has_sub_agents: false
+  electoral_agent:
+    priority: 6
+    canonical: "agents._impl.electoral_agent"
+    has_sub_agents: false
+  time_window_agent:
+    priority: 7
+    canonical: "agents._impl.time_window_agent"
+    has_sub_agents: false
+  technical_agent:
+    priority: 10
+    canonical: "agents._impl.technical_agent"
+    has_sub_agents: false
+  market_analyst:
+    priority: 11
+    canonical: "agents._impl.market_analyst"
+    has_sub_agents: false
+  elliot_agent:
+    priority: 12
+    canonical: "agents._impl.elliot_agent"
+    has_sub_agents: false
+  bull_researcher:
+    priority: 13
+    canonical: "agents._impl.bull_researcher"
+    has_sub_agents: false
+  bear_researcher:
+    priority: 14
+    canonical: "agents._impl.bear_researcher"
+    has_sub_agents: false
+  risk_agent:
+    priority: 15
+    canonical: "agents._impl.risk_agent"
+    has_sub_agents: false
+  fundamental_agent:
+    priority: 20
+    canonical: "agents._impl.fundamental_agent"
+    has_sub_agents: false
+  quant_agent:
+    priority: 21
+    canonical: "agents._impl.quant_agent"
+    has_sub_agents: false
+  macro_agent:
+    priority: 22
+    canonical: "agents._impl.macro_agent"
+    has_sub_agents: false
+  options_flow_agent:
+    priority: 23
+    canonical: "agents._impl.options_flow_agent"
+    has_sub_agents: false
+  sentiment_agent:
+    priority: 24
+    canonical: "agents._impl.sentiment_agent"
+    has_sub_agents: false
+  insider_agent:
+    priority: 25
+    canonical: "agents._impl.insider_agent"
+    has_sub_agents: false
+  ml_predictor_agent:
+    priority: 26
+    canonical: "agents._impl.ml_predictor_agent"
+    has_sub_agents: false
+  karl_synthesis:
+    priority: 99
+    canonical: "agents.karl_synthesis"
+    has_sub_agents: false
+    is_orchestrator: true

@@ -1,0 +1,730 @@
+"""
+AstroFin Sentinel v5 — Main Orchestrator
+RAG-First Multi-Agent Architecture with LangGraph.
+
+Thompson Sampling replaces static AGENT_WEIGHTS for agent selection:
+  At each orchestration step, for each candidate pool:
+    - Sample θ_i ~ Beta(α_i, β_i) for all agents (from belief tracker)
+    - Select top-K agents by sampled θ_i
+    - Only selected agents are called
+
+Flow:
+  User Query → Router → [Thompson Selection] → [Parallel Specialist Flows] → Synthesis → Final Report
+                    │
+        ┌───────────┼────────────┐
+        ▼           ▼            ▼
+  Technical    Astro       Electional
+    Team     Council        Agent
+        │           │            │
+        ▼           ▼            ▼
+  Confluence  Confluence  Confluence
+        └───────────┼────────────┘
+                    ▼
+             Synthesis Agent
+                    │
+                    ▼
+            Final Recommendation
+"""
+
+import asyncio
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from agents._impl.bear_researcher import run_bear_researcher
+from agents._impl.bull_researcher import run_bull_researcher
+from agents._impl.electoral_agent import run_electoral_agent
+from agents._impl.fundamental_agent import run_fundamental_agent
+from agents._impl.macro_agent import run_macro_agent
+from agents._impl.market_analyst import run_market_analyst
+from agents._impl.options_flow_agent import run_options_flow_agent
+from agents._impl.quant_agent import run_quant_agent
+from agents._impl.sentiment_agent import run_sentiment_agent
+from agents._impl.synthesis_agent import SynthesisAgent
+from agents.astro_council_agent import run_astro_council
+from agents.base_agent import AgentResponse, SignalDirection
+from agents.karl_synthesis import KARLSynthesisAgent, get_karl_agent
+from core.belief import update_beliefs_from_session
+from core.history_db import save_session
+from core.thompson import (
+    ASTRO_POOL,
+    ELECTORAL_POOL,
+    MACRO_POOL,
+    TECHNICAL_POOL,
+    AgentPool,
+    get_thompson_sampler,
+)
+from orchestration.router import route_query
+
+# ATOM-020: PostgreSQL
+try:
+    from db import init_db_if_needed, is_postgres_available
+    PG_AVAILABLE = is_postgres_available()
+except Exception:
+    PG_AVAILABLE = False
+
+# ATOM-KARL-015 Phase 1: OAP soft weighting
+from agents._impl.amre.oap_optimizer import get_oap_optimizer
+
+# ─── Feature Flags — ATOM-KARL-015 Phase 1 ───────────────────────────────────
+OAP_WEIGHTING_ENABLED = True  # Set False for full rollback
+
+
+# ─── Helpers — ATOM-KARL-015 Phase 2 ────────────────────────────────────────
+
+def _compute_oap_adjustments(oap_state, agents: list[str]) -> dict[str, float]:
+    """
+    Phase 2: per-agent OAP adjustment based on individual agent performance.
+
+    Returns:
+        Dict[agent_name, adjustment] where adjustment ∈ [-0.25, +0.25]
+
+    Formula per agent:
+        agent_score = entropy * 0.4 + max(0, sharpe) * 0.4 + recent_quality * 0.2
+        adjustment  = (agent_score - 0.5) * 0.5
+
+    Safety:
+        - fallback = 0.0 if no data
+        - clamped  to [-0.25, +0.25]
+    """
+    if not oap_state:
+        return {}
+
+    adjustments: dict[str, float] = {}
+
+    # Look for per-agent stats in oap_state
+    # Expected structure: oap_state.agent_stats = {agent_name: AgentStats(...)}
+    agent_stats: dict = getattr(oap_state, "agent_stats", {})
+
+    if not agent_stats:
+        # Fallback: global OAP score applied uniformly (Phase 1 behaviour)
+        entropy = getattr(oap_state, "entropy_avg", 0.5)
+        sharpe  = getattr(oap_state, "sharpe_ratio", 0.0)
+        oap_score = 0.5 * entropy + 0.5 * max(0.0, sharpe)
+        adjustment = (oap_score - 0.5) * 0.4  # [-0.2, +0.2]
+        print(f"[OAP] no per-agent stats — uniform adj={adjustment:+.3f}")
+        return {agent: adjustment for agent in agents}
+
+    for agent_name in agents:
+        stats = agent_stats.get(agent_name)
+        if stats is None:
+            adjustments[agent_name] = 0.0
+            continue
+
+        try:
+            entropy     = getattr(stats, "entropy_contribution", 0.5)
+            sharpe      = max(0.0, getattr(stats, "sharpe_contribution", 0.0))
+            recent_q    = getattr(stats, "recent_decision_quality", 0.5)
+
+            agent_score = entropy * 0.4 + sharpe * 0.4 + recent_q * 0.2
+            adjustment  = (agent_score - 0.5) * 0.5  # → roughly [-0.25, +0.25]
+
+            # Clamp for safety
+            adjustment = max(-0.25, min(0.25, adjustment))
+            adjustments[agent_name] = adjustment
+
+        except Exception:
+            adjustments[agent_name] = 0.0
+
+    return adjustments
+
+
+# ─── Agent Weights ─────────────────────────────────────────────────────────────
+
+# ─── Parallel Flow Runners ──────────────────────────────────────────────────────
+
+async def run_technical_flow(
+    state: dict,
+    selected_agents: Optional[list[str]] = None,
+) -> dict:
+    """
+    Run technical analysis team.
+    selected_agents: list of agent names to call (Thompson-selected).
+                    Defaults to all known agents in TECHNICAL_POOL.
+    """
+    pool_agents = selected_agents or TECHNICAL_POOL.agents
+
+    tasks = []
+    names = []
+
+    if "MarketAnalyst" in pool_agents:
+        tasks.append(run_market_analyst(state))
+        names.append("MarketAnalyst")
+
+    if "BullResearcher" in pool_agents:
+        tasks.append(run_bull_researcher(state))
+        names.append("BullResearcher")
+
+    if "BearResearcher" in pool_agents:
+        tasks.append(run_bear_researcher(state))
+        names.append("BearResearcher")
+
+    if not tasks:
+        return {}
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    merged = {}
+    for name, r in zip(names, results):
+        if isinstance(r, dict):
+            merged[f"{name.lower()}_signal"] = r.get(f"{name.lower()}_signal") or list(r.values())[0]
+        elif isinstance(r, Exception):
+            merged[f"{name.lower()}_signal"] = AgentResponse(
+                agent_name=name,
+                signal=SignalDirection.NEUTRAL,
+                confidence=30,
+                reasoning=f"Agent error: {str(r)[:100]}",
+                sources=[],
+            ).to_dict()
+    return merged
+
+
+async def run_astro_flow(
+    state: dict,
+    selected_agents: Optional[list[str]] = None,
+) -> dict:
+    """
+    Run astro council with Thompson-selected sub-agents.
+    selected_agents: list of agent names to pass to AstroCouncilAgent.
+                     Defaults to all known agents in ASTRO_POOL.
+    """
+    pool_agents = selected_agents or ASTRO_POOL.agents
+
+    # Inject selected agents into state so AstroCouncilAgent respects them
+    state = {**state, "_thompson_selected_astro": pool_agents}
+
+    return await run_astro_council(state)
+
+
+async def run_electoral_flow(
+    state: dict,
+    selected_agents: Optional[list[str]] = None,
+) -> dict:
+    """Run electoral/muhurta agent (always single agent)."""
+    return await run_electoral_agent(state)
+
+
+async def run_macro_flow(
+    state: dict,
+    selected_agents: Optional[list[str]] = None,
+) -> dict:
+    """
+    Run macro/fundamental analysis team (ATOM-017).
+    Selected agents come from MACRO_POOL:
+      FundamentalAgent, MacroAgent, QuantAgent, OptionsFlowAgent, SentimentAgent
+    """
+    pool_agents = selected_agents or MACRO_POOL.agents
+
+    tasks = []
+    names = []
+
+    if "FundamentalAgent" in pool_agents:
+        tasks.append(run_fundamental_agent(state))
+        names.append("FundamentalAgent")
+
+    if "MacroAgent" in pool_agents:
+        tasks.append(run_macro_agent(state))
+        names.append("MacroAgent")
+
+    if "QuantAgent" in pool_agents:
+        tasks.append(run_quant_agent(state))
+        names.append("QuantAgent")
+
+    if "OptionsFlowAgent" in pool_agents:
+        tasks.append(run_options_flow_agent(state))
+        names.append("OptionsFlowAgent")
+
+    if "SentimentAgent" in pool_agents:
+        tasks.append(run_sentiment_agent(state))
+        names.append("SentimentAgent")
+
+    if not tasks:
+        return {}
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    merged = {}
+    for name, r in zip(names, results):
+        if isinstance(r, dict):
+            # Try multiple key formats
+            sig = r.get(f"{name.lower()}_signal") or r.get("signal") or list(r.values())[0] if r else None
+            merged[f"{name.lower()}_signal"] = sig
+        elif isinstance(r, Exception):
+            merged[f"{name.lower()}_signal"] = AgentResponse(
+                agent_name=name,
+                signal=SignalDirection.NEUTRAL,
+                confidence=30,
+                reasoning=f"Agent error: {str(r)[:100]}",
+                sources=[],
+            ).to_dict()
+    return merged
+
+
+# ─── Thompson Sampling Helpers ─────────────────────────────────────────────────
+
+def _select_for_flow(
+    pool: AgentPool,
+    excluded: Optional[list[str]] = None,
+    k: Optional[int] = None,
+    oap_adjustments: Optional[dict[str, float]] = None,
+) -> list[str]:
+    """
+    Run Thompson sampling for one pool.
+    Returns list of selected agent names.
+    """
+    adj = oap_adjustments if OAP_WEIGHTING_ENABLED else None
+    sampler = get_thompson_sampler()
+    if excluded:
+        selected = sampler.select_with_exclusions(pool, excluded=excluded, k=k, oap_adjustments=adj)
+    else:
+        selected = sampler.select(pool, k=k, oap_adjustments=adj)
+    return [name for name, _ in selected]
+
+
+# ─── Main Orchestrator ─────────────────────────────────────────────────────────
+
+async def run_sentinel_v5(
+    user_query: str,
+    symbol: str = "BTCUSDT",
+    timeframe: str = "SWING",
+    current_price: float = 0.0,
+    birth_data: dict = None,
+    include_technical: bool = True,
+    include_macro: bool = True,
+    include_astro: bool = True,
+    include_electional: bool = False,
+    session_id: str = None,
+    persist: bool = True,
+    thompson_k: int = 4,
+) -> dict:
+    """
+    Main entry point for AstroFin Sentinel v5.
+
+    Thompson Sampling is applied at each orchestration step to dynamically
+    select which agents to call, replacing static AGENT_WEIGHTS.
+
+    Args:
+        include_macro: Run MACRO_POOL (FundamentalAgent, MacroAgent, QuantAgent, OptionsFlowAgent, SentimentAgent)
+    """
+    if not session_id:
+        session_id = str(uuid.uuid4())[:8]
+
+    # ── Step 1: Route query ──────────────────────────────────────────────────
+    route_output = route_query(user_query)
+    print(f"[Router] Query type: {route_output.query_type.value}")
+    print(f"[Router] Symbols: {route_output.symbols}")
+    print(f"[Router] Flows: tech={include_technical}, astro={include_astro}, elec={include_electional}")
+
+    symbols = route_output.symbols or [symbol]
+    timeframe = route_output.timeframe or timeframe
+
+    # ── Step 2: Fetch price if needed ───────────────────────────────────────
+    if current_price == 0 and symbols:
+        current_price = await _fetch_price(symbols[0])
+    current_price = current_price or 50000
+
+    # ── Step 3: Build initial state ──────────────────────────────────────────
+    state = {
+        "symbol": symbols[0],
+        "timeframe_requested": timeframe,
+        "current_price": current_price,
+        "birth_data": birth_data,
+        "user_query": user_query,
+        "session_id": session_id,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "all_signals": [],
+    }
+
+    # ── Step 4: Thompson Sampling selection per flow ─────────────────────────
+    # Technical → Astro → Electoral (order matters for dependency)
+    thompson_selections: dict = {}
+
+    technical_selected: list[str] = []
+    astro_selected: list[str] = []
+
+    if include_technical:
+        technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k)
+        thompson_selections["technical"] = technical_selected
+
+    if include_macro:
+        # Exclude agents already selected in technical (MACRO has overlap with TECHNICAL via Bull/Bear)
+        macro_selected = _select_for_flow(
+            MACRO_POOL,
+            excluded=technical_selected,
+            k=thompson_k,
+        )
+        thompson_selections["macro"] = macro_selected
+
+    if include_astro:
+        # Exclude agents already selected in technical (e.g. BullResearcher, BearResearcher)
+        astro_selected = _select_for_flow(
+            ASTRO_POOL,
+            excluded=technical_selected,
+            k=thompson_k,
+        )
+        thompson_selections["astro"] = astro_selected
+
+    if include_electional:
+        electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
+        thompson_selections["electoral"] = electoral_selected
+
+    # Log Thompson sampling decisions
+    print(f"[Thompson] technical: {technical_selected}")
+    print(f"[Thompson] astro:     {astro_selected}")
+
+    # ── Step 5: Run flows in parallel ────────────────────────────────────────
+    flow_tasks = []
+
+    if include_technical:
+        flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
+
+    if include_macro:
+        flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
+
+    if include_astro:
+        flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
+
+    if include_electional:
+        flow_tasks.append(run_electoral_flow(state))
+
+    if flow_tasks:
+        flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+
+        for result in flow_results:
+            if isinstance(result, dict):
+                for key, value in result.items():
+                    if key.endswith("_signal") and value is not None:
+                        state["all_signals"].append(value)
+
+        if not state["all_signals"]:
+            fallback_response = AgentResponse(
+                agent_name="SystemFallback",
+                signal=SignalDirection.NEUTRAL,
+                confidence=30,
+                reasoning="All agents failed to produce a signal.",
+            )
+            state["all_signals"].append(fallback_response)
+
+    # ── Step 6: Run Synthesis ────────────────────────────────────────────────
+    synthesis_agent = SynthesisAgent()
+    try:
+        synthesis_result = await synthesis_agent.run(state)
+    except Exception as e:
+        print(f"[SynthesisAgent] Skipped — agent unavailable: {e}")
+        synthesis_result = None
+
+    # ── Step 7: Build final output ───────────────────────────────────────────
+    final_output = {
+        "session_id": session_id,
+        "symbol": symbols[0],
+        "timeframe": timeframe,
+        "current_price": current_price,
+        "query_type": route_output.query_type.value,
+        "flows_run": {
+            "technical": include_technical,
+            "astro": include_astro,
+            "electional": include_electional,
+            "macro": include_macro,
+        },
+        "thompson_selections": thompson_selections,
+        "agent_count": len(state["all_signals"]),
+        "final_recommendation": synthesis_result.to_dict() if synthesis_result else None,
+        "final_report": synthesis_result.to_dict() if synthesis_result else None,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if persist:
+        save_session(final_output)
+        update_beliefs_from_session(final_output)
+
+    return final_output
+
+
+# ─── KARL-013: Main Orchestrator with Full KARL Integration ───────────────────
+
+async def run_sentinel_v5_karl(
+    user_query: str,
+    symbol: str = "BTCUSDT",
+    timeframe: str = "SWING",
+    current_price: float = 0.0,
+    birth_data: dict = None,
+    include_technical: bool = True,
+    include_macro: bool = True,
+    include_astro: bool = True,
+    include_electional: bool = False,
+    session_id: str = None,
+    persist: bool = True,
+    thompson_k: int = 4,
+    enable_self_question: bool = False,
+    enable_backtest: bool = True,
+    sync_interval: int = 10,
+) -> dict:
+    """
+    AstroFin Sentinel v5 with full KARL-013 integration.
+
+    Adds to run_sentinel_v5:
+    - DecisionRecord на каждое решение
+    - OAPOptimizer updates
+    - ContinuousBacktest samples
+    - Self-questioning (optional)
+    - Periodic sync_with_audit() every N decisions
+
+    Args:
+        include_macro: Run MACRO_POOL (FundamentalAgent, MacroAgent, QuantAgent, OptionsFlowAgent, SentimentAgent)
+        enable_self_question: Run SelfQuestioningEngine before synthesis
+        enable_backtest: Add samples to ContinuousBacktest
+        sync_interval: Run sync_with_audit() every N decisions
+
+    Returns:
+        dict with all run_sentinel_v5 fields PLUS:
+          - karl_diagnostics
+          - decision_record
+          - amre_output
+    """
+    if not session_id:
+        session_id = str(uuid.uuid4())[:8]
+
+    # ATOM-020: Initialize PostgreSQL on first run
+    if PG_AVAILABLE:
+        db_init = init_db_if_needed()
+        if db_init.get("tables_created"):
+            print("[DB] PostgreSQL tables initialized")
+        elif db_init.get("postgres_available"):
+            print("[DB] PostgreSQL connected (tables exist)")
+        else:
+            print("[DB] PostgreSQL not available, using SQLite fallback")
+    else:
+        print("[DB] PostgreSQL not configured, using SQLite fallback")
+
+    # ── Step 1: Route query ──────────────────────────────────────────────────
+    route_output = route_query(user_query)
+    print(f"[Router] Query type: {route_output.query_type.value}")
+    print(f"[Router] Symbols: {route_output.symbols}")
+    print(f"[Router] Flows: tech={include_technical}, astro={include_astro}, elec={include_electional}")
+
+    symbols = route_output.symbols or [symbol]
+    timeframe = route_output.timeframe or timeframe
+
+    # ── Step 2: Fetch price if needed ───────────────────────────────────────
+    if current_price == 0 and symbols:
+        current_price = await _fetch_price(symbols[0])
+    current_price = current_price or 50000
+
+    # ── Step 3: Build initial state ──────────────────────────────────────────
+    state = {
+        "symbol": symbols[0],
+        "timeframe_requested": timeframe,
+        "current_price": current_price,
+        "birth_data": birth_data,
+        "user_query": user_query,
+        "session_id": session_id,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "all_signals": [],
+    }
+
+    # ── Step 4: Thompson Sampling selection per flow ─────────────────────────
+    thompson_selections: dict = {}
+    technical_selected: list[str] = []
+    astro_selected: list[str] = []
+
+    # ATOM-KARL-015 Phase 1: Compute OAP adjustments once
+    oap_adjustments: Optional[dict[str, float]] = None
+    if OAP_WEIGHTING_ENABLED:
+        try:
+            oap_state = get_oap_optimizer().kpi_state
+            all_agents = (
+                list(TECHNICAL_POOL.agents) +
+                list(MACRO_POOL.agents) +
+                list(ASTRO_POOL.agents)
+            )
+            oap_adjustments = _compute_oap_adjustments(oap_state, all_agents)
+        except Exception as e:
+            print(f"[OAP] disabled due to error: {e}")
+            oap_adjustments = None
+
+    if include_technical:
+        technical_selected = _select_for_flow(
+            TECHNICAL_POOL,
+            k=thompson_k,
+            oap_adjustments=oap_adjustments,
+        )
+        thompson_selections["technical"] = technical_selected
+
+    if include_macro:
+        # Exclude agents already selected in technical (MACRO has overlap with TECHNICAL via Bull/Bear)
+        macro_selected = _select_for_flow(
+            MACRO_POOL,
+            excluded=technical_selected,
+            k=thompson_k,
+            oap_adjustments=oap_adjustments,
+        )
+        thompson_selections["macro"] = macro_selected
+
+    if include_astro:
+        astro_selected = _select_for_flow(
+            ASTRO_POOL,
+            excluded=technical_selected,
+            k=thompson_k,
+            oap_adjustments=oap_adjustments,
+        )
+        thompson_selections["astro"] = astro_selected
+
+    if include_electional:
+        electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
+        thompson_selections["electoral"] = electoral_selected
+
+    print(f"[Thompson] technical: {technical_selected}")
+    print(f"[Thompson] astro:     {astro_selected}")
+
+    # ── Step 5: Run flows in parallel ────────────────────────────────────────
+    flow_tasks = []
+
+    if include_technical:
+        flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
+
+    if include_macro:
+        flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
+
+    if include_astro:
+        flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
+
+    if include_electional:
+        flow_tasks.append(run_electoral_flow(state))
+
+    if flow_tasks:
+        flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+
+        for result in flow_results:
+            if isinstance(result, dict):
+                for key, value in result.items():
+                    if key.endswith("_signal") and value is not None:
+                        state["all_signals"].append(value)
+
+        if not state["all_signals"]:
+            fallback_response = AgentResponse(
+                agent_name="SystemFallback",
+                signal=SignalDirection.NEUTRAL,
+                confidence=30,
+                reasoning="All agents failed to produce a signal.",
+            )
+            state["all_signals"].append(fallback_response)
+
+    # ── Step 6: Run KARL Synthesis (AMRE post-processing) ───────────────────
+    karl_agent = KARLSynthesisAgent(
+        sync_interval=sync_interval,
+        enable_self_question=enable_self_question,
+        enable_backtest=enable_backtest,
+    )
+    try:
+        karl_result = await karl_agent.run(state)
+        synthesis_result = karl_result.get("synthesis_result")
+        amre_output = karl_result.get("amre_output")
+        decision_record = karl_result.get("decision_record")
+        karl_diagnostics = karl_result.get("karl_diagnostics")
+    except Exception as e:
+        print(f"[KARLSynthesisAgent] Fell back to base synthesis: {e}")
+        # Fallback to base synthesis
+        synthesis_agent = SynthesisAgent()
+        synthesis_result = await synthesis_agent.run(state)
+        synthesis_result = synthesis_result.to_dict() if hasattr(synthesis_result, 'to_dict') else synthesis_result
+        amre_output = None
+        decision_record = None
+        karl_diagnostics = None
+
+    # ── Step 7: Build final output ───────────────────────────────────────────
+    final_output = {
+        "session_id": session_id,
+        "symbol": symbols[0],
+        "timeframe": timeframe,
+        "current_price": current_price,
+        "query_type": route_output.query_type.value,
+        "flows_run": {
+            "technical": include_technical,
+            "astro": include_astro,
+            "electional": include_electional,
+            "macro": include_macro,
+        },
+        "thompson_selections": thompson_selections,
+        "agent_count": len(state["all_signals"]),
+        "final_recommendation": synthesis_result,
+        "final_report": synthesis_result,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        # KARL-013 additions
+        "karl_enabled": True,
+        "decision_record": decision_record,
+        "amre_output": amre_output,
+        "karl_diagnostics": karl_diagnostics,
+    }
+
+    if persist:
+        save_session(final_output)
+        update_beliefs_from_session(final_output)
+
+    return final_output
+
+
+
+# ATOM-R-025: MASFactory
+async def _fetch_price(symbol: str) -> float:
+    """Fetch current price from Binance."""
+    try:
+        import requests
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+        resp = requests.get(url, timeout=5)
+        data = resp.json()
+        return float(data.get("price", 0))
+    except Exception:
+        return 0.0
+
+
+# ─── KARL Diagnostics CLI ───────────────────────────────────────────────────────
+
+async def karl_diagnostics():
+    """Print full KARL system diagnostics."""
+    agent = get_karl_agent()
+    status = agent.get_status()
+    print("\n╔══════════════════════════════════════════════╗")
+    print("║      ATOM-KARL-013: System Diagnostics      ║")
+    print("╚══════════════════════════════════════════════╝")
+    print(f"\n📊 Decision Count: {status['decision_counter']}")
+    print(f"🔄 Sync Interval: {status['sync_interval']}")
+    print(f"❓ Self-Questioning: {'ON' if status['self_question_enabled'] else 'OFF'}")
+    print(f"🧪 Backtest: {'ON' if status['backtest_enabled'] else 'OFF'}")
+
+    diag = status.get("karl_diagnostics", {})
+    oap = diag.get("oap_kpi", {})
+    print("\n📈 OAP KPIs:")
+    print(f"   TTC Depth:   {oap.get('current_ttc_depth', 'N/A')}")
+    print(f"   OOS Fail %: {oap.get('oos_fail_rate', 'N/A')}")
+    print(f"   Entropy:    {oap.get('entropy_avg', 'N/A')}")
+
+    audit = diag.get("audit_summary", {})
+    print("\n📋 Audit Log:")
+    print(f"   Total Decisions: {audit.get('total', 0)}")
+    print(f"   Avg Confidence:  {audit.get('avg_confidence_final', 0)}")
+    print(f"   Action Dist:     {audit.get('action_distribution', {})}")
+
+    drift = status.get("drift_status", {})
+    print("\n🔍 Drift Analysis:")
+    print(f"   Status: {drift.get('status', 'N/A')}")
+    if drift.get("status") == "degrading":
+        print(f"   ⚠️  Confidence drift: {drift.get('confidence_drift', 0)}")
+        print(f"   ⚠️  Uncertainty drift: {drift.get('uncertainty_drift', 0)}")
+
+    print()
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == '--masfactory':
+        # MASFactory mode (ATOM-R-025)
+        from orchestration.sentinel_v5_mas import run_sentinel_v5_mas
+        asyncio.run(run_sentinel_v5_mas(
+            user_query=' '.join(sys.argv[2:]) if len(sys.argv) > 2 else 'Analyze BTC',
+            symbol='BTCUSDT',
+            timeframe='SWING',
+        ))
+    else:
+        # Delegate to karl_cli for all CLI entry points
+        from orchestration import karl_cli
+        asyncio.run(karl_cli.main())

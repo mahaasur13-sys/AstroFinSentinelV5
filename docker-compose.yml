@@ -1,0 +1,81 @@
+# AstroFin Sentinel V5 — Docker Compose
+# ATOM-DB-MIGRATION-002: PostgreSQL + TimescaleDB + pgvector + Redis
+version: '3.8'
+
+services:
+  # ─── PostgreSQL with TimescaleDB ────────────────────────────────────────────
+  postgres:
+    image: timescale/timescaledb:latest-pg16  # includes pgvector
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-astrofin}
+      POSTGRES_USER: ${POSTGRES_USER:-astrofin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema:/docker-entrypoint-initdb.d:ro   # auto-applied on first start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-astrofin} -d ${POSTGRES_DB:-astrofin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ─── Redis (cache + session) ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ─── Application (optional — for docker run) ────────────────────────────────
+  # app:
+  #   build: .
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     DB_BACKEND: postgresql
+  #     POSTGRES_HOST: postgres
+  #     POSTGRES_PORT: 5432
+  #     POSTGRES_USER: astrofin
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: astrofin
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #   command: python -m orchestration.sentinel_v5 "Analyze BTC" BTCUSDT SWING
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: astrofin-net
