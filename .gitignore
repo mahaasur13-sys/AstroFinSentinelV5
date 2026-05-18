@@ -49,4 +49,6 @@ Thumbs.db
 
 # Optional: skip archived code
 agents/_archived/
-backtest/_archived_dbs/
+backtest/_archived_dbs/.env
+*.env
+.env.*
