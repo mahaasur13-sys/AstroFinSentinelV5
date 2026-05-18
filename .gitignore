@@ -52,3 +52,6 @@ agents/_archived/
 backtest/_archived_dbs/.env
 *.env
 .env.*
+.env
+*.env
+.env.*
