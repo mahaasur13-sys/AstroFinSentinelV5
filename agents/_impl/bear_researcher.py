@@ -107,12 +107,12 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         """Fetch OHLCV data from Binance."""
         try:
             import requests
-            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
             return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])] for x in data]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol} on {interval} with limit {limit}")
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
             return []
 
     def _detect_bearish_patterns(self, data: list) -> dict:

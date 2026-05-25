@@ -2,7 +2,9 @@
 Sentiment Agent — fear/greed and market sentiment analysis.
 """
 
+import json
 import logging
+import requests
 
 from agents._impl.ephemeris_decorator import require_ephemeris
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection
@@ -13,14 +15,6 @@ logger = logging.getLogger(__name__)
 class SentimentAgent(BaseAgent[AgentResponse]):
     """
     SentimentAgent — анализ настроений рынка.
-
-    Responsibilities:
-    1. Fetch Fear & Greed index
-    2. Analyze social media sentiment (Twitter, Reddit)
-    3. Detect contrarian signals
-    4. Track funding rates (for crypto)
-
-    Weight: 2% (minor agent)
     """
 
     def __init__(self):
@@ -53,13 +47,13 @@ class SentimentAgent(BaseAgent[AgentResponse]):
 
         if sentiment_score >= 0.65:
             signal = SignalDirection.LONG
-            confidence=min(int(sentiment_score * 100 + 10), 75)
+            confidence = min(int(sentiment_score * 100 + 10), 75)
         elif sentiment_score <= 0.35:
             signal = SignalDirection.SHORT
-            confidence=min(int((1 - sentiment_score) * 100 + 10), 75)
+            confidence = min(int((1 - sentiment_score) * 100 + 10), 75)
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=45
+            confidence = 45
 
         reasoning = (
             f"Fear & Greed: {fear_greed['summary']}. "
@@ -86,11 +80,8 @@ class SentimentAgent(BaseAgent[AgentResponse]):
         return await self.analyze(state)
 
     async def _fetch_fear_greed(self) -> dict:
-        """
-        Fetch Fear & Greed Index (alternative.me API).
-        """
+        """Fetch Fear & Greed Index"""
         try:
-            import requests
             url = "https://api.alternative.me/fng/?limit=1"
             resp = requests.get(url, timeout=5)
             data = resp.json()
@@ -99,66 +90,74 @@ class SentimentAgent(BaseAgent[AgentResponse]):
                 fng_value = int(data["data"][0]["value"])
                 fng_class = data["data"][0]["value_classification"]
 
-                # Convert to 0-1 score (50 = neutral)
-                score = fng_value / 100
+                score = fng_value / 100.0
 
-                # Adjust for extreme readings (contrarian)
                 if fng_value <= 20:
-                    # Extreme fear — bullish contrarian
                     summary = f"Extreme Fear ({fng_value}) — contrarian BUY signal"
                 elif fng_value >= 80:
-                    # Extreme greed — bearish contrarian
                     summary = f"Extreme Greed ({fng_value}) — contrarian SELL signal"
                 else:
                     summary = f"Fear & Greed: {fng_value} ({fng_class})"
 
                 return {"score": score, "summary": summary, "raw_value": fng_value}
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[SentimentAgent] Failed to fetch Fear & Greed: {e}")
 
-        return {"score": 0.5, "summary": "Fear & Greed data unavailable"}
+        return {"score": 0.5, "summary": "Fear & Greed data unavailable", "raw_value": 50}
 
-    async def _fetch_funding_rate(self, symbol: str) -> dict:
+    async def _fetch_funding_rate(self, symbol: str = "BTCUSDT") -> dict:
         """
-        Fetch funding rate for crypto (Binance).
+        Fetch funding rate from Binance with robust error handling.
         """
+        url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
+        
         try:
-            import requests
-
-            # Try Binance funding rate API
-            url = f"https://api.binance.com/api/v3/premiumIndex?symbol={symbol}"
-            resp = requests.get(url, timeout=5)
+            print(f"[DEBUG] Fetching funding rate: {url}")
+            
+            resp = requests.get(url, timeout=10)
+            
+            print(f"[DEBUG] Status: {resp.status_code} | Len: {len(resp.text)}")
+            
+            if resp.status_code != 200:
+                print(f"[ERROR] Binance HTTP {resp.status_code}: {resp.text[:200]}")
+                return {"score": 0.5, "summary": f"HTTP {resp.status_code}", "raw_rate": 0.0}
+            
+            if not resp.text.strip():
+                print(f"[WARNING] Empty response from Binance")
+                return {"score": 0.5, "summary": "Empty response", "raw_rate": 0.0}
+            
             data = resp.json()
-
-            if "lastFundingRate" in data:
-                funding_rate = float(data["lastFundingRate"])
-
-                # Funding rate score
-                # Positive = long paying shorts (bullish pressure)
-                # Negative = short paying longs (bearish pressure)
-                if funding_rate > 0.01:  # > 1% (very high)
-                    score = 0.70
-                    summary = f"Funding rate: {funding_rate*100:.2f}% (bulls paying)"
-                elif funding_rate > 0.003:  # > 0.3%
-                    score = 0.58
-                    summary = f"Funding rate: {funding_rate*100:.2f}% (slight bullish)"
-                elif funding_rate < -0.01:
-                    score = 0.30
-                    summary = f"Funding rate: {funding_rate*100:.2f}% (bears paying)"
-                elif funding_rate < -0.003:
-                    score = 0.42
-                    summary = f"Funding rate: {funding_rate*100:.2f}% (slight bearish)"
-                else:
-                    score = 0.50
-                    summary = f"Funding rate: {funding_rate*100:.3f}% (neutral)"
-
-                return {"score": score, "summary": summary, "raw_rate": funding_rate}
+            
+            funding_rate = float(data.get("result", {}).get("list", [{}])[0].get("fundingRate", 0.0))
+            
+            # Score logic
+            if funding_rate > 0:
+                score = 0.65
+                summary = f"Positive funding ({funding_rate*100:.3f}%) — bullish"
+            elif funding_rate > 0:
+                score = 0.57
+                summary = f"Slight positive funding ({funding_rate*100:.3f}%)"
+            elif funding_rate < -0.0005:
+                score = 0.35
+                summary = f"Negative funding ({funding_rate*100:.3f}%) — bearish"
+            elif funding_rate < 0:
+                score = 0.43
+                summary = f"Slight negative funding ({funding_rate*100:.3f}%)"
+            else:
+                score = 0.50
+                summary = f"Neutral funding rate ({funding_rate*100:.4f}%)"
+            
+            print(f"[OK] Funding rate {symbol}: {funding_rate*100:.3f}%")
+            
+            return {"score": score, "summary": summary, "raw_rate": funding_rate}
 
         except Exception as e:
-            logger.warning(f"[SentimentAgent] Failed to fetch funding rate for {symbol}: {e}")
-
-        return {"score": 0.5, "summary": "Funding rate unavailable"}
+            print(f"[ERROR] Failed to fetch funding rate for {symbol}: {e}")
+            if 'resp' in locals():
+                print(f"[DEBUG] Raw: {resp.text[:300]}")
+        
+        return {"score": 0.5, "summary": "Funding rate unavailable", "raw_rate": 0.0}
 
     def _analyze_price_momentum(self, state: dict) -> dict:
         """
@@ -172,7 +171,6 @@ class SentimentAgent(BaseAgent[AgentResponse]):
 
         closes = [d[0] for d in price_data]
 
-        # Calculate momentum
         mom_7 = (closes[-1] - closes[-7]) / closes[-7] if len(closes) >= 7 else 0
         mom_14 = (closes[-1] - closes[-14]) / closes[-14] if len(closes) >= 14 else 0
         mom_30 = (closes[-1] - closes[-30]) / closes[-30] if len(closes) >= 30 else 0

@@ -1,9 +1,12 @@
-"""meta_rl/meta_agent.py -- ATOM-META-RL-005/009: Bidirectional KARL + Cross-session Replay"""
+"""meta_rl/meta_agent.py -- ATOM-META-RL-005/009: Bidirectional KARL + Cross-session Replay
+FIXED (audit 15.05.2026): KARLState dataclass — защита от утечки памяти
+"""
 from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass
+from collections import deque
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -16,9 +19,58 @@ logger = logging.getLogger(__name__)
 
 KARL_META_UPDATE_ENABLED = True
 KARL_META_BIDIRECTIONAL_ENABLED = True
-CROSS_SESSION_REPLAY_ENABLED = True  # ATOM-META-RL-009
+CROSS_SESSION_REPLAY_ENABLED = True
 Q_STAR_INFLUENCE_ALPHA = 0.3
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# KARLState — защита от утечки памяти (FIXED)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class KARLState:
+    """Bounded KARL state with automatic memory limits."""
+    q_values: dict = field(default_factory=dict)
+    q_star_history: deque = field(default_factory=lambda: deque(maxlen=20))
+    regime_history: deque = field(default_factory=lambda: deque(maxlen=20))
+    historical_qstar: deque = field(default_factory=lambda: deque(maxlen=1000))
+    best_chromosomes: list = field(default_factory=list)
+    oap_weights: dict = field(default_factory=dict)
+    current_q_star: float = 0.5
+    current_regime: str = 'NORMAL'
+    last_update_gen: int = 0
+
+    MAX_Q_VALUES = 10000
+    MAX_BEST_CHROMOSOMES = 20
+
+    def add_q_value(self, key: str, value: float) -> None:
+        """Add Q-value with automatic cleanup (FIFO eviction)."""
+        self.q_values[key] = value
+        if len(self.q_values) > self.MAX_Q_VALUES:
+            to_remove = len(self.q_values) // 10
+            for _ in range(to_remove):
+                oldest_key = next(iter(self.q_values))
+                del self.q_values[oldest_key]
+            logger.warning(f"[KARL] Cleaned Q-values, now {len(self.q_values)} entries")
+
+    def add_best_chromosome(self, chrom: dict) -> None:
+        """Add chromosome with automatic truncation."""
+        self.best_chromosomes.append(chrom)
+        if len(self.best_chromosomes) > self.MAX_BEST_CHROMOSOMES:
+            self.best_chromosomes = self.best_chromosomes[-self.MAX_BEST_CHROMOSOMES:]
+
+    def get_memory_usage(self) -> dict:
+        """Return memory usage stats for monitoring."""
+        return {
+            'q_values_count': len(self.q_values),
+            'q_star_history_len': len(self.q_star_history),
+            'historical_qstar_len': len(self.historical_qstar),
+            'best_chromosomes_count': len(self.best_chromosomes),
+            'oap_weights_count': len(self.oap_weights),
+        }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EvolutionConfig
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @dataclass
 class EvolutionConfig:
@@ -37,6 +89,9 @@ class EvolutionConfig:
         assert 0.0 <= self.mutation_rate <= 1.0
         assert 0.0 <= self.crossover_rate <= 1.0
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MetaAgent
+# ═══════════════════════════════════════════════════════════════════════════════
 
 class MetaAgent:
     """Meta-RL agent with bidirectional KARL integration (ATOM-META-RL-005/009).
@@ -55,12 +110,14 @@ class MetaAgent:
         self._generation = 0
         self._best_reward = -float('inf')
         self._generations_no_improve = 0
-        self._karl_state: dict = karl_state or {
-            'q_values': {}, 'oap_weights': {}, 'best_chromosomes': [],
-            'last_update_gen': 0, 'q_star_history': [],
-            'current_q_star': 0.5, 'current_regime': 'NORMAL',
-            'regime_history': [], 'historical_qstar': [],
-        }
+
+        # FIXED: Use KARLState dataclass instead of raw dict
+        self._karl_state = KARLState()
+        if karl_state and isinstance(karl_state, dict):
+            self._karl_state.current_q_star = karl_state.get('current_q_star', 0.5)
+            self._karl_state.current_regime = karl_state.get('current_regime', 'NORMAL')
+            self._karl_state.last_update_gen = karl_state.get('last_update_gen', 0)
+
         self._session_id = "meta_rl_default"
 
     @property
@@ -91,7 +148,10 @@ class MetaAgent:
                 scored.reward = reward
                 if not scored.reward_history or scored.reward_history[-1] != reward:
                     scored.reward_history.append(reward)
-                logger.debug(f'[META-RL] {scored.id[:8]}: reward={reward:.4f} risk_adj_pnl={eval_result.risk_adjusted_pnl:+.3f}')
+                logger.debug(
+                    f'[META-RL] {scored.id[:8]}: reward={reward:.4f} '
+                    f'risk_adj_pnl={eval_result.risk_adjusted_pnl:+.3f}'
+                )
                 try:
                     sid = getattr(self, '_session_id', 'meta_rl_default')
                     record_meta_rl_decision(scored, market_data, session_id=sid)
@@ -168,7 +228,7 @@ class MetaAgent:
     def _compute_adaptive_crossover_rate(self) -> float:
         if not KARL_META_BIDIRECTIONAL_ENABLED:
             return self.config.crossover_rate
-        q_star = self._karl_state.get('current_q_star', 0.5)
+        q_star = self._karl_state.current_q_star
         q_norm = max(0.0, min(1.0, (q_star + 1.0) / 2.0))
         rate = self.config.crossover_rate * (1.0 + Q_STAR_INFLUENCE_ALPHA * q_norm)
         return float(max(0.0, min(1.0, rate)))
@@ -178,25 +238,26 @@ class MetaAgent:
             return
         q_star = float(q_star)
         regime = str(regime)
-        self._karl_state['current_q_star'] = max(-1.0, min(1.0, q_star))
-        hist = self._karl_state.setdefault('q_star_history', [])
-        hist.append({'gen': self._generation, 'q_star': q_star, 'regime': regime})
-        if len(hist) > 20:
-            self._karl_state['q_star_history'] = hist[-20:]
-        self._karl_state['current_regime'] = regime
-        r_hist = self._karl_state.setdefault('regime_history', [])
-        r_hist.append({'gen': self._generation, 'regime': regime})
-        if len(r_hist) > 20:
-            self._karl_state['regime_history'] = r_hist[-20:]
+        self._karl_state.current_q_star = max(-1.0, min(1.0, q_star))
+        self._karl_state.q_star_history.append({
+            'gen': self._generation, 'q_star': q_star, 'regime': regime
+        })
+        self._karl_state.current_regime = regime
+        self._karl_state.regime_history.append({
+            'gen': self._generation, 'regime': regime
+        })
         regime_mult = 1.0 if regime in ('NORMAL', 'BULL') else 0.8 if regime == 'HIGH' else 0.6
         eff = self._compute_adaptive_crossover_rate() * regime_mult
-        logger.debug(f'[META-RL] External feedback: Q*={q_star:.3f} regime={regime} -> effective_crossover={eff:.3f}')
+        logger.debug(
+            f'[META-RL] External feedback: Q*={q_star:.3f} regime={regime} '
+            f'-> effective_crossover={eff:.3f}'
+        )
 
     def update_karl(self, elites) -> dict:
         if not KARL_META_UPDATE_ENABLED:
-            return self._karl_state
+            return self._karl_state.__dict__
         if not elites:
-            return self._karl_state
+            return self._karl_state.__dict__
         try:
             sorted_elites = sorted(elites, key=lambda s: s.reward, reverse=True)
             top_n = sorted_elites[:3]
@@ -207,38 +268,44 @@ class MetaAgent:
                 'id': s.id,
                 'risk_adjusted_pnl': getattr(s.evaluation, 'risk_adjusted_pnl', 0.0),
             } for s in top_n]
+
             for s in top_n:
                 c = s.strategy.chromosome
-                self._karl_state['oap_weights'][s.id] = {
+                self._karl_state.oap_weights[s.id] = {
                     'conf_th': c.get('confidence_threshold', 60.0),
                     'pos_size': c.get('position_size_pct', 15.0),
                     'atr_mult': c.get('atr_multiplier', 2.0),
                     'reward': s.reward,
                 }
+
+            # FIXED: Use add_q_value with memory limit
             for s in top_n:
                 key = f'gen_{s.generation}_{s.id[:8]}'
-                self._karl_state['q_values'][key] = s.reward
+                self._karl_state.add_q_value(key, s.reward)
+
             if sorted_elites:
-                self._karl_state['current_q_star'] = sorted_elites[0].reward
-            self._karl_state['best_chromosomes'] = (
-                best_chroms + self._karl_state.get('best_chromosomes', []))[:20]
-            self._karl_state['last_update_gen'] = self._generation
-            logger.info(f'[META-RL] KARL update: {len(top_n)} elites, q_values={len(self._karl_state["q_values"])}')
+                self._karl_state.current_q_star = sorted_elites[0].reward
+
+            # FIXED: Use add_best_chromosome with memory limit
+            for bc in best_chroms:
+                self._karl_state.add_best_chromosome(bc)
+
+            self._karl_state.last_update_gen = self._generation
+            logger.info(
+                f'[META-RL] KARL update: {len(top_n)} elites, '
+                f'memory={self._karl_state.get_memory_usage()}'
+            )
         except Exception as e:
             logger.warning(f'[META-RL] KARL update failed: {e}')
-        return self._karl_state
+        return self._karl_state.__dict__
 
     def get_karl_state(self) -> dict:
-        return dict(self._karl_state)
+        return self._karl_state.__dict__
 
     def replay_historical_sessions(self) -> dict:
-        """ATOM-META-RL-009: Load past sessions and update internal state.
-
-        Loads Q* and rewards from all historical sessions to bootstrap
-        the adaptive crossover rate andKARL state.
-        """
+        """ATOM-META-RL-009: Load past sessions and update internal state."""
         if not CROSS_SESSION_REPLAY_ENABLED:
-            logger.info('[META-RL] Cross-session replay disabled (feature flag = False)')
+            logger.info('[META-RL] Cross-session replay disabled')
             return {'status': 'disabled', 'sessions_loaded': 0}
 
         try:
@@ -252,7 +319,7 @@ class MetaAgent:
             persist = get_persistence()
             sessions = persist.list_sessions()
             if not sessions:
-                logger.info('[META-RL] No historical sessions found for replay')
+                logger.info('[META-RL] No historical sessions found')
                 return {'status': 'no_sessions', 'sessions_loaded': 0}
 
             total_records = 0
@@ -268,16 +335,15 @@ class MetaAgent:
                 all_qstar.extend(rewards)
                 report = analyze_oap_drift(records, sid)
                 drift_reports.append(report)
-                # Update historical_qstar
-                hist = self._karl_state.setdefault('historical_qstar', [])
-                hist.extend([{'session': sid, 'reward': r} for r in rewards])
-                if len(hist) > 1000:
-                    self._karl_state['historical_qstar'] = hist[-1000:]
+                # FIXED: Use deque.append for memory safety
+                for r in rewards:
+                    self._karl_state.historical_qstar.append({
+                        'session': sid, 'reward': r
+                    })
 
             if all_qstar:
-                self._karl_state['current_q_star'] = float(max(all_qstar))
+                self._karl_state.current_q_star = float(max(all_qstar))
 
-            # Apply adaptive params if drift detected
             if drift_reports:
                 latest = drift_reports[-1]
                 params = get_adaptive_params_from_drift(
@@ -289,7 +355,8 @@ class MetaAgent:
                     f'[META-RL] Cross-session replay: {len(sessions)} sessions, '
                     f'{total_records} records, drift={latest.drift_severity} '
                     f'-> mutation={params["mutation_rate"]:.3f} '
-                    f'crossover={params["crossover_rate"]:.3f}')
+                    f'crossover={params["crossover_rate"]:.3f}'
+                )
 
             return {
                 'status': 'ok',
@@ -308,7 +375,10 @@ class MetaAgent:
         parent = elites[0]
         while len(new_pop) < self.config.population_size:
             chrom = mutate(dict(parent.strategy.chromosome), rate=0.30)
-            child = GeneratedStrategy(chrom, generation=parent.generation + 1, parent_fitness=parent.reward)
+            child = GeneratedStrategy(
+                chrom, generation=parent.generation + 1,
+                parent_fitness=parent.reward
+            )
             new_pop.append(ScoredStrategy(
                 strategy=child, reward=0.0, evaluation=EvaluationResult.fail(),
                 generation=parent.generation + 1, parent_ids=(parent.id,)))

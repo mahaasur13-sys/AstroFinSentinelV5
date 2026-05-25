@@ -99,12 +99,12 @@ class CycleAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
-            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
             return [[float(x[4])] for x in data]  # close prices
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol} with interval {interval} and limit {limit}")
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}")
             return []
 
     def _find_dominant_cycle(self, data: list) -> dict:

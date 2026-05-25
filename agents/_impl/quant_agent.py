@@ -119,7 +119,7 @@ class QuantAgent(BaseAgent[AgentResponse]):
             import requests
             interval_map = {"1H": "1h", "4H": "4h", "1D": "1d", "1W": "1w", "SWING": "1d"}
             interval = interval_map.get(timeframe, "1d")
-            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit=100"
             resp = requests.get(url, timeout=10)
             data = resp.json()
             return [[float(x[4]), float(x[5]), float(x[2]), float(x[3])] for x in data]

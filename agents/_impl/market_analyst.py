@@ -114,12 +114,12 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         """Fetch OHLCV data from Binance."""
         try:
             import requests
-            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
             return [[float(x[4]), float(x[5])] for x in data]  # [close, volume]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}")
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT")
             return []
 
     def _calculate_rsi(self, data: list, period: int = 14) -> float:

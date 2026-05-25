@@ -15,7 +15,7 @@ def fetch_binance_bars(symbol="BTCUSDT", interval="1h", start_ts=None, end_ts=No
     params = {"symbol": symbol, "interval": interval, "limit": limit}
     if start_ts: params["startTime"] = start_ts
     if end_ts: params["endTime"] = end_ts
-    resp = requests.get("https://api.binance.com/api/v3/klines", params=params, timeout=15)
+    resp = requests.get("https://www.okx.com/api/v5/market/candles", params=params, timeout=15)
     resp.raise_for_status()
     bars = []
     for b in resp.json():

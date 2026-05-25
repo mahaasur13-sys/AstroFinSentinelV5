@@ -117,7 +117,8 @@ class TechnicalAgent(BaseAgent):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         """Загрузка OHLCV с Binance."""
         try:
-            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+            inst_id = symbol.replace("USDT", "") + "-USDT-SWAP"
+            url = f"https://www.okx.com/api/v5/market/candles?instId={inst_id}&bar={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
             return [[float(x[4]), float(x[5])] for x in data]  # [close, volume]

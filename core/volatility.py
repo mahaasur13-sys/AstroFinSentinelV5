@@ -314,7 +314,7 @@ def atr_from_binance(symbol: str, interval: str = "1d", limit: int = 30) -> floa
     """Fetch Binance klines and compute ATR."""
     try:
         import requests
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+        url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}&interval={interval}&limit={limit}"
         data = requests.get(url, timeout=10).json()
         klines = [[float(x[2]), float(x[3]), float(x[4])] for x in data]  # high, low, close
         atr = calculate_atr(klines)

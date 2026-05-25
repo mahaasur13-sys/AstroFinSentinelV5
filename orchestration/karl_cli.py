@@ -280,3 +280,33 @@ async def visualize_current_topology(session_id: str = None):
             print("[INFO] No active topology. Run a KARL session first.")
     except ImportError:
         print("[WARN] mas_factory not available")
+
+
+# ── ATOM-017: CLI Entry Point ──────────────────────────────────────────
+import click
+
+@click.group()
+def cli():
+    """AstroFin Sentinel V5 — KARL CLI"""
+    pass
+
+@cli.command()
+@click.argument("query", default="Analyze BTC")
+@click.option("--symbol", default="BTCUSDT")
+@click.option("--timeframe", default="SWING")
+def analyze(query, symbol, timeframe):
+    """Run a trading analysis"""
+    import asyncio
+    from orchestration.sentinel_v5 import run_sentinel_v5
+    result = asyncio.run(run_sentinel_v5(query, symbol, timeframe))
+    from orchestration.karl_cli import print_decision_rich
+    record = result.get("decision_record", {})
+    amre = result.get("amre_state", {})
+    synth = result.get("final_recommendation", {})
+    print_decision_rich(record, amre, synth)
+
+def main():
+    cli()
+
+if __name__ == "__main__":
+    main()
