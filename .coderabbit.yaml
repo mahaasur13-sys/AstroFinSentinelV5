@@ -1,0 +1,26 @@
+# .coderabbit.yaml
+language: ru
+
+reviews:
+  profile: assertive
+  high_level_summary: true
+  suggest_code_changes: true
+
+knowledge_base:
+  instructions: |
+    Ты — эксперт по AI-торговым системам. 
+    Проект AstroFinSentinelV5 — продвинутая система автономных торговых агентов с ML, Meta-RL, multi-agent архитектурой и backtesting.
+    Главные приоритеты: отсутствие look-ahead bias, производительность, воспроизводимость, чистая архитектура.
+
+path_instructions:
+  - path: "backtest/**"
+    instructions: "Проверяй на look-ahead bias, корректность метрик и работу со временем."
+  - path: "agents/**"
+    instructions: "Проверяй логику агентов, состояние и обработку ошибок."
+  - path: "**/*.py"
+    instructions: "Используй type hints, современный Python, предлагай оптимизации."
+
+exclude:
+  - "**/__pycache__/**"
+  - "**/data/**"
+  - "**/*.log"
