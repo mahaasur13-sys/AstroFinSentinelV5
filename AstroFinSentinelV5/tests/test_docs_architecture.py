@@ -56,3 +56,24 @@ def test_component_catalog_has_agent_weights():
     assert "Quant" in content
     assert "Astro" in content
     assert "10%" in content or "weight" in content.lower()
+
+def test_communication_patterns_exists():
+    assert (DOCS / "communication-patterns.md").exists(), "communication-patterns.md not found"
+
+def test_communication_patterns_has_required_sections():
+    path = DOCS / "communication-patterns.md"
+    if not path.exists():
+        return
+    content = path.read_text()
+    # Проверяем основные паттерны из плана
+    patterns = [
+        "Shared-State Message Passing",
+        "Parallel Fan-Out",
+        "Thompson Sampling",
+        "Pressure Field",
+        "Weighted Voting",
+        "AMRE Audit",
+        "Message Bus"
+    ]
+    for pat in patterns:
+        assert pat.lower() in content.lower(), f"Missing pattern: {pat}"
