@@ -11,6 +11,7 @@ import requests
 import random
 
 from agents._impl.technical_agent import TechnicalAgent
+from agents._impl.macro_agent import MacroAgent
 
 BINANCE_BASE = "https://api.binance.com/api/v3"
 DEFAULT_SYMBOL = "BTCUSDT"
@@ -141,7 +142,6 @@ def fetch_ohlcv(
         r = requests.get(f"{BINANCE_BASE}/klines", params=params, timeout=10)
         return [OHLCV.from_binance_kline(k) for k in r.json()]
     except Exception:
-        # Fallback: generate synthetic data
         st = (
             datetime.fromtimestamp(start_time / 1000, tz=timezone.utc)
             if start_time
@@ -162,7 +162,6 @@ def fetch_range(symbol, interval, start_dt, end_dt):
     end_ms = int(end_dt.timestamp() * 1000)
     chunk_ms = 1000 * 3600 * 1000  # 1000h chunks
 
-    # Try real Binance with pagination
     try:
         while cur < end_ms:
             chunk = fetch_ohlcv(
@@ -175,14 +174,13 @@ def fetch_range(symbol, interval, start_dt, end_dt):
                 break
             all_c.extend(chunk)
             cur = chunk[-1].timestamp + 1
-            if len(chunk) < 500:  # Binance limit per request
+            if len(chunk) < 500:
                 break
         if len(all_c) > 100:
             return all_c
     except Exception:
         pass
 
-    # Synthetic fallback
     return _synthetic_ohlcv(start_dt, end_dt, interval_hours=1, base_price=50000.0)
 
 
@@ -277,22 +275,42 @@ class BacktestEngine:
         signals = []
 
         if use_real_agents:
-            agent = TechnicalAgent()
+            agents = [TechnicalAgent(), MacroAgent()]
             for i in range(len(candles)):
                 curr = candles[i]
-                # Подменяем _fetch_ohlcv, чтобы вернуть исторические свечи
-                async def mock_fetch(symbol, interval, limit, idx=i):
-                    start = max(0, idx - limit + 1)
-                    return candles[start:idx + 1]
-                agent._fetch_ohlcv = mock_fetch
-                state = self._build_state(i, candles)
-                resp = await agent.run(state)
+                signals_for_bar = []
+                for agent in agents:
+                    async def mock_fetch(symbol, interval, limit, idx=i):
+                        start = max(0, idx - limit + 1)
+                        return candles[start : idx + 1]
+
+                    agent._fetch_ohlcv = mock_fetch
+                    state = self._build_state(i, candles)
+                    try:
+                        resp = await agent.run(state)
+                    except Exception as e:
+                        # graceful degradation – возвращаем NEUTRAL при ошибках
+                        resp = type('AgentResponse', (), {
+                            'signal': 'NEUTRAL',
+                            'confidence': 30,
+                            'reasoning': f'Agent error: {str(e)[:100]}',
+                        })()
+                    signals_for_bar.append(resp)
+
+                chosen = None
+                for r in signals_for_bar:
+                    if r.signal != "NEUTRAL":
+                        chosen = r
+                        break
+                if chosen is None:
+                    chosen = signals_for_bar[0]
+
                 signals.append({
                     "time": curr.dt,
                     "price": curr.close,
-                    "signal": resp.signal,
-                    "confidence": resp.confidence,
-                    "reasoning": resp.reasoning,
+                    "signal": chosen.signal,
+                    "confidence": chosen.confidence,
+                    "reasoning": chosen.reasoning,
                 })
         else:
             for i in range(1, len(candles)):
