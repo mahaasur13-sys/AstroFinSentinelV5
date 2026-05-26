@@ -1,0 +1,29 @@
+name: bradley-agent
+description: GitAgent package for BradleyAgent — AstroFin Sentinel V5
+version: '5.0'
+domain: astro
+weight: 0.03
+karl_integrated: true
+output_schema:
+  signal: LONG | SHORT | NEUTRAL | BUY | SELL | AVOID
+  confidence: 0-100
+  reasoning: string
+  sources: []
+  metadata: dict
+model:
+  provider: openai
+  name: gpt-4o-mini
+  temperature: 0.3
+capabilities:
+- responsibilities
+- output
+tools:
+- swiss_ephemeris
+- natal_chart
+- transit_calc
+rules:
+- '# BradleyAgent — RULES'
+- '## Absolute Rules (Never Violate)'
+- 1. Quantify uncertainty before confidence
+- 2. Generate DecisionRecord per decision
+- 3. Apply volatility regime guards

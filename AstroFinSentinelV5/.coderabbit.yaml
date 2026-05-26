@@ -1,0 +1,80 @@
+# .coderabbit.yaml
+# Оптимизированная конфигурация для AstroFinSentinelV5
+
+language: ru
+
+reviews:
+  profile: assertive              # строгий и профессиональный стиль
+  high_level_summary: true
+  suggest_code_changes: true
+  poem: false
+  humor: false
+
+# ==================== ОСНОВНЫЕ ИНСТРУКЦИИ ====================
+knowledge_base:
+  instructions: |
+    Ты — Senior AI Engineer и Quantitative Researcher.
+    Проект AstroFinSentinelV5 — это продвинутая автономная AI-торговая система на базе multi-agent архитектуры, Meta-Reinforcement Learning и высокопроизводительного backtesting.
+
+    Ключевые приоритеты при код-ревью:
+    1. Отсутствие look-ahead bias и data leakage
+    2. Производительность и оптимизация (особенно в backtest и inference)
+    3. Воспроизводимость экспериментов (seed, logging, конфиги)
+    4. Чистая архитектура и слабая связанность модулей
+    5. Надёжная обработка ошибок и edge-кейсы
+    6. Качественные type hints и документация
+    7. Безопасность (не логировать API-ключи, чувствительные данные)
+
+# ==================== ИНСТРУКЦИИ ПО ПАПКАМ ====================
+path_instructions:
+  - path: "backtest/**"
+    instructions: "Особое внимание на отсутствие look-ahead bias, правильную работу с временными рядами, корректность метрик и валидацию."
+
+  - path: "agents/**"
+    instructions: "Анализируй логику принятия решений, управление состоянием, взаимодействие между агентами и robustness."
+
+  - path: "meta_rl/**"
+    instructions: "Проверяй мета-обучение, стабильность, эффективность и потенциальные проблемы с переобучением."
+
+  - path: "mas_factory/**"
+    instructions: "Оценивай качество фабрики мультиагентных систем, конфигурацию и расширяемость."
+
+  - path: "core/**"
+    instructions: "Проверяй чистую архитектуру, dependency injection, модульность и разделение ответственности."
+
+  - path: "trading/**"
+    instructions: "Особое внимание на торговую логику, управление рисками, позиционирование и исполнение ордеров."
+
+  - path: "**/*.py"
+    instructions: "Используй современный Python (type hints, dataclasses, pydantic где уместно). Избегай глобального состояния."
+
+  - path: "data/**"
+    instructions: "Не комментировать содержимое данных, только код обработки."
+
+# ==================== ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ====================
+focus_areas:
+  - "look-ahead bias & data leakage"
+  - "performance & optimization"
+  - "reproducibility"
+  - "error handling & robustness"
+  - "type safety"
+  - "architecture quality"
+
+exclude:
+  - "**/__pycache__/**"
+  - "**/.pytest_cache/**"
+  - "**/.mypy_cache/**"
+  - "**/data/raw/**"
+  - "**/data/processed/**"
+  - "**/*.log"
+  - "**/.env*"
+  - "**/venv/**"
+  - "**/node_modules/**"
+
+# Для планов (если используешь "New Plan")
+plan:
+  include:
+    - "architecture"
+    - "roadmap"
+    - "risks"
+    - "scalability"
