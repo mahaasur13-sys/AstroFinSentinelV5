@@ -368,3 +368,14 @@ python -m orchestration.sentinel_v5 "Analyze BTC" BTCUSDT SWING
 - [ ] Add visualizations
 - [x] **ATOM-017: Full agent pools (MACRO + ASTRO + TECHNICAL)** — 8 agents running
 - [ ] DB Migration: SQLite → PostgreSQL + TimescaleDB + pgvector (see `knowledge/DB_ARCHITECTURE_PROMPT.md`)
+
+---
+
+## 🤖 AI Agent Rules
+
+1. **Virtual Environment**: All commands and scripts must be executed inside the project's venv (`source venv/bin/activate`).
+2. **Active Modules**: Only use agent implementations from `agents/_impl/`. Do not import from `agents/_archived/`.
+3. **Pre-Flight Healthcheck**: Before making changes or running the system, execute `python tools/healthcheck.py` and ensure it passes (exit code 0). If critical checks fail, notify the user and halt.
+4. **Port Conflict Resolution**: Before starting the dashboard, check port 8050 (`ss -tlnp | grep 8050`). Kill any stale process occupying it.
+5. **Dependency Management**: New third-party packages must be added to `requirements.txt` and recorded in `progress.md`.
+6. **PostgreSQL Fallback**: If PostgreSQL is unavailable, the system may fallback to SQLite. The healthcheck will attempt `docker-compose up -d postgres redis` if Docker is present.

@@ -38,3 +38,21 @@ class Strategy:
     parent_ids: tuple = field(default_factory=tuple)
     fitness: float = 0.0
     result: Optional[EvaluationResult] = None
+
+from dataclasses import dataclass, field
+from typing import Optional
+
+@dataclass
+class SymbolMetrics:
+    win_rate: float = 0.0
+    exposure_pct: float = 0.0
+    evaluation: Optional['EvaluationResult'] = None
+
+@dataclass
+class BasketMetrics:
+    symbols: list = field(default_factory=list)
+    symbol_metrics: dict = field(default_factory=dict)
+    portfolio_pnl: float = 0.0
+    portfolio_sharpe: float = 0.0
+    portfolio_max_drawdown: float = 0.0
+    active_symbols: int = 0
