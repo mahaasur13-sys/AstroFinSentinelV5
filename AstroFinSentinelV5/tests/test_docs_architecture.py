@@ -77,3 +77,27 @@ def test_communication_patterns_has_required_sections():
     ]
     for pat in patterns:
         assert pat.lower() in content.lower(), f"Missing pattern: {pat}"
+
+def test_integration_points_exists():
+    assert (DOCS / "integration-points.md").exists(), "integration-points.md not found"
+
+def test_integration_points_has_boundaries():
+    path = DOCS / "integration-points.md"
+    if not path.exists():
+        return
+    content = path.read_text()
+    boundaries = ["Orchestration", "Agents", "Core", "Meta-RL", "Trading", "Knowledge", "MAS Factory"]
+    for b in boundaries:
+        assert b.lower() in content.lower(), f"Missing boundary: {b}"
+
+def test_state_management_exists():
+    assert (DOCS / "state-management.md").exists(), "state-management.md not found"
+
+def test_state_management_has_singletons():
+    path = DOCS / "state-management.md"
+    if not path.exists():
+        return
+    content = path.read_text()
+    singletons = ["BeliefTracker", "ThompsonSampler", "KARLSynthesisAgent", "AuditLog", "MessageBus", "AgentRegistry"]
+    for s in singletons:
+        assert s.lower() in content.lower(), f"Missing singleton: {s}"
