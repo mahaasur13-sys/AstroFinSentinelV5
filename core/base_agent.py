@@ -118,6 +118,7 @@ class BaseAgent(ABC, Generic[T]):
                 f"(релевантность: {chunk['relevance_score']:.0%})"
             )
             # Add first 100 chars of content as preview
+            lines.append(f"      → {chunk['title']}")
             preview = chunk['content'][:100].replace('\n', ' ')
             lines.append(f"      → {preview}...")
         
@@ -143,22 +144,28 @@ class BaseAgent(ABC, Generic[T]):
         use_rag: bool = True,
     ) -> str:
         """
-        Построить системный промпт для агента.
-        
-        Включает:
+        Build system prompt for the agent.
+
+        Includes:
         1. Instructions.md
-        2. RAG chunks если нужно
+        2. RAG chunks if enabled and domain is known
         3. Extra context
         """
         parts = [
             f"# Instructions for {self.name}\n\n{self.instructions_md}",
         ]
-        
+
+        if use_rag:
+            try:
+                chunks = self.retrieve(user_task, top_k=5)
+                if chunks:
+                    parts.append(self.format_retrieval(chunks))
+                else:
+                    parts.append("• RAG: нет релевантных источников")
+            except Exception:
+                parts.append("• RAG currently unavailable (Ollama down)")
+
         if extra_context:
             parts.append(f"\n# Current Context\n\n{extra_context}")
-        
-        if use_rag and self.domain:
-            # Agent can call self.retrieve() himself, no need to pre-fetch here
-            pass
-        
+
         return "\n\n".join(parts)
