@@ -125,3 +125,27 @@ def test_state_management_has_singletons():
     singletons = ["BeliefTracker", "ThompsonSampler", "KARLSynthesisAgent", "AuditLog", "MessageBus", "AgentRegistry"]
     for s in singletons:
         assert s.lower() in content.lower(), f"Missing singleton: {s}"
+
+def test_technical_debt_exists():
+    assert (DOCS / "technical-debt.md").exists(), "technical-debt.md not found"
+
+def test_technical_debt_has_categories():
+    path = DOCS / "technical-debt.md"
+    if not path.exists():
+        return
+    content = path.read_text()
+    categories = ["Critical", "High", "Medium"]
+    for cat in categories:
+        assert cat in content, f"Missing category: {cat}"
+
+def test_risk_register_exists():
+    assert (DOCS / "risk-register.md").exists(), "risk-register.md not found"
+
+def test_risk_register_has_risks():
+    path = DOCS / "risk-register.md"
+    if not path.exists():
+        return
+    content = path.read_text()
+    risks = ["Single Broker Dependency", "Memory Leak", "Thompson Sampling Cold Start", "Correlation Concentration", "Feature Flag Proliferation"]
+    for risk in risks:
+        assert risk.lower() in content.lower(), f"Missing risk: {risk}"
