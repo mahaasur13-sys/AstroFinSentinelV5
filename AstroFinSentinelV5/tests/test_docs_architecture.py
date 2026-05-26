@@ -149,3 +149,15 @@ def test_risk_register_has_risks():
     risks = ["Single Broker Dependency", "Memory Leak", "Thompson Sampling Cold Start", "Correlation Concentration", "Feature Flag Proliferation"]
     for risk in risks:
         assert risk.lower() in content.lower(), f"Missing risk: {risk}"
+
+def test_improvement_recommendations_exists():
+    assert (DOCS / "improvement-recommendations.md").exists(), "improvement-recommendations.md not found"
+
+def test_improvement_recommendations_has_sections():
+    path = DOCS / "improvement-recommendations.md"
+    if not path.exists():
+        return
+    content = path.read_text()
+    sections = ["Modularity", "Performance", "Scalability", "Reliability"]
+    for sec in sections:
+        assert sec in content, f"Missing section: {sec}"
