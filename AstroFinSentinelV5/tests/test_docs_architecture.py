@@ -161,3 +161,12 @@ def test_improvement_recommendations_has_sections():
     sections = ["Modularity", "Performance", "Scalability", "Reliability"]
     for sec in sections:
         assert sec in content, f"Missing section: {sec}"
+
+def test_q1_priorities_exists():
+    assert (ROOT / "docs" / "roadmap" / "q1-priorities.md").exists(), "q1-priorities.md not found"
+
+def test_q2_priorities_exists():
+    assert (ROOT / "docs" / "roadmap" / "q2-priorities.md").exists(), "q2-priorities.md not found"
+
+def test_priority_matrix_exists():
+    assert (ROOT / "docs" / "roadmap" / "priority-matrix.md").exists(), "priority-matrix.md not found"
