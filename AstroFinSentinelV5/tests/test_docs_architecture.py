@@ -170,3 +170,9 @@ def test_q2_priorities_exists():
 
 def test_priority_matrix_exists():
     assert (ROOT / "docs" / "roadmap" / "priority-matrix.md").exists(), "priority-matrix.md not found"
+
+def test_testing_strategy_exists():
+    assert (ROOT / "docs" / "testing" / "strategy.md").exists(), "strategy.md not found"
+
+def test_success_criteria_exists():
+    assert (ROOT / "docs" / "metrics" / "success-criteria.md").exists(), "success-criteria.md not found"
