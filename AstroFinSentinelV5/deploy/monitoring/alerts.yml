@@ -1,73 +1,38 @@
 groups:
   - name: astrofin
-    interval: 30s
     rules:
-      # High OOS fail rate
-      - alert: HighOOSFailRate
-        expr: astrofinsentinel_oos_fail_rate > 0.35
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate"
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High OOS fail rate: {{ $value }}"
-          description: "OOS fail rate has been above 35% for 5 minutes"
-
-      # KARL Drift Detected
-      - alert: KARLDrift
-        expr: astrofinsentinel_drift_status == 1
-        for: 10m
-        labels:
-          severity: critical
-        annotations:
-          summary: "KARL system drift detected"
-          description: "Confidence drift or uncertainty increase detected"
-
-      # Low Win Rate
-      - alert: LowWinRate
-        expr: astrofinsentinel_win_rate < 0.50
-        for: 30m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Win rate below 50%: {{ $value }}"
-          description: "Trading system win rate has dropped below 50%"
-
-      # High Drawdown
-      - alert: HighDrawdown
-        expr: astrofinsentinel_max_drawdown > 0.15
-        for: 15m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Max drawdown above 15%: {{ $value }}"
-          description: "Portfolio drawdown is excessive"
-
-      # Database Connection Issues
-      - alert: DatabaseDown
-        expr: pg_up == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "PostgreSQL is down"
-          description: "Database has been unreachable for 1 minute"
-
-      # Redis Down
+          summary: "P95 latency > 2s"
       - alert: RedisDown
-        expr: redis_up == 0
+        expr: up{job="redis"} == 0
         for: 1m
         labels:
-          severity: warning
+          severity: critical
         annotations:
           summary: "Redis is down"
-          description: "Cache layer has been unreachable for 1 minute"
-
-      # High Error Rate
-      - alert: HighErrorRate
-        expr: rate(astrofinsentinel_errors_total[5m]) > 0.1
+      - alert: TimescaleDown
+        expr: up{job="timescale"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TimescaleDB is down"
+      - alert: EvictionPressure
+        expr: rate(container_memory_working_set_bytes{container="app"}[10m]) / container_spec_memory_limit_bytes{container="app"} > 0.85
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High error rate: {{ $value }}/s"
-          description: "Application error rate is elevated"
+          summary: "Memory eviction pressure > 85%"

@@ -15,11 +15,20 @@ scrape_configs:
     static_configs:
       - targets: ['app:8000']
     metrics_path: '/metrics'
+    scrape_interval: 10s
 
-  - job_name: 'postgres'
+  - job_name: 'timescale'
     static_configs:
-      - targets: ['postgres:5432']
+      - targets: ['timescale:5432']
 
   - job_name: 'redis'
     static_configs:
       - targets: ['redis:6379']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
