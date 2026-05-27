@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Optional
 
 from core.checkpoint import get_project_root
-from tools.metrics_server import CACHE_HITS, CACHE_MISSES
+from tools.metrics_server import CACHE_HITS, CACHE_MISSES, THOMPSON_PARAMS
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -329,6 +329,17 @@ class BeliefTracker:
                     total_sessions = total_sessions  + 1,
                     updated_at     = datetime('now')
             """, (agent_name, alpha_delta, beta_delta))
+
+            # Обновляем Prometheus Gauge для Thompson параметров
+            current = conn.execute(
+                "SELECT alpha, beta FROM agent_beliefs WHERE agent_name = ?",
+                (agent_name,)
+            ).fetchone()
+            if current:
+                THOMPSON_PARAMS.labels(agent_name=agent_name, param="alpha").set(current["alpha"])
+                THOMPSON_PARAMS.labels(agent_name=agent_name, param="beta").set(current["beta"])
+                mean_val = current["alpha"] / (current["alpha"] + current["beta"])
+                THOMPSON_PARAMS.labels(agent_name=agent_name, param="mean").set(mean_val)
 
             conn.execute("""
                 INSERT INTO agent_belief_history

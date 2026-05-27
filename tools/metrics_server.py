@@ -24,6 +24,12 @@ AGENT_SIGNAL_DISTRIBUTION = Counter(
     ['agent_name', 'signal']
 )
 
+THOMPSON_PARAMS = Gauge(
+    'astrofin_thompson_params',
+    'Thompson Beta parameters per agent',
+    ['agent_name', 'param']
+)
+
 async def metrics_handler(request):
     return web.Response(body=generate_latest(REGISTRY), content_type='text/plain')
 

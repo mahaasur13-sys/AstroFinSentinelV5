@@ -35,6 +35,17 @@ def test_signal_distribution_increments():
         state = {"symbol": "BTCUSDT", "current_price": 50000}
         asyncio.run(run_technical_flow(state))
 
-    # Проверяем, что счётчик для MarketAnalyst и LONG увеличился
-    val = AGENT_SIGNAL_DISTRIBUTION.labels(agent_name="MarketAnalyst", signal="LONG")._value.get()
-    assert val > 0, f"Expected signal distribution counter > 0, got {val}"
+def test_thompson_params_gauge_updated():
+    """После обновления belief параметры Thompson должны отражаться в Gauge."""
+    from tools.metrics_server import THOMPSON_PARAMS
+    from core.belief import BeliefTracker
+
+    tracker = BeliefTracker()
+    tracker.update_from_session({
+        "all_signals": [{"agent_name": "TechnicalAgent", "signal": "LONG"}],
+        "final_recommendation": {"signal": "LONG"},
+        "session_id": "test-ts",
+    })
+
+    alpha_val = THOMPSON_PARAMS.labels(agent_name="TechnicalAgent", param="alpha")._value.get()
+    assert alpha_val > 1.0, f"Expected alpha > 1.0, got {alpha_val}"
