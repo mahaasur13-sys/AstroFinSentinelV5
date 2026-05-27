@@ -250,4 +250,3 @@ python -m pytest -v
 - [ ] Telegram bot для alerts
 - [ ] RAG index (FAISS/Chroma)
 - [ ] PostgreSQL + TimescaleDB + pgvector migration
-- [ ] Deployment: Kubernetes / Docker Compose
