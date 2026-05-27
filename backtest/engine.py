@@ -1,4 +1,4 @@
-"""backtest/engine.py — G-01/G-03 Backtesting Engine (with real agent support)"""
+"""backtest/engine.py — G-01/G-03 Backtesting Engine (with real agent support + metrics)"""
 import asyncio
 import math
 import sqlite3
@@ -13,8 +13,13 @@ import random
 from agents._impl.technical_agent import TechnicalAgent
 from agents._impl.macro_agent import MacroAgent
 from agents._impl.astro_council.agent import AstroCouncilAgent
+from agents._impl.sentiment_agent import SentimentAgent
+from agents._impl.options_flow_agent import OptionsFlowAgent
+from agents._impl.elliot_agent import ElliotAgent
+from agents._impl.ml_predictor_agent import MLPredictorAgent
 from core.thompson import get_thompson_sampler, TECHNICAL_POOL, MACRO_POOL, ASTRO_POOL
 from agents._impl.synthesis_agent import SynthesisAgent
+from tools.metrics_server import BACKTEST_REAL_RUNS, BACKTEST_SYNTHETIC_RUNS
 
 BINANCE_BASE = "https://api.binance.com/api/v3"
 DEFAULT_SYMBOL = "BTCUSDT"
@@ -273,7 +278,6 @@ class BacktestEngine:
         signals = []
 
         if use_real_agents:
-            # Выбор агентов: Thompson или фиксированный набор
             if use_thompson:
                 sampler = get_thompson_sampler()
                 tech_selected = sampler.select(TECHNICAL_POOL, k=2)
@@ -290,7 +294,7 @@ class BacktestEngine:
                 if not agents:
                     agents = [TechnicalAgent()]
             else:
-                agents = [TechnicalAgent(), MacroAgent(), AstroCouncilAgent()]
+                agents = [TechnicalAgent(), MacroAgent(), AstroCouncilAgent(), SentimentAgent(), OptionsFlowAgent(), ElliotAgent(), MLPredictorAgent()]
 
             for i in range(len(candles)):
                 curr = candles[i]
@@ -333,7 +337,6 @@ class BacktestEngine:
                     "reasoning": chosen.reasoning,
                 })
 
-            # Если включён SynthesisAgent, пересчитываем signals через синтез
             if use_synthesis:
                 synthesis_agent = SynthesisAgent()
                 try:
@@ -347,7 +350,6 @@ class BacktestEngine:
                     final_signal = synth_result.signal if hasattr(synth_result, 'signal') else "NEUTRAL"
                     final_confidence = synth_result.confidence if hasattr(synth_result, 'confidence') else 50
                     final_reasoning = synth_result.reasoning if hasattr(synth_result, 'reasoning') else "Synthesis complete"
-                    # Заменяем все сигналы одним финальным (для симуляции сделок)
                     signals = [{
                         "time": candles[-1].dt if candles else datetime.now(timezone.utc),
                         "price": candles[-1].close if candles else 0,
@@ -356,13 +358,19 @@ class BacktestEngine:
                         "reasoning": final_reasoning,
                     }]
                 except Exception:
-                    pass  # оставляем исходные сигналы при ошибке
+                    pass
         else:
             for i in range(1, len(candles)):
                 prev = candles[i - 1]
                 curr = candles[i]
                 sig = await generate_synthetic_signal(curr.close, prev.close, curr.dt)
                 signals.append({"time": curr.dt, "price": curr.close, **sig})
+
+        # Инкрементируем счётчики метрик
+        if use_real_agents:
+            BACKTEST_REAL_RUNS.inc()
+        else:
+            BACKTEST_SYNTHETIC_RUNS.inc()
 
         trades = self._simulate_trades(signals, session_id)
         m = self._calc_metrics(trades)

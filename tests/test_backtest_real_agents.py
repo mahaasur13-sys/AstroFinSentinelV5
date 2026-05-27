@@ -139,3 +139,57 @@ async def test_synthesis_agent_called_in_real_mode():
             })()
             result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True, use_synthesis=True)
             assert mock_synth.called, "SynthesisAgent was not called"
+
+@pytest.mark.asyncio
+async def test_sentiment_agent_called_in_real_mode():
+    """При use_real_agents=True должен вызываться SentimentAgent."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('agents._impl.sentiment_agent.SentimentAgent.run') as mock_run:
+        mock_run.return_value = type('AgentResponse', (), {
+            'signal': 'NEUTRAL',
+            'confidence': 50,
+            'reasoning': 'Sentiment neutral',
+            'session_id': 's',
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })()
+        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        assert mock_run.called, "SentimentAgent was not called"
+
+@pytest.mark.asyncio
+async def test_options_flow_agent_called_in_real_mode():
+    """При use_real_agents=True должен вызываться OptionsFlowAgent."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('agents._impl.options_flow_agent.OptionsFlowAgent.run') as mock_run:
+        mock_run.return_value = type('AgentResponse', (), {
+            'signal': 'NEUTRAL', 'confidence': 50,
+            'reasoning': 'Options flow neutral',
+            'session_id': 'o', 'timestamp': datetime.now(timezone.utc).isoformat()
+        })()
+        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        assert mock_run.called, "OptionsFlowAgent was not called"
+
+@pytest.mark.asyncio
+async def test_elliot_agent_called_in_real_mode():
+    """При use_real_agents=True должен вызываться ElliotAgent."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('agents._impl.elliot_agent.ElliotAgent.run') as mock_run:
+        mock_run.return_value = type('AgentResponse', (), {
+            'signal': 'NEUTRAL', 'confidence': 50,
+            'reasoning': 'Elliot wave neutral',
+            'session_id': 'e', 'timestamp': datetime.now(timezone.utc).isoformat()
+        })()
+        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        assert mock_run.called, "ElliotAgent was not called"
+
+@pytest.mark.asyncio
+async def test_ml_predictor_agent_called_in_real_mode():
+    """При use_real_agents=True должен вызываться MLPredictorAgent."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('agents._impl.ml_predictor_agent.MLPredictorAgent.run') as mock_run:
+        mock_run.return_value = type('AgentResponse', (), {
+            'signal': 'NEUTRAL', 'confidence': 50,
+            'reasoning': 'ML predictor neutral',
+            'session_id': 'm', 'timestamp': datetime.now(timezone.utc).isoformat()
+        })()
+        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        assert mock_run.called, "MLPredictorAgent was not called"
