@@ -9,6 +9,8 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+from tools.metrics_server import OLLAMA_STATUS
+
 import faiss
 import numpy as np
 
@@ -18,18 +20,23 @@ DIM = 768
 # ─── Embeddings ────────────────────────────────────────────────────────────────
 
 def _embed(text: str) -> np.ndarray:
-    """Get nomic-embed-text embedding via Ollama API."""
+    """Get nomic-embed-text embedding via Ollama API, updating health status."""
     payload = json.dumps({"model": "nomic-embed-text", "prompt": text}).encode()
     req = urllib.request.Request(
         "http://localhost:11434/api/embeddings",
         data=payload,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        emb = json.loads(resp.read())["embedding"]
-    vec = np.array(emb, dtype="float32")
-    vec = vec / (np.linalg.norm(vec) + 1e-8)
-    return vec
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            emb = json.loads(resp.read())["embedding"]
+        vec = np.array(emb, dtype="float32")
+        vec = vec / (np.linalg.norm(vec) + 1e-8)
+        OLLAMA_STATUS.set(1)
+        return vec
+    except Exception:
+        OLLAMA_STATUS.set(0)
+        raise
 
 
 # ─── RAGRetriever ─────────────────────────────────────────────────────────────
@@ -52,6 +59,7 @@ class RAGRetriever:
         self.chunks_dir = self.kb_dir / "chunks"
 
         self._cache: dict[str, tuple[faiss.Index, list[dict]]] = {}
+
 
     def _load(self, domain: str):
         """Load (and cache) FAISS index + metadata for a domain."""
@@ -162,7 +170,7 @@ def retrieve_knowledge(
     chunks = retriever.retrieve(query, domain=domain, top_k=top_k)
 
     if not chunks:
-        return "⚠️ В базе знаний не найдена релевантная информация."
+        return "⚠ В базе знаний не найдена релевантная информация."
 
     lines = [f"### Результаты RAG-поиска по запросу: «{query}»\n"]
     for i, chunk in enumerate(chunks, 1):

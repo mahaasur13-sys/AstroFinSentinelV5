@@ -3,12 +3,12 @@
 
 import argparse
 from aiohttp import web
-from prometheus_client import Counter, generate_latest, REGISTRY
+from prometheus_client import Counter, Gauge, generate_latest, REGISTRY
 
 # Метрики с префиксом astrofin_
 REQUEST_COUNT = Counter('astrofin_requests_total', 'Total orchestration requests')
 BROKER_ERRORS = Counter('astrofin_broker_errors_total', 'Broker API errors')
-OLLAMA_STATUS = Counter('astrofin_ollama_available', 'Ollama health check (1=up, 0=down)')
+OLLAMA_STATUS = Gauge('astrofin_ollama_available', 'Ollama health check (1=up, 0=down)')
 
 async def metrics_handler(request):
     return web.Response(body=generate_latest(REGISTRY), content_type='text/plain')
