@@ -217,3 +217,22 @@ __all__ = [
     "get_current_positions", "get_planetary_positions",
     "HAS_SWISS_EPHEMERIS",
 ]
+
+# ─── Кешируемая натальная карта ──────────────────────────────────────────────
+from tools.metrics_server import CACHE_HITS, CACHE_MISSES
+
+_natal_cache = {}
+
+def calculate_natal_chart(date_str: str) -> dict:
+    """Возвращает натальную карту с кешированием."""
+    if date_str in _natal_cache:
+        CACHE_HITS.inc()
+        return _natal_cache[date_str]
+    CACHE_MISSES.inc()
+    result = _calculate_natal_chart_uncached(date_str)
+    _natal_cache[date_str] = result
+    return result
+
+def _calculate_natal_chart_uncached(date_str: str) -> dict:
+    """Тяжёлая операция (заглушка)."""
+    return {"sun": 0.0, "moon": 1.0, "planets": []}
