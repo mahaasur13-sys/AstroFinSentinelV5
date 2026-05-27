@@ -9,7 +9,7 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-from tools.metrics_server import OLLAMA_STATUS
+from tools.metrics_server import OLLAMA_STATUS, CACHE_HITS, CACHE_MISSES
 
 import faiss
 import numpy as np
@@ -64,6 +64,7 @@ class RAGRetriever:
     def _load(self, domain: str):
         """Load (and cache) FAISS index + metadata for a domain."""
         if domain in self._cache:
+            CACHE_HITS.inc()           # cache hit
             return self._cache[domain]
 
         index_path = self.indexes_dir / f"{domain}.index"
@@ -76,6 +77,7 @@ class RAGRetriever:
         index = faiss.read_index(str(index_path))
         chunks = json.loads(meta_path.read_text(encoding="utf-8"))
         self._cache[domain] = (index, chunks)
+        CACHE_MISSES.inc()             # cache miss (first load)
         return index, chunks
 
     def retrieve(
