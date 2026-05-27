@@ -29,6 +29,10 @@ THOMPSON_PARAMS = Gauge(
     'Thompson Beta parameters per agent',
     ['agent_name', 'param']
 )
+RAG_RELEVANCE_SCORE = Gauge('astrofin_rag_relevance_avg', 'Average relevance score of last RAG query')
+RAG_CHUNK_COUNT = Gauge('astrofin_rag_chunk_count', 'Number of chunks returned in the last RAG query')
+RAG_QUERY_CACHE_HITS = Counter('astrofin_rag_query_cache_hits_total', 'Number of RAG query cache hits')
+RAG_QUERY_CACHE_MISSES = Counter('astrofin_rag_query_cache_misses_total', 'Number of RAG query cache misses')
 
 async def metrics_handler(request):
     return web.Response(body=generate_latest(REGISTRY), content_type='text/plain')

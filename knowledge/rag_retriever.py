@@ -9,7 +9,11 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-from tools.metrics_server import OLLAMA_STATUS, CACHE_HITS, CACHE_MISSES
+from tools.metrics_server import (
+    OLLAMA_STATUS, CACHE_HITS, CACHE_MISSES,
+    RAG_RELEVANCE_SCORE, RAG_CHUNK_COUNT,
+    RAG_QUERY_CACHE_HITS, RAG_QUERY_CACHE_MISSES,
+)
 
 import faiss
 import numpy as np
@@ -59,6 +63,7 @@ class RAGRetriever:
         self.chunks_dir = self.kb_dir / "chunks"
 
         self._cache: dict[str, tuple[faiss.Index, list[dict]]] = {}
+        self._query_cache: dict[tuple, list[dict]] = {}
 
 
     def _load(self, domain: str):
@@ -100,6 +105,13 @@ class RAGRetriever:
         Returns:
             List of dicts with keys: content, source, title, domain, relevance_score
         """
+        # Проверка кеша запросов
+        cache_key = (query, domain, top_k)
+        if cache_key in self._query_cache:
+            RAG_QUERY_CACHE_HITS.inc()
+            return self._query_cache[cache_key]
+        RAG_QUERY_CACHE_MISSES.inc()
+
         domains = [domain] if domain else ["astrology", "technical", "trading"]
         all_results: list[dict] = []
 
@@ -136,6 +148,17 @@ class RAGRetriever:
                 seen.add(key)
                 deduped.append(r)
 
+        # Обновляем RAG quality метрики
+        if deduped:
+            avg_rel = sum(r["relevance_score"] for r in deduped) / len(deduped)
+        else:
+            avg_rel = 0.0
+        RAG_RELEVANCE_SCORE.set(avg_rel)
+        RAG_CHUNK_COUNT.set(len(deduped))
+
+        # Сохраняем результат в кеш запросов
+        self._query_cache[cache_key] = deduped[:top_k]
+
         return deduped[:top_k]
 
     def stats(self) -> dict:
@@ -164,7 +187,6 @@ def retrieve_knowledge(
     Agents call this when:
     - The question is not answered by their instructions.md
     - They need factual grounding, not speculation
-    - Astro or electoral rules need to be verified
 
     Returns a markdown string with cited chunks.
     """
