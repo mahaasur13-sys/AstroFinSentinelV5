@@ -52,6 +52,9 @@ except Exception:
 # ATOM-KARL-015 Phase 1: OAP soft weighting
 from agents._impl.amre.oap_optimizer import get_oap_optimizer
 
+# ─── Metrics ──────────────────────────────────────────────────────────────────
+from tools.metrics_server import AGENT_SELECTION_COUNTS
+
 # ─── Feature Flags ──────────────────────────────────────────────────────────
 OAP_WEIGHTING_ENABLED = True
 
@@ -176,6 +179,11 @@ def _select_for_flow(pool, excluded=None, k=None, oap_adjustments=None):
         selected = sampler.select_with_exclusions(pool, excluded=excluded, k=k, oap_adjustments=adj)
     else:
         selected = sampler.select(pool, k=k, oap_adjustments=adj)
+
+    # Инкрементируем счётчик для каждого выбранного агента
+    for name, _ in selected:
+        AGENT_SELECTION_COUNTS.labels(agent_name=name, pool=pool.name).inc()
+
     return [name for name, _ in selected]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -340,4 +348,3 @@ async def run_sentinel_v5(
 
     logger.info(f"[Sentinel] Session {session_id} completed: {len(state['all_signals'])} signals")
     return final_output
-

@@ -9,6 +9,15 @@ from prometheus_client import Counter, Gauge, generate_latest, REGISTRY
 REQUEST_COUNT = Counter('astrofin_requests_total', 'Total orchestration requests')
 BROKER_ERRORS = Counter('astrofin_broker_errors_total', 'Broker API errors')
 OLLAMA_STATUS = Gauge('astrofin_ollama_available', 'Ollama health check (1=up, 0=down)')
+CACHE_HITS = Counter('astrofin_cache_hits_total', 'Cache hit count')
+CACHE_MISSES = Counter('astrofin_cache_misses_total', 'Cache miss count')
+BACKTEST_REAL_RUNS = Counter('astrofin_backtest_real_runs_total', 'Backtest runs with use_real_agents=True')
+BACKTEST_SYNTHETIC_RUNS = Counter('astrofin_backtest_synthetic_runs_total', 'Backtest runs with use_real_agents=False')
+AGENT_SELECTION_COUNTS = Counter(
+    'astrofin_agent_selection_total',
+    'How many times each agent was selected by Thompson Sampling',
+    ['agent_name', 'pool']
+)
 
 async def metrics_handler(request):
     return web.Response(body=generate_latest(REGISTRY), content_type='text/plain')
