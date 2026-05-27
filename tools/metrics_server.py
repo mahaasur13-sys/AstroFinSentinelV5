@@ -18,19 +18,23 @@ AGENT_SELECTION_COUNTS = Counter(
     'How many times each agent was selected by Thompson Sampling',
     ['agent_name', 'pool']
 )
+AGENT_SIGNAL_DISTRIBUTION = Counter(
+    'astrofin_agent_signal_total',
+    'Count of signals (LONG/SHORT/NEUTRAL) per agent',
+    ['agent_name', 'signal']
+)
 
 async def metrics_handler(request):
     return web.Response(body=generate_latest(REGISTRY), content_type='text/plain')
 
-def run_server(port=9091):
+def run_server(port=9091, host="0.0.0.0"):
     app = web.Application()
     app.router.add_get('/metrics', metrics_handler)
-    web.run_app(app, port=port, print=lambda *_: None)  # тихий запуск
-    # Примечание: web.run_app блокирует поток, для интеграции в асинхронный оркестратор
-    # нужно использовать другой подход — см. следующий срез.
+    web.run_app(app, port=port, host=host, print=lambda *_: None)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=9091)
+    parser.add_argument('--host', default='0.0.0.0')
     args = parser.parse_args()
-    run_server(args.port)
+    run_server(args.port, args.host)

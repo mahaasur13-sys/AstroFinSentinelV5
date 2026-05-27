@@ -53,7 +53,7 @@ except Exception:
 from agents._impl.amre.oap_optimizer import get_oap_optimizer
 
 # ─── Metrics ──────────────────────────────────────────────────────────────────
-from tools.metrics_server import AGENT_SELECTION_COUNTS
+from tools.metrics_server import AGENT_SELECTION_COUNTS, AGENT_SIGNAL_DISTRIBUTION
 
 # ─── Feature Flags ──────────────────────────────────────────────────────────
 OAP_WEIGHTING_ENABLED = True
@@ -112,9 +112,11 @@ async def run_technical_flow(state: dict, selected_agents: Optional[list] = None
     merged = {}
     for name, r in zip(names, results):
         if isinstance(r, dict):
-            merged[f"{name.lower()}_signal"] = (
-                r.get(f"{name.lower()}_signal") or list(r.values())[0]
-            )
+            sig_data = r.get(f"{name.lower()}_signal") or list(r.values())[0]
+            merged[f"{name.lower()}_signal"] = sig_data
+            # Инкрементируем распределение сигналов для этого агента
+            signal_val = sig_data.get('signal') if isinstance(sig_data, dict) else getattr(sig_data, 'signal', 'NEUTRAL')
+            AGENT_SIGNAL_DISTRIBUTION.labels(agent_name=name, signal=signal_val).inc()
         elif isinstance(r, Exception):
             logger.error(f"[TechFlow] Agent {name} failed: {r}")
             merged[f"{name.lower()}_signal"] = AgentResponse(
@@ -122,6 +124,8 @@ async def run_technical_flow(state: dict, selected_agents: Optional[list] = None
                 confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
                 sources=[],
             ).to_dict()
+            # Ошибки тоже считаем как NEUTRAL
+            AGENT_SIGNAL_DISTRIBUTION.labels(agent_name=name, signal='NEUTRAL').inc()
     return merged
 
 async def run_astro_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
@@ -157,8 +161,10 @@ async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) ->
     merged = {}
     for name, r in zip(names, results):
         if isinstance(r, dict):
-            sig = r.get(f"{name.lower()}_signal") or r.get("signal") or (list(r.values())[0] if r else None)
-            merged[f"{name.lower()}_signal"] = sig
+            sig_data = r.get(f"{name.lower()}_signal") or r.get("signal") or (list(r.values())[0] if r else None)
+            merged[f"{name.lower()}_signal"] = sig_data
+            signal_val = sig_data.get('signal') if isinstance(sig_data, dict) else getattr(sig_data, 'signal', 'NEUTRAL')
+            AGENT_SIGNAL_DISTRIBUTION.labels(agent_name=name, signal=signal_val).inc()
         elif isinstance(r, Exception):
             logger.error(f"[MacroFlow] Agent {name} failed: {r}")
             merged[f"{name.lower()}_signal"] = AgentResponse(
@@ -166,6 +172,7 @@ async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) ->
                 confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
                 sources=[],
             ).to_dict()
+            AGENT_SIGNAL_DISTRIBUTION.labels(agent_name=name, signal='NEUTRAL').inc()
     return merged
 
 # ═══════════════════════════════════════════════════════════════════════════════
