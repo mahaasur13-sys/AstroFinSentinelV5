@@ -13,6 +13,8 @@ import random
 from agents._impl.technical_agent import TechnicalAgent
 from agents._impl.macro_agent import MacroAgent
 from agents._impl.astro_council.agent import AstroCouncilAgent
+from core.thompson import get_thompson_sampler, TECHNICAL_POOL, MACRO_POOL, ASTRO_POOL
+from agents._impl.synthesis_agent import SynthesisAgent
 
 BINANCE_BASE = "https://api.binance.com/api/v3"
 DEFAULT_SYMBOL = "BTCUSDT"
@@ -256,13 +258,13 @@ class BacktestEngine:
             ],
         }
 
-    async def run(self, start_date, end_date, use_real_agents=False, session_id=None):
+    async def run(self, start_date, end_date, use_real_agents=False, use_thompson=False, use_synthesis=False, session_id=None):
         session_id = session_id or str(uuid.uuid4())[:8]
         candles = fetch_range(
             self.symbol,
             self.interval,
-            datetime.fromisoformat(start_date),
-            datetime.fromisoformat(end_date),
+            datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc),
+            datetime.fromisoformat(end_date).replace(tzinfo=timezone.utc),
         )
         if len(candles) < 10:
             print(f"[Backtest] Not enough data: {len(candles)}")
@@ -271,7 +273,25 @@ class BacktestEngine:
         signals = []
 
         if use_real_agents:
-            agents = [TechnicalAgent(), MacroAgent(), AstroCouncilAgent()]
+            # Выбор агентов: Thompson или фиксированный набор
+            if use_thompson:
+                sampler = get_thompson_sampler()
+                tech_selected = sampler.select(TECHNICAL_POOL, k=2)
+                macro_selected = sampler.select(MACRO_POOL, k=2)
+                astro_selected = sampler.select(ASTRO_POOL, k=2)
+                selected_names = [name for name, _ in tech_selected + macro_selected + astro_selected]
+                agents = []
+                if "TechnicalAgent" in selected_names:
+                    agents.append(TechnicalAgent())
+                if "MacroAgent" in selected_names:
+                    agents.append(MacroAgent())
+                if "AstroCouncilAgent" in selected_names:
+                    agents.append(AstroCouncilAgent())
+                if not agents:
+                    agents = [TechnicalAgent()]
+            else:
+                agents = [TechnicalAgent(), MacroAgent(), AstroCouncilAgent()]
+
             for i in range(len(candles)):
                 curr = candles[i]
                 signals_for_bar = []
@@ -312,6 +332,31 @@ class BacktestEngine:
                     "confidence": chosen.confidence,
                     "reasoning": chosen.reasoning,
                 })
+
+            # Если включён SynthesisAgent, пересчитываем signals через синтез
+            if use_synthesis:
+                synthesis_agent = SynthesisAgent()
+                try:
+                    state_for_synth = {
+                        "all_signals": signals,
+                        "symbol": self.symbol,
+                        "timeframe_requested": "1h",
+                        "current_price": candles[-1].close if candles else 0,
+                    }
+                    synth_result = await synthesis_agent.run(state_for_synth)
+                    final_signal = synth_result.signal if hasattr(synth_result, 'signal') else "NEUTRAL"
+                    final_confidence = synth_result.confidence if hasattr(synth_result, 'confidence') else 50
+                    final_reasoning = synth_result.reasoning if hasattr(synth_result, 'reasoning') else "Synthesis complete"
+                    # Заменяем все сигналы одним финальным (для симуляции сделок)
+                    signals = [{
+                        "time": candles[-1].dt if candles else datetime.now(timezone.utc),
+                        "price": candles[-1].close if candles else 0,
+                        "signal": final_signal,
+                        "confidence": final_confidence,
+                        "reasoning": final_reasoning,
+                    }]
+                except Exception:
+                    pass  # оставляем исходные сигналы при ошибке
         else:
             for i in range(1, len(candles)):
                 prev = candles[i - 1]

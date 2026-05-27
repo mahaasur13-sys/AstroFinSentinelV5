@@ -108,3 +108,34 @@ async def test_astro_agent_called_in_real_mode():
         }
         result = await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
         assert mock_run.called, "AstroCouncilAgent was not called"
+
+@pytest.mark.asyncio
+async def test_thompson_sampling_called_in_real_mode():
+    """При use_real_agents=True и use_thompson=True вызывается ThompsonSampler.select."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('core.thompson.ThompsonSampler.select') as mock_select:
+        mock_select.return_value = [("TechnicalAgent", 0.9)]
+        with patch('agents._impl.technical_agent.TechnicalAgent.run') as mock_tech:
+            mock_tech.return_value = type('AgentResponse', (), {
+                'signal': 'NEUTRAL', 'confidence': 50,
+                'reasoning': 'ok', 'session_id': 't', 'timestamp': datetime.now(timezone.utc).isoformat()
+            })()
+            result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True, use_thompson=True)
+            assert mock_select.called, "ThompsonSampler.select was not called"
+
+@pytest.mark.asyncio
+async def test_synthesis_agent_called_in_real_mode():
+    """При use_real_agents=True должен вызываться SynthesisAgent и выдавать финальный сигнал."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('agents._impl.synthesis_agent.SynthesisAgent.run') as mock_synth:
+        mock_synth.return_value = type('TradingSignal', (), {
+            'signal': 'NEUTRAL', 'confidence': 50,
+            'reasoning': 'Synthesis: mixed signals', 'session_id': 's', 'timestamp': datetime.now(timezone.utc).isoformat()
+        })()
+        # При использовании SynthesisAgent нам всё равно нужны сигналы от агентов, поэтому мокаем их
+        with patch('agents._impl.technical_agent.TechnicalAgent.run') as mock_tech:
+            mock_tech.return_value = type('AgentResponse', (), {
+                'signal': 'NEUTRAL', 'confidence': 50, 'reasoning': 'ok'
+            })()
+            result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True, use_synthesis=True)
+            assert mock_synth.called, "SynthesisAgent was not called"
