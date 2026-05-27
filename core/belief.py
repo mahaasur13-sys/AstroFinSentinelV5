@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Optional
 
 from core.checkpoint import get_project_root
+from tools.metrics_server import CACHE_HITS, CACHE_MISSES
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -150,12 +151,12 @@ class BeliefTracker:
     Failure: agent signal did NOT align OR final was AVOID/NEUTRAL.
     """
 
-    # Signals that represent a valid actionable outcome (not AVOID/NEUTRAL)
     _ACTIONABLE = {"LONG", "SHORT", "BUY", "SELL", "STRONG_BUY", "STRONG_SELL"}
 
     def __init__(self, db_path: Path = None, history_limit: int = 100):
         self.db_path = db_path or _belief_db_path()
         self.history_limit = history_limit
+        self._cache: dict[str, Optional[BeliefState]] = {}
         self._init_db()
 
     def _conn(self) -> sqlite3.Connection:
@@ -171,20 +172,27 @@ class BeliefTracker:
     # ── Public API ────────────────────────────────────────────────────────────
 
     def get(self, agent_name: str) -> Optional[BeliefState]:
-        """Return Beta state for one agent, or None if unseen."""
+        """Return Beta state for one agent, or None if unseen (cached)."""
+        if agent_name in self._cache:
+            CACHE_HITS.inc()
+            return self._cache[agent_name]
+        CACHE_MISSES.inc()
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM agent_beliefs WHERE agent_name = ?",
                 (agent_name,)
             ).fetchone()
         if not row:
+            self._cache[agent_name] = None
             return None
-        return BeliefState(
+        state = BeliefState(
             agent_name=row["agent_name"],
             alpha=row["alpha"],
             beta=row["beta"],
             total_sessions=row["total_sessions"],
         )
+        self._cache[agent_name] = state
+        return state
 
     def get_all(self) -> dict[str, BeliefState]:
         """Return Beta state for all tracked agents."""
@@ -202,12 +210,6 @@ class BeliefTracker:
     def update_from_session(self, session_result: dict) -> dict[str, bool]:
         """
         Update Beta parameters for every agent that actually produced a signal.
-
-        Args:
-            session_result: full output from run_sentinel_v5()
-
-        Returns:
-            Dict of {agent_name: is_success} for all updated agents
         """
         all_signals = session_result.get("all_signals", [])
         if not all_signals:
@@ -217,7 +219,6 @@ class BeliefTracker:
         final_signal = self._normalize(final_rec.get("signal", ""))
         session_id = session_result.get("session_id", "unknown")
 
-        # Only update when final is actionable
         is_actionable = final_signal in self._ACTIONABLE
 
         results: dict[str, bool] = {}
@@ -231,10 +232,10 @@ class BeliefTracker:
 
             if is_actionable and agent_signal == final_signal:
                 is_success = True
-                alpha_delta, beta_delta = 1.0, 0.0   # success → α += 1
+                alpha_delta, beta_delta = 1.0, 0.0
             else:
                 is_success = False
-                alpha_delta, beta_delta = 0.0, 1.0  # failure → β += 1
+                alpha_delta, beta_delta = 0.0, 1.0
 
             self._update_agent(
                 agent_name=agent_name,
@@ -245,23 +246,18 @@ class BeliefTracker:
                 agent_signal=agent_signal,
                 is_success=is_success,
             )
+            self._cache.pop(agent_name, None)  # инвалидируем кеш
             results[agent_name] = is_success
 
-        # Log selection decisions for ALL agents (called AND not-called)
         self._log_session_selections(
             session_id=session_id,
             called_agents=list(results.keys()),
             agent_results=results,
         )
-
         return results
 
-    def get_agent_history(
-        self,
-        agent_name: str,
-        limit: int = 100,
-    ) -> list[dict]:
-        """Return last N outcomes for one agent (most recent first)."""
+    def get_agent_history(self, agent_name: str, limit: int = 100) -> list[dict]:
+        """Return last N outcomes for one agent."""
         with self._conn() as conn:
             rows = conn.execute("""
                 SELECT * FROM agent_belief_history
@@ -272,10 +268,7 @@ class BeliefTracker:
         return [dict(r) for r in rows]
 
     def leaderboard(self) -> list[dict]:
-        """
-        Rank all agents by posterior mean accuracy.
-        Includes 95% credible interval and sample size.
-        """
+        """Rank all agents by posterior mean accuracy."""
         all_states = self.get_all()
         if not all_states:
             return []
@@ -303,6 +296,7 @@ class BeliefTracker:
         Reset one agent (or all if agent_name is None).
         Returns number of rows deleted.
         """
+        self._cache.clear()  # полностью очищаем кеш
         with self._conn() as conn:
             if agent_name:
                 deleted = conn.execute(
@@ -323,26 +317,12 @@ class BeliefTracker:
 
     # ── Internal ───────────────────────────────────────────────────────────────
 
-    def _update_agent(
-        self,
-        agent_name: str,
-        alpha_delta: float,
-        beta_delta: float,
-        session_id: str,
-        final_signal: str,
-        agent_signal: str,
-        is_success: bool,
-    ):
+    def _update_agent(self, agent_name: str, alpha_delta: float, beta_delta: float,
+                      session_id: str, final_signal: str, agent_signal: str, is_success: bool):
         with self._conn() as conn:
-            # Upsert belief state
             conn.execute("""
                 INSERT INTO agent_beliefs (agent_name, alpha, beta, total_sessions)
-                VALUES (
-                    ?,
-                    1.0 + ?,
-                    1.0 + ?,
-                    1
-                )
+                VALUES (?, 1.0 + ?, 1.0 + ?, 1)
                 ON CONFLICT(agent_name) DO UPDATE SET
                     alpha          = alpha          + excluded.alpha,
                     beta           = beta           + excluded.beta,
@@ -350,7 +330,6 @@ class BeliefTracker:
                     updated_at     = datetime('now')
             """, (agent_name, alpha_delta, beta_delta))
 
-            # Append history row
             conn.execute("""
                 INSERT INTO agent_belief_history
                     (agent_name, session_id, final_signal, agent_signal,
@@ -363,7 +342,6 @@ class BeliefTracker:
                 1.0 + beta_delta,
             ))
 
-            # Trim history to last N rows per agent
             conn.execute("""
                 DELETE FROM agent_belief_history
                 WHERE agent_name = ?
@@ -379,7 +357,6 @@ class BeliefTracker:
 
     @staticmethod
     def _sample_beta(alpha: float, beta: float) -> float:
-        """Sample from Beta(alpha, beta) using NumPy."""
         import numpy as np
         return float(np.random.beta(alpha, beta))
 
@@ -397,21 +374,16 @@ class BeliefTracker:
 
     # ── Selection Log ─────────────────────────────────────────────────────────
 
-    # Map agent_name → pool_name for selection log
-    # Must match core/thompson.py pool definitions exactly
     _POOL_MAP = {
-        # TECHNICAL_POOL
         "MarketAnalyst": "technical",
         "BullResearcher": "technical",
         "BearResearcher": "technical",
         "TechnicalAgent": "technical",
-        # MACRO_POOL
         "FundamentalAgent": "macro",
         "MacroAgent": "macro",
         "QuantAgent": "macro",
         "OptionsFlowAgent": "macro",
         "SentimentAgent": "macro",
-        # ASTRO_POOL
         "GannAgent": "astro",
         "BradleyAgent": "astro",
         "ElliotAgent": "astro",
@@ -419,44 +391,21 @@ class BeliefTracker:
         "TimeWindowAgent": "astro",
         "MuhurtaAgent": "astro",
         "ElectionAgent": "astro",
-        # ELECTORAL_POOL
-        "ElectionAgent": "electoral",
-        "MuhurtaAgent": "electoral",
     }
 
     def _pool_for(self, agent_name: str) -> str:
-        """Infer pool name from agent name, defaulting to 'astro'."""
         return self._POOL_MAP.get(agent_name, "astro")
 
-    def _log_session_selections(
-        self,
-        session_id: str,
-        called_agents: list[str],
-        agent_results: dict[str, bool],
-    ):
-        """
-        Log every agent that belongs to a known pool — both called and not-called.
-
-        For called agents:   was_called=1, success_flag=0/1
-        For not-called:     was_called=0, success_flag=NULL
-        """
+    def _log_session_selections(self, session_id: str, called_agents: list[str], agent_results: dict[str, bool]):
         called_set = {a for a in called_agents if a != "SystemFallback"}
         all_pool_agents = set(self._POOL_MAP.keys())
-
-        # Agents that were NOT called but are in known pools
         not_called = all_pool_agents - called_set
 
         rows: list[tuple] = []
         for name in called_set:
-            rows.append((
-                session_id, name, self._pool_for(name),
-                1, agent_results.get(name),
-            ))
+            rows.append((session_id, name, self._pool_for(name), 1, agent_results.get(name)))
         for name in not_called:
-            rows.append((
-                session_id, name, self._pool_for(name),
-                0, None,
-            ))
+            rows.append((session_id, name, self._pool_for(name), 0, None))
 
         if not rows:
             return
@@ -469,16 +418,7 @@ class BeliefTracker:
             """, rows)
             conn.commit()
 
-    def get_selection_log(
-        self,
-        agent_name: str = None,
-        session_id: str = None,
-        limit: int = 100,
-    ) -> list[dict]:
-        """
-        Query selection log, optionally filtered by agent or session.
-        Returns most recent first.
-        """
+    def get_selection_log(self, agent_name: str = None, session_id: str = None, limit: int = 100) -> list[dict]:
         with self._conn() as conn:
             if agent_name:
                 rows = conn.execute("""
@@ -504,13 +444,11 @@ class BeliefTracker:
 
 _belief_tracker: Optional[BeliefTracker] = None
 
-
 def get_belief_tracker() -> BeliefTracker:
     global _belief_tracker
     if _belief_tracker is None:
         _belief_tracker = BeliefTracker()
     return _belief_tracker
-
 
 def update_beliefs_from_session(session_result: dict) -> dict[str, bool]:
     return get_belief_tracker().update_from_session(session_result)
