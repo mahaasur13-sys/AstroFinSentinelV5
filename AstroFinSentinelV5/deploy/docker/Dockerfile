@@ -11,7 +11,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Requirements
 COPY requirements.txt* ./
 RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
-RUN pip install --no-cache-dir timescale[psycopg2] fastapi uvicorn prometheus-client psutil
+# Additional production packages
+RUN pip install --no-cache-dir \
+    timescale[psycopg2] \
+    fastapi uvicorn \
+    prometheus-client \
+    psutil \
+    opentelemetry-api \
+    opentelemetry-sdk \
+    opentelemetry-exporter-otlp \
+    opentelemetry-instrumentation-aiohttp \
+    opentelemetry-instrumentation-fastapi
 
 # App code
 COPY . .
