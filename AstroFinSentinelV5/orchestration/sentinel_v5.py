@@ -16,6 +16,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+# TRACING: импорт tracer
+from orchestration.tracing import tracer
+
 logger = logging.getLogger(__name__)
 
 from agents._impl.bear_researcher import run_bear_researcher
@@ -100,90 +103,101 @@ def _compute_oap_adjustments(oap_state, agents: list) -> dict:
 
 async def run_technical_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
     """Run technical analysis team."""
-    pool_agents = selected_agents or TECHNICAL_POOL.agents
-    tasks = []
-    names = []
+    # TRACING
+    with tracer.start_as_current_span("run_technical_flow") as span:
+        span.set_attribute("agents", str(selected_agents))
+        pool_agents = selected_agents or TECHNICAL_POOL.agents
+        tasks = []
+        names = []
 
-    if "MarketAnalyst" in pool_agents:
-        tasks.append(run_market_analyst(state))
-        names.append("MarketAnalyst")
-    if "BullResearcher" in pool_agents:
-        tasks.append(run_bull_researcher(state))
-        names.append("BullResearcher")
-    if "BearResearcher" in pool_agents:
-        tasks.append(run_bear_researcher(state))
-        names.append("BearResearcher")
+        if "MarketAnalyst" in pool_agents:
+            tasks.append(run_market_analyst(state))
+            names.append("MarketAnalyst")
+        if "BullResearcher" in pool_agents:
+            tasks.append(run_bull_researcher(state))
+            names.append("BullResearcher")
+        if "BearResearcher" in pool_agents:
+            tasks.append(run_bear_researcher(state))
+            names.append("BearResearcher")
 
-    if not tasks:
-        return {}
+        if not tasks:
+            return {}
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    merged = {}
-    for name, r in zip(names, results):
-        if isinstance(r, dict):
-            merged[f"{name.lower()}_signal"] = (
-                r.get(f"{name.lower()}_signal") or list(r.values())[0]
-            )
-        elif isinstance(r, Exception):
-            logger.error(f"[TechFlow] Agent {name} failed: {r}")
-            merged[f"{name.lower()}_signal"] = AgentResponse(
-                agent_name=name, signal=SignalDirection.NEUTRAL,
-                confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
-                sources=[],
-            ).to_dict()
-    return merged
+        merged = {}
+        for name, r in zip(names, results):
+            if isinstance(r, dict):
+                merged[f"{name.lower()}_signal"] = (
+                    r.get(f"{name.lower()}_signal") or list(r.values())[0]
+                )
+            elif isinstance(r, Exception):
+                logger.error(f"[TechFlow] Agent {name} failed: {r}")
+                merged[f"{name.lower()}_signal"] = AgentResponse(
+                    agent_name=name, signal=SignalDirection.NEUTRAL,
+                    confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
+                    sources=[],
+                ).to_dict()
+        return merged
 
 async def run_astro_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
     """Run astro council with Thompson-selected sub-agents."""
-    pool_agents = selected_agents or ASTRO_POOL.agents
-    state = {**state, "_thompson_selected_astro": pool_agents}
-    return await run_astro_council(state)
+    # TRACING
+    with tracer.start_as_current_span("run_astro_flow") as span:
+        span.set_attribute("agents", str(selected_agents))
+        pool_agents = selected_agents or ASTRO_POOL.agents
+        state = {**state, "_thompson_selected_astro": pool_agents}
+        return await run_astro_council(state)
 
 async def run_electoral_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
     """Run electoral/muhurta agent."""
-    return await run_electoral_agent(state)
+    # TRACING
+    with tracer.start_as_current_span("run_electoral_flow"):
+        return await run_electoral_agent(state)
 
 async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
     """Run macro/fundamental analysis team."""
-    pool_agents = selected_agents or MACRO_POOL.agents
-    tasks = []
-    names = []
+    # TRACING
+    with tracer.start_as_current_span("run_macro_flow") as span:
+        span.set_attribute("agents", str(selected_agents))
+        pool_agents = selected_agents or MACRO_POOL.agents
+        tasks = []
+        names = []
 
-    if "FundamentalAgent" in pool_agents:
-        tasks.append(run_fundamental_agent(state))
-        names.append("FundamentalAgent")
-    if "MacroAgent" in pool_agents:
-        tasks.append(run_macro_agent(state))
-        names.append("MacroAgent")
-    if "QuantAgent" in pool_agents:
-        tasks.append(run_quant_agent(state))
-        names.append("QuantAgent")
-    if "OptionsFlowAgent" in pool_agents:
-        tasks.append(run_options_flow_agent(state))
-        names.append("OptionsFlowAgent")
-    if "SentimentAgent" in pool_agents:
-        tasks.append(run_sentiment_agent(state))
-        names.append("SentimentAgent")
+        if "FundamentalAgent" in pool_agents:
+            tasks.append(run_fundamental_agent(state))
+            names.append("FundamentalAgent")
+        if "MacroAgent" in pool_agents:
+            tasks.append(run_macro_agent(state))
+            names.append("MacroAgent")
+        if "QuantAgent" in pool_agents:
+            tasks.append(run_quant_agent(state))
+            names.append("QuantAgent")
+        if "OptionsFlowAgent" in pool_agents:
+            tasks.append(run_options_flow_agent(state))
+            names.append("OptionsFlowAgent")
+        if "SentimentAgent" in pool_agents:
+            tasks.append(run_sentiment_agent(state))
+            names.append("SentimentAgent")
 
-    if not tasks:
-        return {}
+        if not tasks:
+            return {}
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    merged = {}
-    for name, r in zip(names, results):
-        if isinstance(r, dict):
-            sig = r.get(f"{name.lower()}_signal") or r.get("signal") or (list(r.values())[0] if r else None)
-            merged[f"{name.lower()}_signal"] = sig
-        elif isinstance(r, Exception):
-            logger.error(f"[MacroFlow] Agent {name} failed: {r}")
-            merged[f"{name.lower()}_signal"] = AgentResponse(
-                agent_name=name, signal=SignalDirection.NEUTRAL,
-                confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
-                sources=[],
-            ).to_dict()
-    return merged
+        merged = {}
+        for name, r in zip(names, results):
+            if isinstance(r, dict):
+                sig = r.get(f"{name.lower()}_signal") or r.get("signal") or (list(r.values())[0] if r else None)
+                merged[f"{name.lower()}_signal"] = sig
+            elif isinstance(r, Exception):
+                logger.error(f"[MacroFlow] Agent {name} failed: {r}")
+                merged[f"{name.lower()}_signal"] = AgentResponse(
+                    agent_name=name, signal=SignalDirection.NEUTRAL,
+                    confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
+                    sources=[],
+                ).to_dict()
+        return merged
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Thompson Sampling Helpers
@@ -205,7 +219,7 @@ def _select_for_flow(
     return [name for name, _ in selected]
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# _fetch_price — FIXED with retry and error logging
+# _fetch_price — FIXED with retry and error logging + TRACING
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def _fetch_price(symbol: str, fallback_price: float = 50000.0) -> float:
@@ -218,35 +232,45 @@ async def _fetch_price(symbol: str, fallback_price: float = 50000.0) -> float:
     - Logs every failure instead of silently returning 0
     """
     import requests
-    
-    max_retries = 3
-    
-    for attempt in range(max_retries):
-        try:
-            url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-            resp = requests.get(url, timeout=5)
-            resp.raise_for_status()
-            data = resp.json()
-            price = float(data.get("price", 0))
-            if price > 0:
-                logger.debug(f"[Price] {symbol} = {price}")
-                return price
-            else:
-                logger.warning(f"[Price] Invalid price for {symbol}: {price}")
-        except requests.exceptions.ConnectionError as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} connection error: {e}")
-        except requests.exceptions.Timeout as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} timeout: {e}")
-        except requests.exceptions.HTTPError as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} HTTP error: {e}")
-        except Exception as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} unexpected: {e}")
 
-        if attempt < max_retries - 1:
-            await asyncio.sleep(2 ** attempt)  # 1s, 2s
-    
-    logger.error(f"[Price] All {max_retries} attempts failed for {symbol}, using fallback {fallback_price}")
-    return fallback_price
+    # TRACING
+    with tracer.start_as_current_span("fetch_price") as span:
+        span.set_attribute("symbol", symbol)
+        span.set_attribute("fallback_price", fallback_price)
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+                resp = requests.get(url, timeout=5)
+                resp.raise_for_status()
+                data = resp.json()
+                price = float(data.get("price", 0))
+                span.set_attribute("http.status_code", resp.status_code)
+                if price > 0:
+                    logger.debug(f"[Price] {symbol} = {price}")
+                    return price
+                else:
+                    logger.warning(f"[Price] Invalid price for {symbol}: {price}")
+            except requests.exceptions.ConnectionError as e:
+                logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} connection error: {e}")
+                span.set_attribute("error", str(e))
+            except requests.exceptions.Timeout as e:
+                logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} timeout: {e}")
+                span.set_attribute("error", str(e))
+            except requests.exceptions.HTTPError as e:
+                logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} HTTP error: {e}")
+                span.set_attribute("error", str(e))
+            except Exception as e:
+                logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} unexpected: {e}")
+                span.set_attribute("error", str(e))
+
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)  # 1s, 2s
+
+        logger.error(f"[Price] All {max_retries} attempts failed for {symbol}, using fallback {fallback_price}")
+        span.set_attribute("fallback_used", True)
+        return fallback_price
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main Orchestrator — run_sentinel_v5
@@ -267,121 +291,133 @@ async def run_sentinel_v5(
     thompson_k: int = 4,
 ) -> dict:
     """Main entry point for AstroFin Sentinel v5."""
-    if not session_id:
-        session_id = str(uuid.uuid4())[:8]
 
-    # ── Step 1: Route query ──────────────────────────────────────────────
-    route_output = route_query(user_query)
-    logger.info(f"[Router] Query type: {route_output.query_type.value}")
-    logger.info(f"[Router] Symbols: {route_output.symbols}")
+    # TRACING: корневой спан
+    with tracer.start_as_current_span("run_sentinel_v5") as span:
+        span.set_attribute("query", user_query)
+        span.set_attribute("symbol", symbol)
+        span.set_attribute("timeframe", timeframe)
+        if not session_id:
+            session_id = str(uuid.uuid4())[:8]
+        span.set_attribute("session_id", session_id)
 
-    symbols = route_output.symbols or [symbol]
-    timeframe = route_output.timeframe or timeframe
+        # ── Step 1: Route query ──────────────────────────────────────────────
+        route_output = route_query(user_query)
+        logger.info(f"[Router] Query type: {route_output.query_type.value}")
+        logger.info(f"[Router] Symbols: {route_output.symbols}")
 
-    # ── Step 2: Fetch price if needed ────────────────────────────────────
-    if current_price == 0 and symbols:
-        current_price = await _fetch_price(symbols[0])
-    current_price = current_price or 50000
+        symbols = route_output.symbols or [symbol]
+        timeframe = route_output.timeframe or timeframe
 
-    # ── Step 3: Build initial state ──────────────────────────────────────
-    state = {
-        "symbol": symbols[0],
-        "timeframe_requested": timeframe,
-        "current_price": current_price,
-        "birth_data": birth_data,
-        "user_query": user_query,
-        "session_id": session_id,
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "all_signals": [],
-    }
+        # ── Step 2: Fetch price if needed ────────────────────────────────────
+        if current_price == 0 and symbols:
+            current_price = await _fetch_price(symbols[0])
+        current_price = current_price or 50000
 
-    # ── Step 4: Thompson Sampling selection ──────────────────────────────
-    thompson_selections: dict = {}
-    technical_selected: list = []
-    astro_selected: list = []
+        # ── Step 3: Build initial state ──────────────────────────────────────
+        state = {
+            "symbol": symbols[0],
+            "timeframe_requested": timeframe,
+            "current_price": current_price,
+            "birth_data": birth_data,
+            "user_query": user_query,
+            "session_id": session_id,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "all_signals": [],
+        }
 
-    if include_technical:
-        technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k)
-        thompson_selections["technical"] = technical_selected
+        # ── Step 4: Thompson Sampling selection ──────────────────────────────
+        thompson_selections: dict = {}
+        technical_selected: list = []
+        astro_selected: list = []
 
-    if include_macro:
-        macro_selected = _select_for_flow(MACRO_POOL, excluded=technical_selected, k=thompson_k)
-        thompson_selections["macro"] = macro_selected
+        if include_technical:
+            technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k)
+            thompson_selections["technical"] = technical_selected
 
-    if include_astro:
-        astro_selected = _select_for_flow(ASTRO_POOL, excluded=technical_selected, k=thompson_k)
-        thompson_selections["astro"] = astro_selected
+        if include_macro:
+            macro_selected = _select_for_flow(MACRO_POOL, excluded=technical_selected, k=thompson_k)
+            thompson_selections["macro"] = macro_selected
 
-    if include_electional:
-        electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
-        thompson_selections["electoral"] = electoral_selected
+        if include_astro:
+            astro_selected = _select_for_flow(ASTRO_POOL, excluded=technical_selected, k=thompson_k)
+            thompson_selections["astro"] = astro_selected
 
-    logger.info(f"[Thompson] technical: {technical_selected}")
-    logger.info(f"[Thompson] astro:     {astro_selected}")
+        if include_electional:
+            electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
+            thompson_selections["electoral"] = electoral_selected
 
-    # ── Step 5: Run flows in parallel ────────────────────────────────────
-    flow_tasks = []
+        logger.info(f"[Thompson] technical: {technical_selected}")
+        logger.info(f"[Thompson] astro:     {astro_selected}")
 
-    if include_technical:
-        flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
-    if include_macro:
-        flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
-    if include_astro:
-        flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
-    if include_electional:
-        flow_tasks.append(run_electoral_flow(state))
+        # ── Step 5: Run flows in parallel ────────────────────────────────────
+        # TRACING: оборачиваем asyncio.gather
+        with tracer.start_as_current_span("execute_flows") as flows_span:
+            flow_tasks = []
 
-    if flow_tasks:
-        flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+            if include_technical:
+                flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
+            if include_macro:
+                flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
+            if include_astro:
+                flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
+            if include_electional:
+                flow_tasks.append(run_electoral_flow(state))
 
-        for result in flow_results:
-            if isinstance(result, dict):
-                for key, value in result.items():
-                    if key.endswith("_signal") and value is not None:
-                        state["all_signals"].append(value)
+            if flow_tasks:
+                flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
 
-        if not state["all_signals"]:
-            logger.warning("[Sentinel] All agents failed — using SystemFallback")
-            fallback_response = AgentResponse(
-                agent_name="SystemFallback", signal=SignalDirection.NEUTRAL,
-                confidence=30, reasoning="All agents failed to produce a signal.",
-            )
-            state["all_signals"].append(fallback_response)
+                for result in flow_results:
+                    if isinstance(result, dict):
+                        for key, value in result.items():
+                            if key.endswith("_signal") and value is not None:
+                                state["all_signals"].append(value)
 
-    # ── Step 6: Run Synthesis ────────────────────────────────────────────
-    synthesis_agent = SynthesisAgent()
-    try:
-        synthesis_result = await synthesis_agent.run(state)
-    except Exception as e:
-        logger.error(f"[SynthesisAgent] Skipped — agent unavailable: {e}")
-        synthesis_result = None
+                if not state["all_signals"]:
+                    logger.warning("[Sentinel] All agents failed — using SystemFallback")
+                    fallback_response = AgentResponse(
+                        agent_name="SystemFallback", signal=SignalDirection.NEUTRAL,
+                        confidence=30, reasoning="All agents failed to produce a signal.",
+                    )
+                    state["all_signals"].append(fallback_response)
 
-    # ── Step 7: Build final output ───────────────────────────────────────
-    final_output = {
-        "session_id": session_id,
-        "symbol": symbols[0],
-        "timeframe": timeframe,
-        "current_price": current_price,
-        "query_type": route_output.query_type.value,
-        "flows_run": {
-            "technical": include_technical,
-            "astro": include_astro,
-            "electional": include_electional,
-            "macro": include_macro,
-        },
-        "thompson_selections": thompson_selections,
-        "agent_count": len(state["all_signals"]),
-        "final_recommendation": synthesis_result.to_dict() if synthesis_result else None,
-        "final_report": synthesis_result.to_dict() if synthesis_result else None,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+        # ── Step 6: Run Synthesis ────────────────────────────────────────────
+        with tracer.start_as_current_span("synthesis") as synth_span:
+            synthesis_agent = SynthesisAgent()
+            try:
+                synthesis_result = await synthesis_agent.run(state)
+            except Exception as e:
+                logger.error(f"[SynthesisAgent] Skipped — agent unavailable: {e}")
+                synthesis_result = None
 
-    if persist:
-        save_session(final_output)
-        update_beliefs_from_session(final_output)
+        # ── Step 7: Build final output ───────────────────────────────────────
+        final_output = {
+            "session_id": session_id,
+            "symbol": symbols[0],
+            "timeframe": timeframe,
+            "current_price": current_price,
+            "query_type": route_output.query_type.value,
+            "flows_run": {
+                "technical": include_technical,
+                "astro": include_astro,
+                "electional": include_electional,
+                "macro": include_macro,
+            },
+            "thompson_selections": thompson_selections,
+            "agent_count": len(state["all_signals"]),
+            "final_recommendation": synthesis_result.to_dict() if synthesis_result else None,
+            "final_report": synthesis_result.to_dict() if synthesis_result else None,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
-    logger.info(f"[Sentinel] Session {session_id} completed: {len(state['all_signals'])} signals")
-    return final_output
+        if persist:
+            # TRACING: сохранение в БД
+            with tracer.start_as_current_span("db_persist"):
+                save_session(final_output)
+                update_beliefs_from_session(final_output)
+
+        logger.info(f"[Sentinel] Session {session_id} completed: {len(state['all_signals'])} signals")
+        return final_output
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # KARL-013: Main Orchestrator with Full KARL Integration
@@ -405,167 +441,180 @@ async def run_sentinel_v5_karl(
     sync_interval: int = 10,
 ) -> dict:
     """AstroFin Sentinel v5 with full KARL-013 integration."""
-    if not session_id:
-        session_id = str(uuid.uuid4())[:8]
 
-    # ATOM-020: Initialize PostgreSQL on first run
-    if PG_AVAILABLE:
-        try:
-            db_init = init_db_if_needed()
-            if db_init.get("tables_created"):
-                logger.info("[DB] PostgreSQL tables initialized")
-            elif db_init.get("postgres_available"):
-                logger.info("[DB] PostgreSQL connected")
-            else:
-                logger.info("[DB] PostgreSQL not available, using SQLite")
-        except Exception as e:
-            logger.warning(f"[DB] Init failed: {e}, using SQLite")
-    else:
-        logger.info("[DB] PostgreSQL not configured, using SQLite")
+    # TRACING: корневой спан
+    with tracer.start_as_current_span("run_sentinel_v5_karl") as span:
+        span.set_attribute("query", user_query)
+        span.set_attribute("symbol", symbol)
+        span.set_attribute("timeframe", timeframe)
+        if not session_id:
+            session_id = str(uuid.uuid4())[:8]
+        span.set_attribute("session_id", session_id)
+        span.set_attribute("karl_enabled", True)
 
-    # ── Step 1: Route query ──────────────────────────────────────────────
-    route_output = route_query(user_query)
-    logger.info(f"[Router] Query type: {route_output.query_type.value}")
-    logger.info(f"[Router] Symbols: {route_output.symbols}")
+        # ATOM-020: Initialize PostgreSQL on first run
+        if PG_AVAILABLE:
+            try:
+                db_init = init_db_if_needed()
+                if db_init.get("tables_created"):
+                    logger.info("[DB] PostgreSQL tables initialized")
+                elif db_init.get("postgres_available"):
+                    logger.info("[DB] PostgreSQL connected")
+                else:
+                    logger.info("[DB] PostgreSQL not available, using SQLite")
+            except Exception as e:
+                logger.warning(f"[DB] Init failed: {e}, using SQLite")
+        else:
+            logger.info("[DB] PostgreSQL not configured, using SQLite")
 
-    symbols = route_output.symbols or [symbol]
-    timeframe = route_output.timeframe or timeframe
+        # ── Step 1: Route query ──────────────────────────────────────────────
+        route_output = route_query(user_query)
+        logger.info(f"[Router] Query type: {route_output.query_type.value}")
+        logger.info(f"[Router] Symbols: {route_output.symbols}")
 
-    # ── Step 2: Fetch price if needed ────────────────────────────────────
-    if current_price == 0 and symbols:
-        current_price = await _fetch_price(symbols[0])
-    current_price = current_price or 50000
+        symbols = route_output.symbols or [symbol]
+        timeframe = route_output.timeframe or timeframe
 
-    # ── Step 3: Build initial state ──────────────────────────────────────
-    state = {
-        "symbol": symbols[0],
-        "timeframe_requested": timeframe,
-        "current_price": current_price,
-        "birth_data": birth_data,
-        "user_query": user_query,
-        "session_id": session_id,
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "all_signals": [],
-    }
+        # ── Step 2: Fetch price if needed ────────────────────────────────────
+        if current_price == 0 and symbols:
+            current_price = await _fetch_price(symbols[0])
+        current_price = current_price or 50000
 
-    # ── Step 4: Thompson Sampling selection ──────────────────────────────
-    thompson_selections: dict = {}
-    technical_selected: list = []
-    astro_selected: list = []
+        # ── Step 3: Build initial state ──────────────────────────────────────
+        state = {
+            "symbol": symbols[0],
+            "timeframe_requested": timeframe,
+            "current_price": current_price,
+            "birth_data": birth_data,
+            "user_query": user_query,
+            "session_id": session_id,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "all_signals": [],
+        }
 
-    oap_adjustments: Optional[dict] = None
-    if OAP_WEIGHTING_ENABLED:
-        try:
-            oap_state = get_oap_optimizer().kpi_state
-            all_agents = (
-                list(TECHNICAL_POOL.agents) +
-                list(MACRO_POOL.agents) +
-                list(ASTRO_POOL.agents)
+        # ── Step 4: Thompson Sampling selection ──────────────────────────────
+        thompson_selections: dict = {}
+        technical_selected: list = []
+        astro_selected: list = []
+
+        oap_adjustments: Optional[dict] = None
+        if OAP_WEIGHTING_ENABLED:
+            try:
+                oap_state = get_oap_optimizer().kpi_state
+                all_agents = (
+                    list(TECHNICAL_POOL.agents) +
+                    list(MACRO_POOL.agents) +
+                    list(ASTRO_POOL.agents)
+                )
+                oap_adjustments = _compute_oap_adjustments(oap_state, all_agents)
+            except Exception as e:
+                logger.warning(f"[OAP] disabled due to error: {e}")
+                oap_adjustments = None
+
+        if include_technical:
+            technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k, oap_adjustments=oap_adjustments)
+            thompson_selections["technical"] = technical_selected
+
+        if include_macro:
+            macro_selected = _select_for_flow(MACRO_POOL, excluded=technical_selected, k=thompson_k, oap_adjustments=oap_adjustments)
+            thompson_selections["macro"] = macro_selected
+
+        if include_astro:
+            astro_selected = _select_for_flow(ASTRO_POOL, excluded=technical_selected, k=thompson_k, oap_adjustments=oap_adjustments)
+            thompson_selections["astro"] = astro_selected
+
+        if include_electional:
+            electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
+            thompson_selections["electoral"] = electoral_selected
+
+        logger.info(f"[Thompson] technical: {technical_selected}")
+        logger.info(f"[Thompson] astro:     {astro_selected}")
+
+        # ── Step 5: Run flows in parallel ────────────────────────────────────
+        # TRACING
+        with tracer.start_as_current_span("execute_flows") as flows_span:
+            flow_tasks = []
+
+            if include_technical:
+                flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
+            if include_macro:
+                flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
+            if include_astro:
+                flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
+            if include_electional:
+                flow_tasks.append(run_electoral_flow(state))
+
+            if flow_tasks:
+                flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+
+                for result in flow_results:
+                    if isinstance(result, dict):
+                        for key, value in result.items():
+                            if key.endswith("_signal") and value is not None:
+                                state["all_signals"].append(value)
+
+                if not state["all_signals"]:
+                    logger.warning("[KARL] All agents failed — using SystemFallback")
+                    fallback_response = AgentResponse(
+                        agent_name="SystemFallback", signal=SignalDirection.NEUTRAL,
+                        confidence=30, reasoning="All agents failed to produce a signal.",
+                    )
+                    state["all_signals"].append(fallback_response)
+
+        # ── Step 6: Run KARL Synthesis ───────────────────────────────────────
+        with tracer.start_as_current_span("karl_synthesis") as karl_span:
+            karl_agent = KARLSynthesisAgent(
+                sync_interval=sync_interval,
+                enable_self_question=enable_self_question,
+                enable_backtest=enable_backtest,
             )
-            oap_adjustments = _compute_oap_adjustments(oap_state, all_agents)
-        except Exception as e:
-            logger.warning(f"[OAP] disabled due to error: {e}")
-            oap_adjustments = None
+            try:
+                karl_result = await karl_agent.run(state)
+                synthesis_result = karl_result.get("synthesis_result")
+                amre_output = karl_result.get("amre_output")
+                decision_record = karl_result.get("decision_record")
+                karl_diagnostics_result = karl_result.get("karl_diagnostics")
+            except Exception as e:
+                logger.error(f"[KARLSynthesisAgent] Fell back to base synthesis: {e}")
+                synthesis_agent = SynthesisAgent()
+                synthesis_result = await synthesis_agent.run(state)
+                synthesis_result = synthesis_result.to_dict() if hasattr(synthesis_result, 'to_dict') else synthesis_result
+                amre_output = None
+                decision_record = None
+                karl_diagnostics_result = None
 
-    if include_technical:
-        technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k, oap_adjustments=oap_adjustments)
-        thompson_selections["technical"] = technical_selected
+        # ── Step 7: Build final output ───────────────────────────────────────
+        final_output = {
+            "session_id": session_id,
+            "symbol": symbols[0],
+            "timeframe": timeframe,
+            "current_price": current_price,
+            "query_type": route_output.query_type.value,
+            "flows_run": {
+                "technical": include_technical,
+                "astro": include_astro,
+                "electional": include_electional,
+                "macro": include_macro,
+            },
+            "thompson_selections": thompson_selections,
+            "agent_count": len(state["all_signals"]),
+            "final_recommendation": synthesis_result,
+            "final_report": synthesis_result,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "karl_enabled": True,
+            "decision_record": decision_record,
+            "amre_output": amre_output,
+            "karl_diagnostics": karl_diagnostics_result,
+        }
 
-    if include_macro:
-        macro_selected = _select_for_flow(MACRO_POOL, excluded=technical_selected, k=thompson_k, oap_adjustments=oap_adjustments)
-        thompson_selections["macro"] = macro_selected
+        if persist:
+            # TRACING
+            with tracer.start_as_current_span("db_persist"):
+                save_session(final_output)
+                update_beliefs_from_session(final_output)
 
-    if include_astro:
-        astro_selected = _select_for_flow(ASTRO_POOL, excluded=technical_selected, k=thompson_k, oap_adjustments=oap_adjustments)
-        thompson_selections["astro"] = astro_selected
-
-    if include_electional:
-        electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
-        thompson_selections["electoral"] = electoral_selected
-
-    logger.info(f"[Thompson] technical: {technical_selected}")
-    logger.info(f"[Thompson] astro:     {astro_selected}")
-
-    # ── Step 5: Run flows in parallel ────────────────────────────────────
-    flow_tasks = []
-
-    if include_technical:
-        flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
-    if include_macro:
-        flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
-    if include_astro:
-        flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
-    if include_electional:
-        flow_tasks.append(run_electoral_flow(state))
-
-    if flow_tasks:
-        flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
-
-        for result in flow_results:
-            if isinstance(result, dict):
-                for key, value in result.items():
-                    if key.endswith("_signal") and value is not None:
-                        state["all_signals"].append(value)
-
-        if not state["all_signals"]:
-            logger.warning("[KARL] All agents failed — using SystemFallback")
-            fallback_response = AgentResponse(
-                agent_name="SystemFallback", signal=SignalDirection.NEUTRAL,
-                confidence=30, reasoning="All agents failed to produce a signal.",
-            )
-            state["all_signals"].append(fallback_response)
-
-    # ── Step 6: Run KARL Synthesis ───────────────────────────────────────
-    karl_agent = KARLSynthesisAgent(
-        sync_interval=sync_interval,
-        enable_self_question=enable_self_question,
-        enable_backtest=enable_backtest,
-    )
-    try:
-        karl_result = await karl_agent.run(state)
-        synthesis_result = karl_result.get("synthesis_result")
-        amre_output = karl_result.get("amre_output")
-        decision_record = karl_result.get("decision_record")
-        karl_diagnostics_result = karl_result.get("karl_diagnostics")
-    except Exception as e:
-        logger.error(f"[KARLSynthesisAgent] Fell back to base synthesis: {e}")
-        synthesis_agent = SynthesisAgent()
-        synthesis_result = await synthesis_agent.run(state)
-        synthesis_result = synthesis_result.to_dict() if hasattr(synthesis_result, 'to_dict') else synthesis_result
-        amre_output = None
-        decision_record = None
-        karl_diagnostics_result = None
-
-    # ── Step 7: Build final output ───────────────────────────────────────
-    final_output = {
-        "session_id": session_id,
-        "symbol": symbols[0],
-        "timeframe": timeframe,
-        "current_price": current_price,
-        "query_type": route_output.query_type.value,
-        "flows_run": {
-            "technical": include_technical,
-            "astro": include_astro,
-            "electional": include_electional,
-            "macro": include_macro,
-        },
-        "thompson_selections": thompson_selections,
-        "agent_count": len(state["all_signals"]),
-        "final_recommendation": synthesis_result,
-        "final_report": synthesis_result,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "karl_enabled": True,
-        "decision_record": decision_record,
-        "amre_output": amre_output,
-        "karl_diagnostics": karl_diagnostics_result,
-    }
-
-    if persist:
-        save_session(final_output)
-        update_beliefs_from_session(final_output)
-
-    logger.info(f"[KARL] Session {session_id} completed: {len(state['all_signals'])} signals")
-    return final_output
+        logger.info(f"[KARL] Session {session_id} completed: {len(state['all_signals'])} signals")
+        return final_output
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # KARL Diagnostics CLI

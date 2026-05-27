@@ -1,15 +1,18 @@
-"""Health check and metrics endpoints for monitoring."""
+"""Health check, metrics, and KARL diagnostics endpoints."""
 import os
 import time
 from typing import Dict
 
 import psutil
 from fastapi import FastAPI, HTTPException
+from prometheus_client import generate_latest, REGISTRY
 from pydantic import BaseModel
 
-app = FastAPI(title="AstroFin Sentinel - Health & Metrics")
+# Инициализируем метрики, импортируя модуль
+import tools.metrics_server  # регистрирует все astrofin_ счётчики и датчики
 
-# System metrics
+app = FastAPI(title="AstroFin Sentinel — Health & Metrics")
+
 process = psutil.Process(os.getpid())
 
 class HealthResponse(BaseModel):
@@ -21,28 +24,19 @@ class HealthResponse(BaseModel):
     version: str = "5.0.0"
 
 class KARLMetrics(BaseModel):
-    # OAP KPIs
     oos_fail_rate: float
     entropy_avg: float
     grounding_strength: float
     current_ttc_depth: int
-    
-    # Audit
     total_decisions: int
     avg_confidence: float
     action_distribution: Dict[str, int]
-    
-    # Reward Calibration
     calibration_error: float
     slope: float
     intercept: float
-    
-    # Drift
     drift_status: str
     confidence_drift: float
     uncertainty_drift: float
-    
-    # Trading
     win_rate: float
     sharpe_ratio: float
     max_drawdown: float
@@ -63,25 +57,29 @@ async def health_check():
 
 @app.get("/health/ready")
 async def readiness_check():
-    """Readiness probe - checks DB and cache connectivity."""
-    # TODO: Add actual DB/Redis checks
+    """Readiness probe."""
     return {"status": "ready", "timestamp": time.time()}
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Prometheus /metrics endpoint."""
+    return __import__("starlette.responses").PlainTextResponse(
+        content=generate_latest(REGISTRY).decode(),
+        media_type="text/plain"
+    )
 
 @app.get("/metrics/karl", response_model=KARLMetrics)
 async def karl_metrics():
     """Expose KARL AMRE metrics for Prometheus."""
     try:
         from agents.karl_synthesis import get_karl_agent
-        
         agent = get_karl_agent()
         status = agent.get_status()
         diag = status.get("karl_diagnostics", {})
-        
         oap = diag.get("oap_kpi", {})
         audit = diag.get("audit_summary", {})
         calibr = diag.get("calibration", {})
         drift = diag.get("drift_status", {})
-        
         return KARLMetrics(
             oos_fail_rate=oap.get("oos_fail_rate", 0.0),
             entropy_avg=oap.get("entropy_avg", 0.0),
