@@ -3,6 +3,9 @@ from unittest.mock import patch
 from datetime import datetime, timezone
 from backtest.engine import BacktestEngine
 
+# Импорт AstroCouncilAgent для проверки, что модуль доступен (patch использует строку)
+from agents._impl.astro_council.agent import AstroCouncilAgent
+
 
 @pytest.mark.asyncio
 async def test_use_real_agents_does_not_generate_synthetic_signals():
@@ -73,10 +76,6 @@ async def test_both_modes_return_same_structure():
     assert isinstance(result_synth.total_trades, int)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Срез 2: MacroAgent (падающий тест — добавить после реализации в engine)
-# ═══════════════════════════════════════════════════════════════════════════
-
 @pytest.mark.asyncio
 async def test_macro_agent_called_in_real_mode():
     """При use_real_agents=True должен вызываться MacroAgent."""
@@ -91,3 +90,21 @@ async def test_macro_agent_called_in_real_mode():
         })()
         result = await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
         assert mock_run.called, "MacroAgent was not called"
+
+
+@pytest.mark.asyncio
+async def test_astro_agent_called_in_real_mode():
+    """При use_real_agents=True должен вызываться AstroCouncilAgent."""
+    engine = BacktestEngine(symbol="BTCUSDT", initial_capital=10000)
+    with patch('agents._impl.astro_council.agent.AstroCouncilAgent.run') as mock_run:
+        mock_run.return_value = {
+            "astro_council_signal": type('AgentResponse', (), {
+                'signal': 'NEUTRAL',
+                'confidence': 50,
+                'reasoning': 'Astro council: no strong aspects',
+                'session_id': 'test',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            })()
+        }
+        result = await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
+        assert mock_run.called, "AstroCouncilAgent was not called"

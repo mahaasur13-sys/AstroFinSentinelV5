@@ -12,6 +12,7 @@ import random
 
 from agents._impl.technical_agent import TechnicalAgent
 from agents._impl.macro_agent import MacroAgent
+from agents._impl.astro_council.agent import AstroCouncilAgent
 
 BINANCE_BASE = "https://api.binance.com/api/v3"
 DEFAULT_SYMBOL = "BTCUSDT"
@@ -98,12 +99,11 @@ def _synthetic_ohlcv(
     interval_hours: int = 1,
     base_price: float = 50000.0,
 ) -> list:
-    """Generate synthetic OHLCV for backtesting when Binance is unavailable."""
     result = []
     current_dt = start_dt
     price = base_price
     while current_dt < end_dt:
-        change = random.gauss(0, 0.008)  # 0.8% std dev per hour
+        change = random.gauss(0, 0.008)
         open_p = price
         close_p = price * (1 + change)
         high_p = max(open_p, close_p) * (1 + abs(random.gauss(0, 0.003)))
@@ -156,12 +156,10 @@ def fetch_ohlcv(
 
 
 def fetch_range(symbol, interval, start_dt, end_dt):
-    """Fetch OHLCV for a date range, with Binance pagination or synthetic fallback."""
     all_c = []
     cur = int(start_dt.timestamp() * 1000)
     end_ms = int(end_dt.timestamp() * 1000)
-    chunk_ms = 1000 * 3600 * 1000  # 1000h chunks
-
+    chunk_ms = 1000 * 3600 * 1000
     try:
         while cur < end_ms:
             chunk = fetch_ohlcv(
@@ -180,7 +178,6 @@ def fetch_range(symbol, interval, start_dt, end_dt):
             return all_c
     except Exception:
         pass
-
     return _synthetic_ohlcv(start_dt, end_dt, interval_hours=1, base_price=50000.0)
 
 
@@ -240,7 +237,6 @@ class BacktestEngine:
             conn.commit()
 
     def _build_state(self, bar_index: int, candles: list) -> dict:
-        """Подготовить AgentState для конкретного бара."""
         candle = candles[bar_index]
         return {
             "symbol": self.symbol,
@@ -275,7 +271,7 @@ class BacktestEngine:
         signals = []
 
         if use_real_agents:
-            agents = [TechnicalAgent(), MacroAgent()]
+            agents = [TechnicalAgent(), MacroAgent(), AstroCouncilAgent()]
             for i in range(len(candles)):
                 curr = candles[i]
                 signals_for_bar = []
@@ -287,9 +283,13 @@ class BacktestEngine:
                     agent._fetch_ohlcv = mock_fetch
                     state = self._build_state(i, candles)
                     try:
-                        resp = await agent.run(state)
+                        raw_resp = await agent.run(state)
+                        if isinstance(raw_resp, dict):
+                            signal_data = raw_resp.get("astro_council_signal", raw_resp)
+                            resp = type('AgentResponse', (), signal_data)()
+                        else:
+                            resp = raw_resp
                     except Exception as e:
-                        # graceful degradation – возвращаем NEUTRAL при ошибках
                         resp = type('AgentResponse', (), {
                             'signal': 'NEUTRAL',
                             'confidence': 30,
