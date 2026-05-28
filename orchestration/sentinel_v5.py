@@ -118,7 +118,7 @@ async def run_technical_flow(state: dict, selected_agents: Optional[list] = None
             signal_val = sig_data.get('signal') if isinstance(sig_data, dict) else getattr(sig_data, 'signal', 'NEUTRAL')
             AGENT_SIGNAL_DISTRIBUTION.labels(agent_name=name, signal=signal_val).inc()
         elif isinstance(r, Exception):
-            logger.error(f"[TechFlow] Agent {name} failed: {r}")
+            logger.error("agent.technical_flow_failed", agent=name, error=str(r))
             merged[f"{name.lower()}_signal"] = AgentResponse(
                 agent_name=name, signal=SignalDirection.NEUTRAL,
                 confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
@@ -166,7 +166,7 @@ async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) ->
             signal_val = sig_data.get('signal') if isinstance(sig_data, dict) else getattr(sig_data, 'signal', 'NEUTRAL')
             AGENT_SIGNAL_DISTRIBUTION.labels(agent_name=name, signal=signal_val).inc()
         elif isinstance(r, Exception):
-            logger.error(f"[MacroFlow] Agent {name} failed: {r}")
+            logger.error("agent.macro_flow_failed", agent=name, error=str(r))
             merged[f"{name.lower()}_signal"] = AgentResponse(
                 agent_name=name, signal=SignalDirection.NEUTRAL,
                 confidence=30, reasoning=f"Agent error: {str(r)[:100]}",
@@ -207,21 +207,21 @@ async def _fetch_price(symbol: str, fallback_price: float = 50000.0) -> float:
             data = resp.json()
             price = float(data.get("price", 0))
             if price > 0:
-                logger.debug(f"[Price] {symbol} = {price}")
+                logger.debug("price.fetched", symbol=symbol, price=price)
                 return price
             else:
-                logger.warning(f"[Price] Invalid price for {symbol}: {price}")
+                logger.warning("price.invalid", symbol=symbol, price=price)
         except requests.exceptions.ConnectionError as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} connection error: {e}")
+            logger.warning("price.fetch_error", attempt=attempt+1, max_retries=max_retries, error_type="connection", error=str(e))
         except requests.exceptions.Timeout as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} timeout: {e}")
+            logger.warning("price.fetch_error", attempt=attempt+1, max_retries=max_retries, error_type="timeout", error=str(e))
         except requests.exceptions.HTTPError as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} HTTP error: {e}")
+            logger.warning("price.fetch_error", attempt=attempt+1, max_retries=max_retries, error_type="http", error=str(e))
         except Exception as e:
-            logger.warning(f"[Price] Attempt {attempt+1}/{max_retries} unexpected: {e}")
+            logger.warning("price.fetch_error", attempt=attempt+1, max_retries=max_retries, error_type="unexpected", error=str(e))
         if attempt < max_retries - 1:
             await asyncio.sleep(2 ** attempt)
-    logger.error(f"[Price] All {max_retries} attempts failed for {symbol}, using fallback {fallback_price}")
+    logger.error("price.all_attempts_failed", symbol=symbol, max_retries=max_retries, fallback_price=fallback_price)
     return fallback_price
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -251,8 +251,8 @@ async def run_sentinel_v5(
 
     # ── Step 1: Route query ──────────────────────────────────────────────
     route_output = route_query(user_query)
-    logger.info(f"[Router] Query type: {route_output.query_type.value}")
-    logger.info(f"[Router] Symbols: {route_output.symbols}")
+    logger.info("router.query_type", query_type=route_output.query_type.value)
+    logger.info("router.symbols", symbols=route_output.symbols)
 
     symbols = route_output.symbols or [symbol]
     timeframe = route_output.timeframe or timeframe
@@ -292,8 +292,8 @@ async def run_sentinel_v5(
         electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
         thompson_selections["electoral"] = electoral_selected
 
-    logger.info(f"[Thompson] technical: {technical_selected}")
-    logger.info(f"[Thompson] astro:     {astro_selected}")
+    logger.info("thompson.technical_selection", agents=technical_selected)
+    logger.info("thompson.astro_selection", agents=astro_selected)
 
     # ── Step 5: Run flows in parallel ────────────────────────────────────
     flow_tasks = []
@@ -326,7 +326,7 @@ async def run_sentinel_v5(
     try:
         synthesis_result = await synthesis_agent.run(state)
     except Exception as e:
-        logger.error(f"[SynthesisAgent] Skipped — agent unavailable: {e}")
+        logger.error("synthesis.skipped", error=str(e))
         synthesis_result = None
 
     # ── Step 7: Build final output ───────────────────────────────────────
@@ -352,5 +352,5 @@ async def run_sentinel_v5(
         save_session(final_output)
         update_beliefs_from_session(final_output)
 
-    logger.info(f"[Sentinel] Session {session_id} completed: {len(state['all_signals'])} signals")
+    logger.info("sentinel.session_completed", session_id=session_id, signal_count=len(state["all_signals"]))
     return final_output

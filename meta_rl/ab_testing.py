@@ -135,13 +135,18 @@ class ABTest:
         ]:
             if not chrom_list:
                 continue
-            best = chrom_list[0].get("chromosome", {})
-            if not best:
-                continue
-            strat = GeneratedStrategy(best, generation=0)
-            res = ev.evaluate(strat, mdata)
-            reward = getattr(res, "risk_adjusted_pnl", getattr(res, "pnl", 0.0))
-            out_list.append(reward)
+            # Оцениваем все хромосомы, а не только первую
+            for chrom_entry in chrom_list:
+                best = chrom_entry.get("chromosome", {})
+                if not best:
+                    continue
+                strat = GeneratedStrategy(best, generation=0)
+                try:
+                    res = ev.evaluate(strat, mdata)
+                    reward = getattr(res, "risk_adjusted_pnl", getattr(res, "pnl", 0.0))
+                    out_list.append(reward)
+                except Exception as e:
+                    logger.warning(f"[META-RL-AB] Evaluation failed for chromosome: {e}")
         if len(ma) < self.config.min_samples or len(mb) < self.config.min_samples:
             logger.warning(f"[META-RL-AB] Insufficient samples: A={len(ma)} B={len(mb)}")
             return self._fail_result(va, vb)

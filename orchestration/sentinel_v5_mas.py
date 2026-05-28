@@ -1,5 +1,6 @@
-""""orchestration/sentinel_v5_mas.py - ATOM-R-025: MASFactory Integration"""
+"""orchestration/sentinel_v5_mas.py - ATOM-R-025: MASFactory Integration"""
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -9,6 +10,8 @@ from core.history_db import save_session
 from mas_factory import MASFactoryArchitect, TopologyExecutor
 from orchestration.router import route_query
 from orchestration.sentinel_v5 import _fetch_price
+
+logger = logging.getLogger(__name__)
 
 try:
     from db import init_db_if_needed, is_postgres_available
@@ -32,8 +35,8 @@ async def run_sentinel_v5_mas(
         session_id = str(uuid.uuid4())[:8]
 
     route_output = route_query(user_query)
-    print("[MASFactory] Query:", user_query)
-    print("[Router] Query type:", route_output.query_type.value)
+    logger.info("masfactory.query", query=user_query)
+    logger.info("router.query_type", query_type=route_output.query_type.value)
 
     symbols = route_output.symbols or [symbol]
     timeframe = route_output.timeframe or timeframe
@@ -53,34 +56,31 @@ async def run_sentinel_v5_mas(
         "all_signals": [],
     }
 
-    print()
-    print("[MASFactory] Building topology...")
+    logger.info("masfactory.building_topology")
     architect = MASFactoryArchitect()
     karl_context = {"enable_meta_questioning": enable_meta_questioning, "symbol": symbols[0], "timeframe": timeframe}
     topology = architect.build(intention=user_query, context=karl_context)
-    print("[MASFactory] Topology:", topology.hash[:8])
-    print("[MASFactory] Roles:", [r.name for r in topology.roles])
-    print("[MASFactory] Switches:", len(topology.switch_nodes))
+    logger.info("masfactory.topology_hash", hash=topology.hash[:8])
+    logger.info("masfactory.roles", roles=[r.name for r in topology.roles])
+    logger.info("masfactory.switches_count", count=len(topology.switch_nodes))
 
     meta_questions = []
     if enable_meta_questioning:
-        print()
-        print("[MetaQuestioning] Generating meta-questions...")
+        logger.info("metaquestioning.generating")
         meta = get_meta_questioning()
         ctx = {"confidence": 50, "regime": state.get("regime", "NORMAL")}
         questions = meta.generate_questions(ctx)
         if questions:
-            print("[MetaQuestioning] Generated", len(questions), "questions")
+            logger.info("metaquestioning.generated", count=len(questions))
             answers = meta.ask(questions, state)
             passed = meta.evaluate(answers)
             if not passed:
-                print("[MetaQuestioning] Self-questioning FAILED")
+                logger.error("metaquestioning.failed")
                 state["meta_question_bias"] = True
                 state["meta_questions"] = answers
 
     topology.state = state
-    print()
-    print("[Executor] Running topology...")
+    logger.info("executor.running_topology")
     executor = TopologyExecutor(topology, state)
     results = await executor.run()
 
@@ -97,7 +97,7 @@ async def run_sentinel_v5_mas(
         if hasattr(synth_result, "to_dict"):
             synth_result = synth_result.to_dict()
     except Exception as e:
-        print("[SynthesisAgent] Error:", e)
+        logger.error("synthesis.error", error=str(e))
         synth_result = {"signal": "NEUTRAL", "confidence": 50, "reasoning": "Synthesis failed"}
 
     exec_summary = executor.get_execution_summary()
@@ -137,30 +137,23 @@ async def run_sentinel_v5_mas(
                     meta_questions=meta_questions,
                 )
             except Exception as e:
-                print("[DB] PostgreSQL save failed:", e)
+                logger.error("db.save_failed", error=str(e))
 
     return final_output
 
 
 if __name__ == "__main__":
     import sys
-    sep = "=" * 60
-    print(sep)
-    print("ASTROFIN SENTINEL v5 -- MASFACTORY MODE")
-    print(sep)
-
+    logger.info("masfactory.mode_start")
     query = sys.argv[2] if len(sys.argv) > 2 else "Analyze BTC"
     symbol = sys.argv[3] if len(sys.argv) > 3 else "BTCUSDT"
     timeframe = sys.argv[4] if len(sys.argv) > 4 else "SWING"
 
     result = asyncio.run(run_sentinel_v5_mas(user_query=query, symbol=symbol, timeframe=timeframe))
 
-    sep = "=" * 60
-    print()
-    print(sep)
     sig = result["final_recommendation"].get("signal", "?")
     conf = result["final_recommendation"].get("confidence", 0)
-    print("RESULT:", sig, "conf=", conf)
-    print("Topology:", result["topology_hash"][:8])
-    print("Roles:", len(result["flows_run"]["roles"]))
-    print("Steps:", len(result["execution_log"]))
+    logger.info("masfactory.result", signal=sig, confidence=conf)
+    logger.info("masfactory.topology_result", hash=result["topology_hash"][:8])
+    logger.info("masfactory.roles_count", count=len(result["flows_run"]["roles"]))
+    logger.info("masfactory.steps_count", count=len(result["execution_log"]))

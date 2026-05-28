@@ -1,24 +1,31 @@
-# Main entry point with dual-mode + graceful degradation
+"""Main entry point with dual-mode + graceful degradation."""
+import asyncio
+import logging
+import sys
+import traceback
+
+from core.logging import setup_logging
+
+logger = logging.getLogger(__name__)
+
 
 def main():
-    import asyncio
-    import sys
-    import traceback
-    
+    setup_logging()
+
     args = sys.argv[1:]
-    
+
     # Parse flags
     masfactory = '--masfactory' in args or '--karl' in args
-    
+
     # Remove flags from args
     clean_args = [a for a in args if not a.startswith('--')]
     query = ' '.join(clean_args) if clean_args else 'Analyze BTC'
     symbol = 'BTCUSDT'
     timeframe = 'SWING'
-    
+
     if masfactory:
-        print("\n[MASFactory] Mode: ENABLED")
-        print("[MASFactory] Attempting topology build + execution...")
+        logger.info("masfactory.mode_enabled")
+        logger.info("masfactory.attempting_topology")
         try:
             from orchestration.sentinel_v5_mas import run_sentinel_v5_mas
             result = asyncio.run(run_sentinel_v5_mas(
@@ -26,16 +33,16 @@ def main():
                 symbol=symbol,
                 timeframe=timeframe,
             ))
-            print("[MASFactory] Completed successfully")
-            print(result)
+            logger.info("masfactory.completed_successfully")
+            logger.info("masfactory.result", result=str(result))
             return
         except Exception as e:
-            print(f"[MASFactory] ERROR: {e}")
-            print("[MASFactory] Falling back to legacy mode...")
-            traceback.print_exc()
-    
+            logger.error("masfactory.error", error=str(e))
+            logger.info("masfactory.falling_back_to_legacy")
+            logger.debug(traceback.format_exc())
+
     # Legacy mode (unchanged)
-    print("[MASFactory] Mode: DISABLED (legacy)")
+    logger.info("masfactory.mode_disabled_legacy")
     from orchestration import karl_cli
     karl_cli.main()
 

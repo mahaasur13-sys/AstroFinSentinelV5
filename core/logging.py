@@ -1,41 +1,39 @@
-"""core/logging.py -- Structured logging with OpenTelemetry trace context."""
 import logging
 import sys
-from typing import Any
-
+import structlog
 from opentelemetry import trace as otel_trace
 
 
-class TraceContextFilter(logging.Filter):
-    """Inject trace_id and span_id into every log record."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        span = otel_trace.get_current_span()
-        if span.get_span_context().is_valid:
-            sc = span.get_span_context()
-            record.trace_id = format(sc.trace_id, "032x")
-            record.span_id = format(sc.span_id, "016x")
-        else:
-            record.trace_id = "00000000000000000000000000000000"
-            record.span_id = "0000000000000000"
-        return True
+def _add_trace_context(logger, method, event_dict):
+    span = otel_trace.get_current_span()
+    if span.get_span_context().is_valid:
+        event_dict["trace_id"] = format(span.get_span_context().trace_id, "032x")
+        event_dict["span_id"] = format(span.get_span_context().span_id, "016x")
+    return event_dict
 
 
-def setup_logging(level: int = logging.INFO):
-    """Configure structured logging with trace context."""
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(level)
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s [%(name)s] %(message)s "
-        "{trace_id=%(trace_id)s span_id=%(span_id)s}"
+def setup_logging():
+    # Настраиваем стандартный логгер для вывода в stdout
+    logging.basicConfig(
+        format="%(message)s",
+        stream=sys.stdout,
+        level=logging.DEBUG,
     )
-    handler.setFormatter(formatter)
-    handler.addFilter(TraceContextFilter())
 
-    root = logging.getLogger()
-    root.setLevel(level)
-    root.addHandler(handler)
-
-
-def get_logger(name: str) -> logging.Logger:
-    return logging.getLogger(name)
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            _add_trace_context,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.dev.ConsoleRenderer(),
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+    # Уменьшаем шум от библиотек
+    logging.getLogger("aiohttp").setLevel(logging.WARNING)
+    logging.getLogger("opentelemetry").setLevel(logging.WARNING)
