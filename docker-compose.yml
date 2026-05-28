@@ -1,11 +1,8 @@
 # AstroFin Sentinel V5 — Docker Compose
-# ATOM-DB-MIGRATION-002: PostgreSQL + TimescaleDB + pgvector + Redis
-version: '3.8'
-
+# PostgreSQL + TimescaleDB + Redis + Jaeger + Prometheus + Grafana + Alertmanager + Exporters
 services:
-  # ─── PostgreSQL with TimescaleDB ────────────────────────────────────────────
   postgres:
-    image: timescale/timescaledb:latest-pg16  # includes pgvector
+    image: timescale/timescaledb:latest-pg16
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-astrofin}
       POSTGRES_USER: ${POSTGRES_USER:-astrofin}
@@ -15,7 +12,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./schema:/docker-entrypoint-initdb.d:ro   # auto-applied on first start
+      - ./schema:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-astrofin} -d ${POSTGRES_DB:-astrofin}"]
       interval: 10s
@@ -30,63 +27,148 @@ services:
         reservations:
           memory: 512M
 
-  # ─── Redis (cache + session) ────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
-    command: >
-      redis-server
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --save 900 1
-      --save 300 10
-      --save 60 10000
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 900 1 --save 300 10 --save 60 10000
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 64M
 
-  # ─── Jaeger (distributed tracing) ─────────────────────────────────────────
   jaeger:
-    image: jaegertracing/all-in-one:1.57
+    image: jaegertracing/all-in-one:latest
+    container_name: astrofin_jaeger
     ports:
-      - "6831:6831/udp"
       - "16686:16686"
+      - "6831:6831/udp"
       - "4317:4317"
       - "4318:4318"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
 
-  # ─── Application (optional — for docker run) ────────────────────────────────
-  # app:
-  #   build: .
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   environment:
-  #     DB_BACKEND: postgresql
-  #     POSTGRES_HOST: postgres
-  #     POSTGRES_PORT: 5432
-  #     POSTGRES_USER: astrofin
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  #     POSTGRES_DB: astrofin
-  #     REDIS_HOST: redis
-  #     REDIS_PORT: 6379
-  #   command: python -m orchestration.sentinel_v5 "Analyze BTC" BTCUSDT SWING
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: astrofin_prometheus
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./deploy/monitoring/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: astrofin_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./deploy/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./deploy/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: astrofin_postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-astrofin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-astrofin}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:9187/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: astrofin_redis_exporter
+    command:
+      - "--redis.addr=redis://redis:6379"
+    ports:
+      - "9121:9121"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c 'cat < /dev/null > /dev/tcp/localhost/9121' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: astrofin_alertmanager
+    volumes:
+      - ./deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/data
+    ports:
+      - "9093:9093"
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/data"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
 
 networks:
   default:
