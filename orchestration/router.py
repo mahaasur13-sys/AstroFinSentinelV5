@@ -49,7 +49,7 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
     electional_keywords = [
         "когда начать", "мухурта", "элекция", "благоприятн",
         "лучшее время", "начать бизнес", "запустить",
-        "whe", "election", "muhurta", "choghadiya",
+        "when", "election", "muhurta", "choghadiya",
     ]
     
     technical_keywords = [

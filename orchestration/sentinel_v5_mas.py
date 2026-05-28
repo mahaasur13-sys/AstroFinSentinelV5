@@ -8,6 +8,7 @@ from core.belief import update_beliefs_from_session
 from core.history_db import save_session
 from mas_factory import MASFactoryArchitect, TopologyExecutor
 from orchestration.router import route_query
+from orchestration.sentinel_v5 import _fetch_price
 
 try:
     from db import init_db_if_needed, is_postgres_available
@@ -109,7 +110,6 @@ async def run_sentinel_v5_mas(
         "flows_run": {"mas_factory": True, "roles": [r.name for r in topology.roles]},
         "agent_count": len(results),
         "final_recommendation": synth_result,
-        "final_report": synth_result,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "topology": topology.to_dict(),
         "topology_hash": topology.hash,
@@ -142,30 +142,19 @@ async def run_sentinel_v5_mas(
     return final_output
 
 
-async def _fetch_price(symbol: str) -> float:
-    try:
-        import requests
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-        resp = requests.get(url, timeout=5)
-        data = resp.json()
-        return float(data.get("price", 0))
-    except Exception:
-        return 0.0
-
-
 if __name__ == "__main__":
     import sys
     sep = "=" * 60
     print(sep)
     print("ASTROFIN SENTINEL v5 -- MASFACTORY MODE")
     print(sep)
-    
+
     query = sys.argv[2] if len(sys.argv) > 2 else "Analyze BTC"
     symbol = sys.argv[3] if len(sys.argv) > 3 else "BTCUSDT"
     timeframe = sys.argv[4] if len(sys.argv) > 4 else "SWING"
-    
+
     result = asyncio.run(run_sentinel_v5_mas(user_query=query, symbol=symbol, timeframe=timeframe))
-    
+
     sep = "=" * 60
     print()
     print(sep)

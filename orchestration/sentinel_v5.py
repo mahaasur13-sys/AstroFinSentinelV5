@@ -345,7 +345,6 @@ async def run_sentinel_v5(
         "thompson_selections": thompson_selections,
         "agent_count": len(state["all_signals"]),
         "final_recommendation": synthesis_result.to_dict() if synthesis_result else None,
-        "final_report": synthesis_result.to_dict() if synthesis_result else None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

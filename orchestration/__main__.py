@@ -9,7 +9,6 @@ def main():
     
     # Parse flags
     masfactory = '--masfactory' in args or '--karl' in args
-    masfactory = '--masfactory' in args or '--karl' in args
     
     # Remove flags from args
     clean_args = [a for a in args if not a.startswith('--')]
