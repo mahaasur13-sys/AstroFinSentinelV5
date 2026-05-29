@@ -10,6 +10,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from flask import Flask, jsonify, request
+from web.middleware.auth import require_auth
 
 # ── Flask API server ─────────────────────────────────────────────────────────
 server = Flask(__name__)
@@ -29,11 +30,13 @@ def health():
             "status": "OK",
             "timestamp": dt_module.datetime.utcnow().strftime("%H:%M:%S"),
             **snap.to_dict(),
-            "live_enabled": os.getenv("META_RL_LIVE_ENABLED", "false").lower() == "true",  "latency_ms": round((time.time() - t0) * 1000, 1),
+            "live_enabled": os.getenv("META_RL_LIVE_ENABLED", "false").lower() == "true",
+            "latency_ms": round((time.time() - t0) * 1000, 1),
         })
     except Exception as e:
         return jsonify({"error": str(e), "status": "ERROR"}), 500
 
+# ── /api/sessions ────────────────────────────────────────────────────────────
 @server.route("/api/sessions")
 def sessions_list():
     try:
@@ -44,7 +47,7 @@ def sessions_list():
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)})
 
-# ── /api/sessions/<sid> ──────────────────────────────────────────────────
+# ── /api/sessions/<sid> ──────────────────────────────────────────────────────
 def _get_session_meta(sid):
     """Try all session sources: persistence JSON, then history_db SQLite."""
     from meta_rl.persistence import get_persistence
@@ -73,7 +76,7 @@ def session_detail(sid):
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
-# ── /api/sessions/<sid>/strategies ──────────────────────────────────────
+# ── /api/sessions/<sid>/strategies ────────────────────────────────────────────
 @server.route("/api/sessions/<sid>/strategies")
 def session_strategies(sid):
     try:
@@ -84,7 +87,7 @@ def session_strategies(sid):
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
-# ── /api/sessions/summary ────────────────────────────────────────────────
+# ── /api/sessions/summary ─────────────────────────────────────────────────────
 @server.route("/api/sessions/summary")
 def sessions_summary():
     try:
@@ -95,7 +98,7 @@ def sessions_summary():
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
-# ── /api/ranking/top ──────────────────────────────────────────────────────
+# ── /api/ranking/top ──────────────────────────────────────────────────────────
 @server.route("/api/ranking/top")
 def ranking_top():
     try:
@@ -109,7 +112,7 @@ def ranking_top():
         import traceback; traceback.print_exc()
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
-# ── /api/ab/sessions ────────────────────────────────────────────────────
+# ── /api/ab/sessions ──────────────────────────────────────────────────────────
 @server.route("/api/ab/sessions")
 def ab_sessions():
     """List top sessions available for A/B comparison."""
@@ -137,7 +140,7 @@ def ab_sessions():
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
-# ── /api/ab/compare ──────────────────────────────────────────────────────
+# ── /api/ab/compare ───────────────────────────────────────────────────────────
 @server.route("/api/ab/compare")
 def ab_compare():
     """A/B compare two sessions: ?sid_a=X&sid_b=Y
@@ -220,16 +223,15 @@ def ab_compare():
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
-
-# ── /api/evolution/start ────────────────────────────────────────────────
+# ── /api/evolution/start ────────────────────────────────────────────────────
 @server.route("/api/evolution/start", methods=["POST"])
+@require_auth
 def evolution_start():
     try:
         cfg = request.get_json() or {}
         symbol = cfg.get("symbol", "BTC/USDT")
         generations = int(cfg.get("generations", 3))
         population = int(cfg.get("population", 10))
-
 
         from meta_rl.evolution import EvolutionEngine
         from meta_rl.live_data import create_live_provider
@@ -282,11 +284,9 @@ def evolution_start():
         import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-
-
 # ── P0.1: Security & Live Mode Endpoints (ATOM-META-RL-009) ───────────────────
-
 @server.route("/api/security/status")
+@require_auth
 def security_status():
     """
     ATOM-META-RL-009: Show masked security configuration.
@@ -298,13 +298,13 @@ def security_status():
         api_key = os.getenv("CCXT_API_KEY", "") or ""
         api_secret = os.getenv("CCXT_API_SECRET", "") or ""
         exchange = os.getenv("CCXT_EXCHANGE", "binance")
-        
+
         has_key = bool(api_key and len(api_key) > 4)
         has_secret = bool(api_secret and len(api_secret) > 4)
         can_go_live = not sandbox and has_key and has_secret and live_enabled
-        
+
         masked_key = f"{api_key[:4]}...{api_key[-4:]}" if has_key else "NOT_SET"
-        
+
         return jsonify({
             "mode": "SANDBOX" if sandbox else ("LIVE_READY" if can_go_live else "LIVE_BLOCKED"),
             "sandbox": sandbox,
@@ -322,8 +322,8 @@ def security_status():
     except Exception as e:
         return jsonify({"error": str(e), "status": "ERROR"}), 500
 
-
 @server.route("/api/live/enable", methods=["POST"])
+@require_auth
 def live_enable():
     """
     ATOM-META-RL-009: Safely validate and enable live CCXT mode.
@@ -332,17 +332,18 @@ def live_enable():
     try:
         data = request.get_json() or {}
         confirmed = data.get("confirmed", False)
-        
+
         sandbox = os.getenv("CCXT_SANDBOX_MODE", "true").lower() == "true"
+
         api_key = os.getenv("CCXT_API_KEY", "") or ""
         api_secret = os.getenv("CCXT_API_SECRET", "") or ""
-        
+
         can_enable = (
             not sandbox and
             bool(api_key) and len(api_key) > 8 and
             bool(api_secret) and len(api_secret) > 8
         )
-        
+
         if not confirmed:
             return jsonify({
                 "can_enable": can_enable,
@@ -350,20 +351,25 @@ def live_enable():
                 "warning": "Live trading will use REAL funds. Set 'confirmed: true' to proceed.",
                 "mode_current": "SANDBOX" if sandbox else "LIVE",
             })
-        
+
         if not can_enable:
             return jsonify({
                 "error": "Cannot enable live mode: keys missing or sandbox mode active",
                 "mode_current": "SANDBOX" if sandbox else "LIVE",
                 "status": "BLOCKED",
             }), 400
-        
+
         return jsonify({
             "status": "OK",
             "mode": "LIVE",
             "message": "Live CCXT mode enabled. Monitor /api/health for exchange connectivity.",
             "key_masked": f"{api_key[:4]}...{api_key[-4:]}",
         })
-        
+
     except Exception as e:
         return jsonify({"error": str(e), "status": "ERROR"}), 500
+
+# ── Main (for development / direct run) ────────────────────────────────────────
+if __name__ == "__main__":
+    # Only for local debugging, not used in production (gunicorn)
+    server.run(host="0.0.0.0", port=5000, debug=True)
