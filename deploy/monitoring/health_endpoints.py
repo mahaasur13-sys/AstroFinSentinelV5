@@ -1,12 +1,15 @@
 """Health check, metrics, and KARL diagnostics endpoints."""
 import os, time, psutil, asyncpg, redis.asyncio as aioredis
 from typing import Dict
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, REGISTRY
 from pydantic import BaseModel
 from starlette.responses import PlainTextResponse
+from starlette.responses import JSONResponse
 
 import tools.metrics_server
+from core.auth import fastapi_require_api_key
 
 app = FastAPI(title="AstroFin Sentinel — Health & Metrics")
 process = psutil.Process(os.getpid())
@@ -21,11 +24,30 @@ class HealthResponse(BaseModel):
 
 _start_time = time.time()
 
+# ------------------------------------------------------------
+# Startup
+# ------------------------------------------------------------
 @app.on_event("startup")
 async def startup_event():
     from core.logging import setup_logging
     setup_logging()
 
+# ------------------------------------------------------------
+# Auth middleware – только для /api/*
+# ------------------------------------------------------------
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        try:
+            await fastapi_require_api_key(request)
+        except HTTPException as e:
+            return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+    response = await call_next(request)
+    return response
+
+# ------------------------------------------------------------
+# Dependency checks
+# ------------------------------------------------------------
 async def check_postgres() -> bool:
     try:
         conn = await asyncpg.connect(
@@ -51,6 +73,9 @@ async def check_redis() -> bool:
     except Exception:
         return False
 
+# ------------------------------------------------------------
+# Public endpoints
+# ------------------------------------------------------------
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     return HealthResponse(
@@ -80,6 +105,35 @@ async def metrics_endpoint():
         media_type="text/plain"
     )
 
+@app.get("/")
+async def root():
+    return {"service": "AstroFin Sentinel V5", "version": "5.0.0", "status": "running", "docs": "/docs"}
+
+# ------------------------------------------------------------
+# Protected endpoints (require X-API-Key)
+# ------------------------------------------------------------
+@app.get("/api/ab/compare")
+async def ab_compare(request: Request):
+    """A/B compare two sessions: ?sid_a=X&sid_b=Y"""
+    sid_a = request.query_params.get("sid_a", "")
+    sid_b = request.query_params.get("sid_b", "")
+    if not sid_a or not sid_b:
+        raise HTTPException(status_code=400, detail="sid_a and sid_b required")
+    # Здесь вызов реального сравнения, пока заглушка
+    return {"status": "OK", "sid_a": sid_a, "sid_b": sid_b}
+
+@app.get("/api/karl/status")
+async def karl_status():
+    try:
+        from agents.karl_synthesis import get_karl_agent
+        agent = get_karl_agent()
+        return agent.get_status()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+# ------------------------------------------------------------
+# Metrics (protected)
+# ------------------------------------------------------------
 @app.get("/metrics/karl")
 async def karl_metrics():
     try:
@@ -141,69 +195,6 @@ async def system_metrics():
         "open_files": len(process.open_files()),
         "connections": len(process.connections()),
     }
-
-@app.get("/")
-async def root():
-    return {"service": "AstroFin Sentinel V5", "version": "5.0.0", "status": "running", "docs": "/docs"}
-#!/usr/bin/env python3
-"""FastAPI health & metrics endpoints for AstroFin Sentinel V5."""
-
-import os
-import secrets
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import APIKeyHeader
-
-app = FastAPI(title="AstroFin Sentinel — Health & Metrics")
-
-# ── P0 Auth: API Key dependency ────────────────────────────────────────
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-def verify_api_key(api_key: str = Depends(api_key_header)):
-    """Validate X-API-Key header against ASTROFIN_API_KEY env variable."""
-    expected = os.getenv("ASTROFIN_API_KEY")
-    if not expected:
-        raise HTTPException(status_code=401, detail="Authentication not configured")
-    if not api_key or not secrets.compare_digest(api_key, expected):
-        raise HTTPException(status_code=401 if not api_key else 403,
-                            detail="Invalid API key")
-    return api_key
-
-# ── Public endpoints (no auth) ─────────────────────────────────────────
-@app.get("/")
-async def root():
-    return {"service": "astrofin-sentinel-health", "status": "UP"}
-
-@app.get("/ready")
-async def ready():
-    return {"status": "READY"}
-
-# ── Protected endpoints ────────────────────────────────────────────────
-@app.get("/health", dependencies=[Depends(verify_api_key)])
-async def health():
-    """System health check (requires API key)."""
-    return {
-        "status": "OK",
-        "components": {
-            "api": "UP",
-            "postgres": _check_postgres(),
-            "redis": _check_redis(),
-        }
-    }
-
-@app.get("/metrics/export", dependencies=[Depends(verify_api_key)])
-async def export_metrics():
-    """Return current Prometheus metrics (requires API key)."""
-    # Здесь твоя логика экспорта метрик
-    return {"metrics": "exported"}
-
-# ── Helper checks ──────────────────────────────────────────────────────
-def _check_postgres():
-    # твоя реализация
-    return "UP"
-
-def _check_redis():
-    # твоя реализация
-    return "UP"
 
 if __name__ == "__main__":
     import uvicorn
