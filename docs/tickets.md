@@ -1,7 +1,7 @@
 # AstroFin Sentinel V5 – Бэклог для Ralph Loop
 
 ## P0 (Критические)
-- [ ] Настроить реальный webhook (Slack) в Alertmanager вместо blackhole
+- [x] Настроить реальный webhook (Slack) в Alertmanager вместо blackhole ✅
 - [ ] Добавить e2e-тест для run_sentinel_v5 с моком внешних API
 
 ## P1 (Важные)

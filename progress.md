@@ -568,3 +568,7 @@ Logseq/
 ### Environment Health
   - healthcheck: unavailable
 
+
+## Настроить реальный webhook (Slack) в Alertmanager вместо blackhole
+- Статус: выполнено
+- Коммит: последний
