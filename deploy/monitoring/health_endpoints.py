@@ -145,6 +145,65 @@ async def system_metrics():
 @app.get("/")
 async def root():
     return {"service": "AstroFin Sentinel V5", "version": "5.0.0", "status": "running", "docs": "/docs"}
+#!/usr/bin/env python3
+"""FastAPI health & metrics endpoints for AstroFin Sentinel V5."""
+
+import os
+import secrets
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import APIKeyHeader
+
+app = FastAPI(title="AstroFin Sentinel — Health & Metrics")
+
+# ── P0 Auth: API Key dependency ────────────────────────────────────────
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(api_key: str = Depends(api_key_header)):
+    """Validate X-API-Key header against ASTROFIN_API_KEY env variable."""
+    expected = os.getenv("ASTROFIN_API_KEY")
+    if not expected:
+        raise HTTPException(status_code=401, detail="Authentication not configured")
+    if not api_key or not secrets.compare_digest(api_key, expected):
+        raise HTTPException(status_code=401 if not api_key else 403,
+                            detail="Invalid API key")
+    return api_key
+
+# ── Public endpoints (no auth) ─────────────────────────────────────────
+@app.get("/")
+async def root():
+    return {"service": "astrofin-sentinel-health", "status": "UP"}
+
+@app.get("/ready")
+async def ready():
+    return {"status": "READY"}
+
+# ── Protected endpoints ────────────────────────────────────────────────
+@app.get("/health", dependencies=[Depends(verify_api_key)])
+async def health():
+    """System health check (requires API key)."""
+    return {
+        "status": "OK",
+        "components": {
+            "api": "UP",
+            "postgres": _check_postgres(),
+            "redis": _check_redis(),
+        }
+    }
+
+@app.get("/metrics/export", dependencies=[Depends(verify_api_key)])
+async def export_metrics():
+    """Return current Prometheus metrics (requires API key)."""
+    # Здесь твоя логика экспорта метрик
+    return {"metrics": "exported"}
+
+# ── Helper checks ──────────────────────────────────────────────────────
+def _check_postgres():
+    # твоя реализация
+    return "UP"
+
+def _check_redis():
+    # твоя реализация
+    return "UP"
 
 if __name__ == "__main__":
     import uvicorn
