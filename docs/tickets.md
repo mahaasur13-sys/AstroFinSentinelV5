@@ -2,7 +2,7 @@
 
 ## P0 (Критические)
 - [x] Настроить реальный webhook (Slack) в Alertmanager вместо blackhole ✅
-- [ ] Добавить e2e-тест для run_sentinel_v5 с моком внешних API
+- [x] Добавить e2e-тест для run_sentinel_v5 с моком внешних API ✅
 
 ## P1 (Важные)
 - [x] Заменить f-строки на structlog ✅ (completed)
