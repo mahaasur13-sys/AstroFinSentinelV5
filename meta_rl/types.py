@@ -1,58 +1,51 @@
-from __future__ import annotations
-
-from dataclasses import dataclass, field, asdict
-from typing import Optional, Literal
-import time
+"""Типы данных для meta_rl."""
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 
 @dataclass
 class EvaluationResult:
-    pnl: float = 0.0
-    sharpe_ratio: float = 0.0
-    max_drawdown_pct: float = 0.0
-    fitness: float = 0.0
-
-    def to_dict(self):
-        return asdict(self)
-
-
-@dataclass
-class Signal:
-    action: Literal["BUY", "SELL", "HOLD"]
-    confidence: float
-    entry_price: float
-    stop_loss: float
-    take_profit: float
-    timestamp: Optional[float] = None
-
-    def __post_init__(self):
-        if self.timestamp is None:
-            self.timestamp = time.time()
-
-
-@dataclass
-class Strategy:
-    id: str
-    params: dict
-    generation: int = 0
-    parent_ids: tuple = field(default_factory=tuple)
-    fitness: float = 0.0
-    result: Optional[EvaluationResult] = None
-
-from dataclasses import dataclass, field
-from typing import Optional
-
-@dataclass
-class SymbolMetrics:
+    """Результат оценки стратегии."""
     win_rate: float = 0.0
-    exposure_pct: float = 0.0
-    evaluation: Optional['EvaluationResult'] = None
+    sharpe_ratio: float = 0.0
+    max_drawdown: float = 0.0
+    total_trades: int = 0
+    avg_confidence: float = 0.0
+    total_return_pct: float = 0.0
+    score: float = 0.0
+    metadata: Optional[dict] = None
+
 
 @dataclass
 class BasketMetrics:
-    symbols: list = field(default_factory=list)
-    symbol_metrics: dict = field(default_factory=dict)
-    portfolio_pnl: float = 0.0
-    portfolio_sharpe: float = 0.0
-    portfolio_max_drawdown: float = 0.0
-    active_symbols: int = 0
+    """Метрики корзины стратегий."""
+    win_rate: float = 0.0
+    sharpe_ratio: float = 0.0
+    max_drawdown: float = 0.0
+    total_trades: int = 0
+    avg_confidence: float = 0.0
+    total_return_pct: float = 0.0
+    num_strategies: int = 1
+
+
+@dataclass
+class ScoredStrategy:
+    """Стратегия с оценкой (используется в эволюции и пулах)."""
+    strategy_id: str = ""
+    agent_name: str = ""
+    fitness: float = 0.0
+    generation: int = 0
+    config: dict = field(default_factory=dict)
+    metrics: Optional[EvaluationResult] = None
+    metadata: Optional[dict] = None
+
+    def to_dict(self) -> dict:
+        return {
+            "strategy_id": self.strategy_id,
+            "agent_name": self.agent_name,
+            "fitness": self.fitness,
+            "generation": self.generation,
+            "config": self.config,
+            "metrics": self.metrics.__dict__ if self.metrics else None,
+            "metadata": self.metadata,
+        }
