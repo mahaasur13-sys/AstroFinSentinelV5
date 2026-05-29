@@ -37,3 +37,7 @@ def setup_logging():
     # Уменьшаем шум от библиотек
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("opentelemetry").setLevel(logging.WARNING)
+
+def get_logger(name=None):
+    """Возвращает логгер structlog."""
+    return structlog.get_logger(name)

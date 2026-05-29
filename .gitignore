@@ -55,3 +55,4 @@ backtest/_archived_dbs/.env
 .env
 *.env
 .env.*
+logging\nos\nrequests

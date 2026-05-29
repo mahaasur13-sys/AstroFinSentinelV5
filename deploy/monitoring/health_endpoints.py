@@ -1,15 +1,14 @@
-"""Health check and metrics endpoints for monitoring."""
-import os
-import time
+"""Health check, metrics, and KARL diagnostics endpoints."""
+import os, time, psutil, asyncpg, redis.asyncio as aioredis
 from typing import Dict
-
-import psutil
 from fastapi import FastAPI, HTTPException
+from prometheus_client import generate_latest, REGISTRY
 from pydantic import BaseModel
+from starlette.responses import PlainTextResponse
 
-app = FastAPI(title="AstroFin Sentinel - Health & Metrics")
+import tools.metrics_server
 
-# System metrics
+app = FastAPI(title="AstroFin Sentinel — Health & Metrics")
 process = psutil.Process(os.getpid())
 
 class HealthResponse(BaseModel):
@@ -20,39 +19,40 @@ class HealthResponse(BaseModel):
     cpu_percent: float
     version: str = "5.0.0"
 
-class KARLMetrics(BaseModel):
-    # OAP KPIs
-    oos_fail_rate: float
-    entropy_avg: float
-    grounding_strength: float
-    current_ttc_depth: int
-    
-    # Audit
-    total_decisions: int
-    avg_confidence: float
-    action_distribution: Dict[str, int]
-    
-    # Reward Calibration
-    calibration_error: float
-    slope: float
-    intercept: float
-    
-    # Drift
-    drift_status: str
-    confidence_drift: float
-    uncertainty_drift: float
-    
-    # Trading
-    win_rate: float
-    sharpe_ratio: float
-    max_drawdown: float
-    total_trades: int
-
 _start_time = time.time()
+
+@app.on_event("startup")
+async def startup_event():
+    from core.logging import setup_logging
+    setup_logging()
+
+async def check_postgres() -> bool:
+    try:
+        conn = await asyncpg.connect(
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=int(os.getenv("POSTGRES_PORT", 5432)),
+            user=os.getenv("POSTGRES_USER", "astrofin"),
+            password=os.getenv("POSTGRES_PASSWORD", ""),
+            database=os.getenv("POSTGRES_DB", "astrofin"),
+            timeout=5.0,
+        )
+        await conn.close()
+        return True
+    except Exception:
+        return False
+
+async def check_redis() -> bool:
+    try:
+        redis_url = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}"
+        r = aioredis.from_url(redis_url, socket_connect_timeout=3)
+        await r.ping()
+        await r.close()
+        return True
+    except Exception:
+        return False
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Kubernetes-compatible health check."""
     return HealthResponse(
         status="healthy",
         timestamp=time.time(),
@@ -63,25 +63,52 @@ async def health_check():
 
 @app.get("/health/ready")
 async def readiness_check():
-    """Readiness probe - checks DB and cache connectivity."""
-    # TODO: Add actual DB/Redis checks
-    return {"status": "ready", "timestamp": time.time()}
+    pg_ok = await check_postgres()
+    redis_ok = await check_redis()
+    if pg_ok and redis_ok:
+        return {"status": "ready", "timestamp": time.time()}
+    else:
+        raise HTTPException(status_code=503, detail={
+            "postgres": "ok" if pg_ok else "fail",
+            "redis": "ok" if redis_ok else "fail",
+        })
 
-@app.get("/metrics/karl", response_model=KARLMetrics)
+@app.get("/metrics")
+async def metrics_endpoint():
+    return PlainTextResponse(
+        content=generate_latest(REGISTRY).decode(),
+        media_type="text/plain"
+    )
+
+@app.get("/metrics/karl")
 async def karl_metrics():
-    """Expose KARL AMRE metrics for Prometheus."""
     try:
         from agents.karl_synthesis import get_karl_agent
-        
         agent = get_karl_agent()
         status = agent.get_status()
         diag = status.get("karl_diagnostics", {})
-        
         oap = diag.get("oap_kpi", {})
         audit = diag.get("audit_summary", {})
         calibr = diag.get("calibration", {})
         drift = diag.get("drift_status", {})
-        
+        class KARLMetrics(BaseModel):
+            oos_fail_rate: float
+            entropy_avg: float
+            grounding_strength: float
+            current_ttc_depth: int
+            total_decisions: int
+            avg_confidence: float
+            action_distribution: Dict[str, int]
+            calibration_error: float
+            slope: float
+            intercept: float
+            drift_status: str
+            confidence_drift: float
+            uncertainty_drift: float
+            win_rate: float
+            sharpe_ratio: float
+            max_drawdown: float
+            total_trades: int
         return KARLMetrics(
             oos_fail_rate=oap.get("oos_fail_rate", 0.0),
             entropy_avg=oap.get("entropy_avg", 0.0),
@@ -106,7 +133,6 @@ async def karl_metrics():
 
 @app.get("/metrics/system")
 async def system_metrics():
-    """System-level metrics."""
     return {
         "memory_percent": process.memory_percent(),
         "memory_mb": process.memory_info().rss / 1024 / 1024,
@@ -118,12 +144,7 @@ async def system_metrics():
 
 @app.get("/")
 async def root():
-    return {
-        "service": "AstroFin Sentinel V5",
-        "version": "5.0.0",
-        "status": "running",
-        "docs": "/docs"
-    }
+    return {"service": "AstroFin Sentinel V5", "version": "5.0.0", "status": "running", "docs": "/docs"}
 
 if __name__ == "__main__":
     import uvicorn

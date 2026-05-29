@@ -32,3 +32,4 @@ httpx>=0.26.0
 pytest-asyncio
 prometheus-client
 aiohttp
+openai>=1.0.0
