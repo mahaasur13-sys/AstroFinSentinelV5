@@ -1,3 +1,5 @@
+# AstroFin Sentinel V5 — Docker Compose
+# PostgreSQL + TimescaleDB + Redis + Jaeger + Prometheus + Grafana + Alertmanager + Exporters
 services:
   postgres:
     image: timescale/timescaledb:latest-pg16
@@ -7,11 +9,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_HOST_AUTH_METHOD: md5
     ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"   # Привязка к localhost
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema:/docker-entrypoint-initdb.d:ro
-    healthcheck: ...
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-astrofin} -d ${POSTGRES_DB:-astrofin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
     deploy:
       resources:
@@ -23,7 +30,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # user: "999:999"   # postgres в образе — можно добавить после тестирования прав volume
 
   redis:
     image: redis:7-alpine
@@ -130,7 +136,11 @@ services:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-astrofin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-astrofin}?sslmode=require"
     ports:
       - "127.0.0.1:9187:9187"
-    healthcheck: ...
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:9187/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     deploy:
       resources:
@@ -150,7 +160,11 @@ services:
       - "--redis.addr=redis://:${REDIS_PASSWORD}@redis:6379"
     ports:
       - "127.0.0.1:9121:9121"
-    healthcheck: ...
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c 'cat < /dev/null > /dev/tcp/localhost/9121' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     deploy:
       resources:
@@ -174,6 +188,9 @@ services:
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/data"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     restart: unless-stopped
     deploy:
       resources:

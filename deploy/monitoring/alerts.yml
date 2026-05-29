@@ -2,8 +2,17 @@ groups:
   - name: astrofin
     interval: 30s
     rules:
-      # --- WORKING ALERTS (metrics exist) ---
+      # --- Heartbeat (тестовый алерт) ---
+      - alert: AlertPipelineHealthy
+        expr: vector(1)
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "Alertmanager pipeline is healthy"
+          description: "This is a heartbeat alert to test end-to-end notification delivery."
 
+      # ... остальные правила (DatabaseDown, RedisDown, HighErrorRate)
       # Database Connection Issues
       - alert: DatabaseDown
         expr: pg_up == 0
