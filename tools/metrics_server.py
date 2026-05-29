@@ -3,7 +3,7 @@
 
 import argparse
 from aiohttp import web
-from prometheus_client import Counter, Gauge, generate_latest, REGISTRY
+from prometheus_client import Counter, Gauge, Histogram, generate_latest, REGISTRY
 
 # Метрики с префиксом astrofin_
 REQUEST_COUNT = Counter('astrofin_requests_total', 'Total orchestration requests')
@@ -23,7 +23,6 @@ AGENT_SIGNAL_DISTRIBUTION = Counter(
     'Count of signals (LONG/SHORT/NEUTRAL) per agent',
     ['agent_name', 'signal']
 )
-
 THOMPSON_PARAMS = Gauge(
     'astrofin_thompson_params',
     'Thompson Beta parameters per agent',
@@ -33,6 +32,13 @@ RAG_RELEVANCE_SCORE = Gauge('astrofin_rag_relevance_avg', 'Average relevance sco
 RAG_CHUNK_COUNT = Gauge('astrofin_rag_chunk_count', 'Number of chunks returned in the last RAG query')
 RAG_QUERY_CACHE_HITS = Counter('astrofin_rag_query_cache_hits_total', 'Number of RAG query cache hits')
 RAG_QUERY_CACHE_MISSES = Counter('astrofin_rag_query_cache_misses_total', 'Number of RAG query cache misses')
+
+# Новая метрика: длительность выполнения агента
+AGENT_DURATION = Histogram(
+    'astrofin_agent_duration_seconds',
+    'Duration of agent execution',
+    ['agent_name']
+)
 
 async def metrics_handler(request):
     return web.Response(body=generate_latest(REGISTRY), content_type='text/plain')

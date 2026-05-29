@@ -6,6 +6,7 @@ Technical analysis: RSI, MACD, Bollinger, Volume.
 import logging
 
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from core.metrics import track_agent_duration
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,6 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         # RSI
         if rsi < 30:
             signals.append(SignalDirection.LONG)
-            confidences.append(70)
-        elif rsi > 70:
-            signals.append(SignalDirection.SHORT)
             confidences.append(70)
         else:
             signals.append(SignalDirection.NEUTRAL)
@@ -162,9 +160,7 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         ema_fast = ema(closes, fast)
         ema_slow = ema(closes, slow)
         macd_line = ema_fast - ema_slow
-
-        # Simplified signal line
-        signal_line = macd_line * 0.9  # Approximation
+        signal_line = macd_line * 0.9  # упрощённая сигнальная линия
 
         return {
             "macd": macd_line,
@@ -208,6 +204,7 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         return {"trend": trend, "recent_avg": recent_vol, "older_avg": older_vol}
 
 
+@track_agent_duration('MarketAnalyst')
 async def run_market_analyst(state: dict) -> dict:
     """Runner for orchestrator."""
     agent = MarketAnalystAgent()
