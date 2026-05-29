@@ -2,45 +2,7 @@ groups:
   - name: astrofin
     interval: 30s
     rules:
-      # High OOS fail rate
-      - alert: HighOOSFailRate
-        expr: astrofinsentinel_oos_fail_rate > 0.35
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High OOS fail rate: {{ $value }}"
-          description: "OOS fail rate has been above 35% for 5 minutes"
-
-      # KARL Drift Detected
-      - alert: KARLDrift
-        expr: astrofinsentinel_drift_status == 1
-        for: 10m
-        labels:
-          severity: critical
-        annotations:
-          summary: "KARL system drift detected"
-          description: "Confidence drift or uncertainty increase detected"
-
-      # Low Win Rate
-      - alert: LowWinRate
-        expr: astrofinsentinel_win_rate < 0.50
-        for: 30m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Win rate below 50%: {{ $value }}"
-          description: "Trading system win rate has dropped below 50%"
-
-      # High Drawdown
-      - alert: HighDrawdown
-        expr: astrofinsentinel_max_drawdown > 0.15
-        for: 15m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Max drawdown above 15%: {{ $value }}"
-          description: "Portfolio drawdown is excessive"
+      # --- WORKING ALERTS (metrics exist) ---
 
       # Database Connection Issues
       - alert: DatabaseDown
@@ -62,12 +24,26 @@ groups:
           summary: "Redis is down"
           description: "Cache layer has been unreachable for 1 minute"
 
-      # High Error Rate
+      # High Error Rate (mapped to broker_errors_total)
       - alert: HighErrorRate
-        expr: rate(astrofinsentinel_errors_total[5m]) > 0.1
+        expr: rate(astrofin_broker_errors_total[5m]) > 0.1
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High error rate: {{ $value }}/s"
-          description: "Application error rate is elevated"
+          description: "Broker/execution error rate is elevated"
+
+      # --- TODO: Domain metrics to implement in P1 ---
+      # - alert: HighOOSFailRate
+      #   expr: astrofin_oos_fail_rate > 0.35
+      #   ...
+      # - alert: KARLDrift
+      #   expr: astrofin_drift_status == 1
+      #   ...
+      # - alert: LowWinRate
+      #   expr: astrofin_win_rate < 0.50
+      #   ...
+      # - alert: HighDrawdown
+      #   expr: astrofin_max_drawdown > 0.15
+      #   ...
