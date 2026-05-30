@@ -109,14 +109,26 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
         return await self.analyze(state)
 
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
-        """Fetch OHLCV data from Binance."""
-        try:
-            import requests
+        """Fetch OHLCV data from OKX asynchronously."""
+        import httpx
 
+        try:
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
-            resp = requests.get(url, timeout=10)
-            data = resp.json()
-            return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])] for x in data]
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                # OKX возвращает [timestamp, open, high, low, close, volume]
+                return [
+                    [
+                        float(x[1]),  # open
+                        float(x[2]),  # high
+                        float(x[3]),  # low
+                        float(x[4]),  # close
+                        float(x[5]),  # volume
+                    ]
+                    for x in data.get("data", [])
+                ]
         except Exception:
             logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
             return []
