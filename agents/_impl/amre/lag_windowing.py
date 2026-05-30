@@ -16,6 +16,7 @@
     result = lw.add(confidence=85, position_pct=0.15, volatility=0.008)
     # result = {final_confidence: int, ema: float, lag_adj: float, ...}
 """
+
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 # ─── Config from env ─────────────────────────────────────────────────────────────
+
 
 def _env_bool(key: str, default: str = "true") -> bool:
     return os.getenv(key, default).lower() == "true"
@@ -50,14 +52,15 @@ def _env_float(key: str, default: float) -> float:
 DEFAULT_BASE_WINDOW = 50
 DEFAULT_MIN_WINDOW = 20
 DEFAULT_MAX_WINDOW = 100
-DEFAULT_VOL_LOW = 0.005    # 0.5% внутридневной волатильности
-DEFAULT_VOL_HIGH = 0.02    # 2%
-WARMUP_THRESHOLD = 20      # первые 20 решений — warmup phase
-BLEND_WARMUP = 0.30        # 30% weight на EMA в warmup
-BLEND_MATURE = 0.15        # 15% weight на EMA в mature
+DEFAULT_VOL_LOW = 0.005  # 0.5% внутридневной волатильности
+DEFAULT_VOL_HIGH = 0.02  # 2%
+WARMUP_THRESHOLD = 20  # первые 20 решений — warmup phase
+BLEND_WARMUP = 0.30  # 30% weight на EMA в warmup
+BLEND_MATURE = 0.15  # 15% weight на EMA в mature
 
 
 # ─── LagWindow ───────────────────────────────────────────────────────────────────
+
 
 class LagWindow:
     """
@@ -257,7 +260,9 @@ class LagWindow:
             "count": self._count,
         }
 
-        logger.debug(f"[LagWindow] {result['raw_confidence']} → {result['final_confidence']} (ema={result['ema']:.2f}, lag_adj={result['lag_adj']:+.3f})")
+        logger.debug(
+            f"[LagWindow] {result['raw_confidence']} → {result['final_confidence']} (ema={result['ema']:.2f}, lag_adj={result['lag_adj']:+.3f})"
+        )
 
         return result
 

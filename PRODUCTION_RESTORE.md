@@ -1,7 +1,7 @@
 # AstroFin Sentinel V5 — Production Restore Report
 
-**Restored:** 2026-05-14  
-**Source:** https://github.com/SERJKLEEM/asurdev-workspace-backup  
+**Restored:** 2026-05-14
+**Source:** https://github.com/SERJKLEEM/asurdev-workspace-backup
 **Location:** `/home/workspace/AstroFinSentinelV5/`
 
 ---

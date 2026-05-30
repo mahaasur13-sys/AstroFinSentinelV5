@@ -72,9 +72,20 @@ class Idea:
         setattr(self, key, value)
 
     def keys(self):
-        return ["id", "source", "text", "category", "status", "score",
-                "linked_trajectories", "impact_score", "created_at",
-                "tested_at", "evaluated_at", "tags"]
+        return [
+            "id",
+            "source",
+            "text",
+            "category",
+            "status",
+            "score",
+            "linked_trajectories",
+            "impact_score",
+            "created_at",
+            "tested_at",
+            "evaluated_at",
+            "tags",
+        ]
 
     def items(self):
         return dict(zip(self.keys(), [getattr(self, k) for k in self.keys()]))

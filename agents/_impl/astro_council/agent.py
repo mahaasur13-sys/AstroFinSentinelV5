@@ -1,5 +1,6 @@
 """AstroCouncilAgent stub for backtest integration."""
-from core.base_agent import BaseAgent, AgentResponse, SignalDirection
+
+from core.base_agent import AgentResponse, BaseAgent, SignalDirection
 
 
 class AstroCouncilAgent(BaseAgent):

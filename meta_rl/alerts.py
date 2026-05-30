@@ -13,6 +13,7 @@ Feature flags:
 
 All tokens configured via environment variables.
 """
+
 from __future__ import annotations
 
 import logging
@@ -71,12 +72,14 @@ class TelegramAlerter:
             import urllib.request
 
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            payload = json.dumps({
-                "chat_id": self.chat_id,
-                "text": text,
-                "parse_mode": "Markdown",
-                "disable_web_page_preview": True,
-            }).encode("utf-8")
+            payload = json.dumps(
+                {
+                    "chat_id": self.chat_id,
+                    "text": text,
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": True,
+                }
+            ).encode("utf-8")
 
             req = urllib.request.Request(
                 url,
@@ -248,4 +251,6 @@ def send_reward_alert(strategy, reward: float, generation: int, **kwargs) -> boo
 
 def send_evolution_complete(history, best_strategy, session_id: str, **kwargs) -> bool:
     """Quick alert when evolution completes."""
-    return get_alerter().send_evolution_complete(history, best_strategy, session_id, **kwargs)
+    return get_alerter().send_evolution_complete(
+        history, best_strategy, session_id, **kwargs
+    )

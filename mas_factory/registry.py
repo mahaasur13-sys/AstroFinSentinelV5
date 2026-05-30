@@ -1,4 +1,5 @@
 """mas_factory/registry.py - Agent Registry with capabilities"""
+
 from typing import Any, Dict, List, Optional
 
 from mas_factory.topology import Role
@@ -12,7 +13,13 @@ AGENT_DEFINITIONS = {
         name="fundamental",
         agent_type="FundamentalAgent",
         weight=0.20,
-        capabilities=["fundamental_analysis", "valuation", "financial_metrics", "pe_ratio", "mvrv"],
+        capabilities=[
+            "fundamental_analysis",
+            "valuation",
+            "financial_metrics",
+            "pe_ratio",
+            "mvrv",
+        ],
         inputs=["symbol", "price"],
         outputs=["signal", "confidence", "reasoning", "fundamental_score"],
         constraints={"timeout_ms": 30000},
@@ -25,24 +32,34 @@ AGENT_DEFINITIONS = {
         inputs=["symbol"],
         outputs=["signal", "confidence"],
     ),
-    
     # === MACRO CATEGORY ===
     "MacroAgent": Role(
         name="macro",
         agent_type="MacroAgent",
         weight=0.15,
-        capabilities=["macro_analysis", "economic_indicators", "fed_policy", "geopolitics", "dxy", "vix"],
+        capabilities=[
+            "macro_analysis",
+            "economic_indicators",
+            "fed_policy",
+            "geopolitics",
+            "dxy",
+            "vix",
+        ],
         inputs=["symbol"],
         outputs=["signal", "confidence", "macro_score"],
         constraints={"timeout_ms": 20000},
     ),
-    
     # === QUANT CATEGORY ===
     "QuantAgent": Role(
         name="quant",
         agent_type="QuantAgent",
         weight=0.20,
-        capabilities=["ml_predictions", "backtesting", "volatility_model", "pattern_recognition"],
+        capabilities=[
+            "ml_predictions",
+            "backtesting",
+            "volatility_model",
+            "pattern_recognition",
+        ],
         inputs=["symbol", "price", "ohlcv"],
         outputs=["signal", "confidence", "predicted_volatility"],
         constraints={"timeout_ms": 45000},
@@ -55,7 +72,6 @@ AGENT_DEFINITIONS = {
         inputs=["symbol", "price_history"],
         outputs=["signal", "confidence", "price_target"],
     ),
-    
     # === OPTIONS CATEGORY ===
     "OptionsFlowAgent": Role(
         name="options",
@@ -66,13 +82,18 @@ AGENT_DEFINITIONS = {
         outputs=["signal", "confidence", "gamma_exposure", "iv_rank"],
         constraints={"timeout_ms": 20000},
     ),
-    
     # === SENTIMENT CATEGORY ===
     "SentimentAgent": Role(
         name="sentiment",
         agent_type="SentimentAgent",
         weight=0.10,
-        capabilities=["social_sentiment", "news_analysis", "fear_greed", "reddit", "twitter"],
+        capabilities=[
+            "social_sentiment",
+            "news_analysis",
+            "fear_greed",
+            "reddit",
+            "twitter",
+        ],
         inputs=["symbol"],
         outputs=["signal", "confidence", "sentiment_score"],
         constraints={"timeout_ms": 15000},
@@ -93,13 +114,19 @@ AGENT_DEFINITIONS = {
         inputs=["symbol"],
         outputs=["signal", "confidence", "bearish_factors"],
     ),
-    
     # === TECHNICAL CATEGORY ===
     "TechnicalAgent": Role(
         name="technical",
         agent_type="TechnicalAgent",
         weight=0.10,
-        capabilities=["technical_analysis", "price_action", "indicators", "rsi", "macd", "bollinger"],
+        capabilities=[
+            "technical_analysis",
+            "price_action",
+            "indicators",
+            "rsi",
+            "macd",
+            "bollinger",
+        ],
         inputs=["symbol", "price", "ohlcv"],
         outputs=["signal", "confidence", "support_resistance"],
     ),
@@ -119,7 +146,6 @@ AGENT_DEFINITIONS = {
         inputs=["symbol", "price_history"],
         outputs=["signal", "confidence", "wave_label"],
     ),
-    
     # === ASTRO CATEGORY ===
     "AstroCouncil": Role(
         name="astro_council",
@@ -158,7 +184,12 @@ AGENT_DEFINITIONS = {
         name="electoral",
         agent_type="ElectoralAgent",
         weight=0.03,
-        capabilities=["muhurta_timing", "electional_astrology", "choghadiya", "nakshatra"],
+        capabilities=[
+            "muhurta_timing",
+            "electional_astrology",
+            "choghadiya",
+            "nakshatra",
+        ],
         inputs=["symbol", "timeframe"],
         outputs=["signal", "confidence", "timing_score"],
         constraints={"timeout_ms": 5000},
@@ -171,13 +202,17 @@ AGENT_DEFINITIONS = {
         inputs=["symbol"],
         outputs=["signal", "confidence", "best_windows"],
     ),
-    
     # === COORDINATOR ===
     "SynthesisAgent": Role(
         name="synthesis",
         agent_type="SynthesisAgent",
         weight=0.0,  # Coordinator - no vote
-        capabilities=["synthesis", "final_recommendation", "weighting", "conflict_resolution"],
+        capabilities=[
+            "synthesis",
+            "final_recommendation",
+            "weighting",
+            "conflict_resolution",
+        ],
         inputs=["signals"],
         outputs=["final_signal", "confidence", "breakdown"],
         constraints={"timeout_ms": 5000},
@@ -187,21 +222,21 @@ AGENT_DEFINITIONS = {
 
 class AgentRegistry:
     """Registry of available agents with capabilities and constraints"""
-    
+
     def __init__(self):
         self._roles: Dict[str, Role] = {}
         for agent_type, role in AGENT_DEFINITIONS.items():
             self._roles[agent_type] = role
-    
+
     def get_role(self, agent_type: str) -> Optional[Role]:
         return self._roles.get(agent_type)
-    
+
     def get_all_roles(self) -> List[Role]:
         return list(self._roles.values())
-    
+
     def get_by_capability(self, capability: str) -> List[Role]:
         return [r for r in self._roles.values() if capability in r.capabilities]
-    
+
     def get_pool(self, pool_name: str) -> List[Role]:
         """Get roles by pool category"""
         pools = {
@@ -216,11 +251,11 @@ class AgentRegistry:
         }
         types = pools.get(pool_name, [])
         return [self._roles[t] for t in types if t in self._roles]
-    
+
     def register(self, agent_type: str, role: Role):
         """Register a new agent dynamically"""
         self._roles[agent_type] = role
-    
+
     def list_capabilities(self) -> List[str]:
         """List all unique capabilities"""
         caps = set()
@@ -232,18 +267,22 @@ class AgentRegistry:
 # Singleton
 _REGISTRY: Optional[AgentRegistry] = None
 
+
 def get_registry() -> AgentRegistry:
     global _REGISTRY
     if _REGISTRY is None:
         _REGISTRY = AgentRegistry()
     return _REGISTRY
 
+
 # Agent runner wrapper for MAS Factory compatibility
 class BasicAgentRunner:
     def __init__(self, agent_type: str):
         self.agent_type = agent_type
+
     def run(self, context: Dict[str, Any]) -> Dict[str, Any]:
         return {"signal": "NEUTRAL", "confidence": 50, "agent": self.agent_type}
+
 
 def get_agent_runner(agent_type: str) -> BasicAgentRunner:
     return BasicAgentRunner(agent_type)

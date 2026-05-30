@@ -58,21 +58,21 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         astro_signal = await self._check_astro_bearish(state)
 
         bearish_score = (
-            patterns["score"] * 0.30 +
-            volume_profile["score"] * 0.25 +
-            resistance_zones["score"] * 0.20 +
-            astro_signal["score"] * 0.25
+            patterns["score"] * 0.30
+            + volume_profile["score"] * 0.25
+            + resistance_zones["score"] * 0.20
+            + astro_signal["score"] * 0.25
         )
 
         if bearish_score >= 0.65:
             signal = SignalDirection.SHORT
-            confidence=min(int(bearish_score * 100 + 10), 85)
+            confidence = min(int(bearish_score * 100 + 10), 85)
         elif bearish_score >= 0.45:
             signal = SignalDirection.NEUTRAL
-            confidence=50
+            confidence = 50
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=35
+            confidence = 35
 
         reasoning = (
             f"Bearish patterns: {patterns['summary']}. "
@@ -107,12 +107,18 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         """Fetch OHLCV data from Binance."""
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
-            return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])] for x in data]
+            return [
+                [float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])]
+                for x in data
+            ]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
+            logger.warning(
+                f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}"
+            )
             return []
 
     def _detect_bearish_patterns(self, data: list) -> dict:
@@ -127,7 +133,7 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         # Lower highs pattern
         lh_count = 0
         for i in range(3, len(highs)):
-            if highs[i] < highs[i-1] < highs[i-2]:
+            if highs[i] < highs[i - 1] < highs[i - 2]:
                 lh_count += 1
 
         # Breakdown below recent low
@@ -158,13 +164,13 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
 
         if recent_vol > older_vol * 1.3:
             score = 0.70
-            summary = f"volume increasing +{((recent_vol/older_vol)-1)*100:.0f}%"
+            summary = f"volume increasing +{((recent_vol / older_vol) - 1) * 100:.0f}%"
         elif recent_vol > older_vol * 1.1:
             score = 0.55
-            summary = f"volume stable +{((recent_vol/older_vol)-1)*100:.0f}%"
+            summary = f"volume stable +{((recent_vol / older_vol) - 1) * 100:.0f}%"
         else:
             score = 0.40
-            summary = f"volume declining {((recent_vol/older_vol)-1)*100:.0f}%"
+            summary = f"volume declining {((recent_vol / older_vol) - 1) * 100:.0f}%"
 
         return {"score": min(score, 1.0), "summary": summary}
 
@@ -177,14 +183,16 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         current_price = highs[-1]
 
         swing_highs = []
-        for i in range(2, len(highs)-2):
-            if highs[i] > highs[i-1] and highs[i] > highs[i+1]:
+        for i in range(2, len(highs) - 2):
+            if highs[i] > highs[i - 1] and highs[i] > highs[i + 1]:
                 swing_highs.append(highs[i])
 
         if not swing_highs:
             return {"score": 0.5, "summary": "no clear resistance identified"}
 
-        nearest_resistance = min([r for r in swing_highs if r > current_price], default=highs[-5])
+        nearest_resistance = min(
+            [r for r in swing_highs if r > current_price], default=highs[-5]
+        )
 
         distance_pct = ((nearest_resistance - current_price) / current_price) * 100
 
@@ -195,7 +203,9 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         else:
             score = 0.45
 
-        summary = f"resistance at ${nearest_resistance:,.0f} ({distance_pct:.1f}% above)"
+        summary = (
+            f"resistance at ${nearest_resistance:,.0f} ({distance_pct:.1f}% above)"
+        )
 
         return {"score": min(score, 1.0), "summary": summary}
 
@@ -224,7 +234,7 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         if mars.retrograde:
             mars_score = 0.65
 
-        total = (saturn_score * 0.6 + mars_score * 0.4)
+        total = saturn_score * 0.6 + mars_score * 0.4
 
         summary = f"Saturn: {saturn.longitude:.1f}°, Mars retrograde: {mars.retrograde}"
 

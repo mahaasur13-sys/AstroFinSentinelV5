@@ -7,6 +7,7 @@ Usage:
     python -m db.init --migrate    # migrate from SQLite
     python -m db.init --reset      # reset schema (DROP + CREATE)
 """
+
 import argparse
 import sys
 
@@ -14,9 +15,15 @@ import sys
 def main():
     parser = argparse.ArgumentParser(prog="python -m db.init")
     parser.add_argument("--status", action="store_true", help="Show database status")
-    parser.add_argument("--migrate", action="store_true", help="Migrate data from SQLite")
-    parser.add_argument("--reset", action="store_true", help="Reset schema (DROP all tables)")
-    parser.add_argument("--force", action="store_true", help="Force operation without confirmation")
+    parser.add_argument(
+        "--migrate", action="store_true", help="Migrate data from SQLite"
+    )
+    parser.add_argument(
+        "--reset", action="store_true", help="Reset schema (DROP all tables)"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Force operation without confirmation"
+    )
     args = parser.parse_args()
 
     if args.status:
@@ -33,9 +40,9 @@ def _show_status():
     from db import get_all_stats, get_db_status
 
     status = get_db_status()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("  AstroFin Sentinel V5 — DB Status")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"  Backend:     {status.get('backend', 'unknown')}")
     print(f"  PG Ready:    {status.get('postgres_available', False)}")
     print(f"  PG Version:  {status.get('postgres_version', 'N/A')}")
@@ -56,7 +63,7 @@ def _show_status():
     except Exception as e:
         print(f"\n  Stats error: {e}")
 
-    print(f"\n{'='*50}\n")
+    print(f"\n{'=' * 50}\n")
 
 
 def _init_schema():

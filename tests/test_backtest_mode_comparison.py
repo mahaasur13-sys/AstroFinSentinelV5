@@ -5,8 +5,10 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 SCRIPT = ROOT / "scripts" / "compare_backtest_modes.py"
 
+
 def test_comparison_script_exists():
     assert SCRIPT.exists(), "scripts/compare_backtest_modes.py not found"
+
 
 def test_comparison_script_ci_mode_succeeds():
     """Скрипт с --ci должен отрабатывать и возвращать exit code 0."""
@@ -14,7 +16,8 @@ def test_comparison_script_ci_mode_succeeds():
         return
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--ci"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         cwd=str(ROOT),
         timeout=30,
     )

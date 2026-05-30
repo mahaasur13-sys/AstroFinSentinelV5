@@ -13,12 +13,12 @@ class TopologyVisualizer:
     """Generates Mermaid and DOT visualizations from Topology"""
 
     NODE_COLORS = {
-        "agent": "#4CAF50",        # Green for agents
-        "switch": "#FF9800",       # Orange for switches
-        "merge": "#9C27B0",        # Purple for merges
-        "router": "#2196F3",       # Blue for router
-        "adapter": "#607D8B",       # Gray for adapters
-        "end": "#F44336",          # Red for end
+        "agent": "#4CAF50",  # Green for agents
+        "switch": "#FF9800",  # Orange for switches
+        "merge": "#9C27B0",  # Purple for merges
+        "router": "#2196F3",  # Blue for router
+        "adapter": "#607D8B",  # Gray for adapters
+        "end": "#F44336",  # Red for end
     }
 
     def __init__(self, topology: Topology):
@@ -36,7 +36,7 @@ class TopologyVisualizer:
         for role in self.topo.roles:
             color = self.NODE_COLORS.get("agent", "#4CAF50")
             lines.append(f'        {role.name}["{role.name}"]')
-        
+
         lines.append("    ]")
 
         # Add switch nodes
@@ -62,12 +62,12 @@ class TopologyVisualizer:
     def to_dot(self) -> str:
         """Generate DOT graph for Graphviz"""
         lines = [
-            'digraph MAS_Topology {',
-            '    rankdir=LR;',
+            "digraph MAS_Topology {",
+            "    rankdir=LR;",
             '    node [shape=box, style="rounded,filled", fontname="DejaVu Sans Mono"];',
             '    edge [color="#666666", penwidth=1.5];',
-            '',
-            '    /* Entry/Exit */',
+            "",
+            "    /* Entry/Exit */",
             '    input [shape=ellipse, label="INPUT", fillcolor="#E3F2FD", color="#1976D2"];',
             '    output [shape=ellipse, label="OUTPUT", fillcolor="#FFEBEE", color="#C62828"];',
         ]
@@ -76,35 +76,47 @@ class TopologyVisualizer:
         for role in self.topo.roles:
             color = self.NODE_COLORS.get("agent", "#4CAF50")
             weight_str = f"\\nweight={role.weight}" if role.weight else ""
-            lines.append(f'    {role.name} [label="{role.name}{weight_str}", fillcolor="{color}40", color="{color}"];')
+            lines.append(
+                f'    {role.name} [label="{role.name}{weight_str}", fillcolor="{color}40", color="{color}"];'
+            )
 
         for sw in self.topo.switch_nodes:
             sw_color = self.NODE_COLORS.get("switch", "#FF9800")
             cond = (sw.condition or "always")[:30]
-            lines.append(f'    {sw.id} [label="{sw.id}\\n{cond}", shape=diamond, fillcolor="{sw_color}40", color="{sw_color}"];')
+            lines.append(
+                f'    {sw.id} [label="{sw.id}\\n{cond}", shape=diamond, fillcolor="{sw_color}40", color="{sw_color}"];'
+            )
 
-        lines.append('')
-        lines.append('    /* Connections */')
+        lines.append("")
+        lines.append("    /* Connections */")
 
         for conn in self.topo.connections:
-            adapter_label = f' [label="{conn.adapter.transform}"]' if conn.adapter else ''
-            lines.append(f'    {conn.from_node} -> {conn.to_node}{adapter_label};')
+            adapter_label = (
+                f' [label="{conn.adapter.transform}"]' if conn.adapter else ""
+            )
+            lines.append(f"    {conn.from_node} -> {conn.to_node}{adapter_label};")
 
-        lines.append('')
-        lines.append(f'    input -> {self.topo.entry_point} [style=dashed, color="#1976D2"];')
-        lines.append(f'    {self.topo.exit_point} -> output [style=dashed, color="#C62828"];')
+        lines.append("")
+        lines.append(
+            f'    input -> {self.topo.entry_point} [style=dashed, color="#1976D2"];'
+        )
+        lines.append(
+            f'    {self.topo.exit_point} -> output [style=dashed, color="#C62828"];'
+        )
 
         # Legend
-        lines.extend([
-            '',
-            '    subgraph cluster_legend {',
-            '        label="Legend"; fontsize=12;',
-            '        style=dashed; color="#999999";',
-            '        leg1 [shape=box, label="Agent", fillcolor="#4CAF5040"];',
-            '        leg2 [shape=diamond, label="Switch", fillcolor="#FF980040"];',
-            '    }',
-            '}',
-        ])
+        lines.extend(
+            [
+                "",
+                "    subgraph cluster_legend {",
+                '        label="Legend"; fontsize=12;',
+                '        style=dashed; color="#999999";',
+                '        leg1 [shape=box, label="Agent", fillcolor="#4CAF5040"];',
+                '        leg2 [shape=diamond, label="Switch", fillcolor="#FF980040"];',
+                "    }",
+                "}",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -121,10 +133,18 @@ class TopologyVisualizer:
         ]
 
         # Roles with weights
-        role_colors = {"FundamentalAgent": "🟢", "QuantAgent": "🔵", "MacroAgent": "🟡",
-                       "TechnicalAgent": "🟠", "SentimentAgent": "🟣", "AstroCouncil": "⭐",
-                       "GroundingLoop": "🛡️", "Critic": "🔍", "ValidationLoop": "✅"}
-        
+        role_colors = {
+            "FundamentalAgent": "🟢",
+            "QuantAgent": "🔵",
+            "MacroAgent": "🟡",
+            "TechnicalAgent": "🟠",
+            "SentimentAgent": "🟣",
+            "AstroCouncil": "⭐",
+            "GroundingLoop": "🛡️",
+            "Critic": "🔍",
+            "ValidationLoop": "✅",
+        }
+
         for i, role in enumerate(self.topo.roles):
             icon = role_colors.get(role.name, "⚙️")
             indent = "  " if i == 0 else "    "
@@ -162,10 +182,12 @@ class TopologyVisualizer:
                 "total_switches": len(self.topo.switch_nodes),
                 "total_connections": len(self.topo.connections),
                 "total_weight": sum(r.weight for r in self.topo.roles),
-            }
+            },
         }
 
-    def save_all(self, output_dir: str = "data/topology", session_id: str = None) -> Dict[str, str]:
+    def save_all(
+        self, output_dir: str = "data/topology", session_id: str = None
+    ) -> Dict[str, str]:
         """Save all visualizations to files"""
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -173,7 +195,7 @@ class TopologyVisualizer:
         hash_suffix = self.topo.hash[:8]
 
         files = {}
-        
+
         # Save Mermaid
         mermaid_path = f"{output_dir}/{prefix}mermaid_{hash_suffix}.mmd"
         with open(mermaid_path, "w") as f:
@@ -201,8 +223,9 @@ class TopologyVisualizer:
         return files
 
 
-def visualize_topology(topology: Topology, output_dir: str = "data/topology", 
-                      session_id: str = None) -> Dict[str, str]:
+def visualize_topology(
+    topology: Topology, output_dir: str = "data/topology", session_id: str = None
+) -> Dict[str, str]:
     """Quick function to visualize a topology"""
     viz = TopologyVisualizer(topology)
     return viz.save_all(output_dir, session_id)
@@ -211,7 +234,7 @@ def visualize_topology(topology: Topology, output_dir: str = "data/topology",
 def print_topology_viz(topology: Topology):
     """Print all visualizations to console"""
     viz = TopologyVisualizer(topology)
-    
+
     print(viz.to_ascii())
     print()
     print("=" * 60)

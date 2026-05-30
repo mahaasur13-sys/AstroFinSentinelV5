@@ -8,6 +8,7 @@ Tests:
 5. Per-agent EMA keys
 6. Regime modifier
 """
+
 import sys
 
 sys.path.insert(0, "/home/workspace/AstroFinSentinelV5")
@@ -130,8 +131,9 @@ class TestAstroReward:
         """Astro reward always in [-1, 1]."""
         for regime in ["LOW", "NORMAL", "HIGH", "EXTREME"]:
             for muhurta in ["abhijit", "rauda", "amrita"]:
-                r = compute_astro_reward(muhurta=muhurta, regime=regime,
-                                        aspects=["mars_square_saturn"] * 10)
+                r = compute_astro_reward(
+                    muhurta=muhurta, regime=regime, aspects=["mars_square_saturn"] * 10
+                )
                 assert -1.0 <= r <= 1.0, f"Out of range: {r}"
 
 
@@ -185,10 +187,18 @@ class TestAgentRewards:
     def test_agent_rewards_independent(self):
         """Different agents should have independent keys."""
         signals = [
-            {"agent_name": "FundamentalAgent", "signal": "BUY",
-             "confidence": 80, "price_change": 0.02},
-            {"agent_name": "QuantAgent", "signal": "SELL",
-             "confidence": 70, "price_change": 0.02},
+            {
+                "agent_name": "FundamentalAgent",
+                "signal": "BUY",
+                "confidence": 80,
+                "price_change": 0.02,
+            },
+            {
+                "agent_name": "QuantAgent",
+                "signal": "SELL",
+                "confidence": 70,
+                "price_change": 0.02,
+            },
         ]
         results = compute_agent_rewards(
             agent_signals=signals,

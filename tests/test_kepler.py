@@ -21,6 +21,7 @@ from core.kepler import (
 
 # ─── Orbital Elements ─────────────────────────────────────────────────────────
 
+
 class TestOrbitalElements:
     def test_earth_elements_exist(self):
         e = OrbitalElements.earth()
@@ -44,26 +45,45 @@ class TestOrbitalElements:
 
 # ─── Kepler's Equation (Newton-Raphson) ───────────────────────────────────────
 
+
 class TestKeplerEquation:
     def test_eccentric_anomaly_circular_orbit(self):
         """e=0 → E = M exactly."""
-        orbit = KeplerOrbit(OrbitalElements(
-            name="test", semi_major_axis=1.0, eccentricity=0.0,
-            inclination=0.0, long_ascending_node=0.0, arg_perihelion=0.0,
-            long_perihelion=0.0, mean_longitude=45.0, mean_motion=1.0,
-            orbital_period=360.0, epoch_jd=2451545.0,
-        ))
+        orbit = KeplerOrbit(
+            OrbitalElements(
+                name="test",
+                semi_major_axis=1.0,
+                eccentricity=0.0,
+                inclination=0.0,
+                long_ascending_node=0.0,
+                arg_perihelion=0.0,
+                long_perihelion=0.0,
+                mean_longitude=45.0,
+                mean_motion=1.0,
+                orbital_period=360.0,
+                epoch_jd=2451545.0,
+            )
+        )
         E = orbit.eccentric_anomaly(45.0)
         assert abs(E - 45.0) < 1e-9
 
     def test_eccentric_anomaly_known_value(self):
         """e=0.5, M=30° → E ≈ 47.6° (known reference)."""
-        orbit = KeplerOrbit(OrbitalElements(
-            name="test", semi_major_axis=1.0, eccentricity=0.5,
-            inclination=0.0, long_ascending_node=0.0, arg_perihelion=0.0,
-            long_perihelion=0.0, mean_longitude=30.0, mean_motion=1.0,
-            orbital_period=360.0, epoch_jd=2451545.0,
-        ))
+        orbit = KeplerOrbit(
+            OrbitalElements(
+                name="test",
+                semi_major_axis=1.0,
+                eccentricity=0.5,
+                inclination=0.0,
+                long_ascending_node=0.0,
+                arg_perihelion=0.0,
+                long_perihelion=0.0,
+                mean_longitude=30.0,
+                mean_motion=1.0,
+                orbital_period=360.0,
+                epoch_jd=2451545.0,
+            )
+        )
         E = orbit.eccentric_anomaly(30.0)
         # Known reference value for e=0.5, M=30°: E ≈ 47.6°
         assert 45.0 < E < 55.0
@@ -87,6 +107,7 @@ class TestKeplerEquation:
 
 # ─── Mean Anomaly ─────────────────────────────────────────────────────────────
 
+
 class TestMeanAnomaly:
     def test_mean_anomaly_at_j2000(self):
         """At epoch JD, M is mean_longitude - long_perihelion (mod 360)."""
@@ -100,11 +121,14 @@ class TestMeanAnomaly:
         """M stays in [0, 360)."""
         orbit = KeplerOrbit(OrbitalElements.earth())
         # 1 year later
-        M = orbit.mean_anomaly_at(orbit.elements.epoch_jd + orbit.elements.orbital_period)
+        M = orbit.mean_anomaly_at(
+            orbit.elements.epoch_jd + orbit.elements.orbital_period
+        )
         assert 0 <= M < 360
 
 
 # ─── Radius ───────────────────────────────────────────────────────────────────
+
 
 class TestRadius:
     def test_earth_radius_near_1au(self):
@@ -128,6 +152,7 @@ class TestRadius:
 
 # ─── Heliocentric Longitude ────────────────────────────────────────────────────
 
+
 class TestHeliocentricLongitude:
     def test_longitude_in_range(self):
         """Longitude 0° ≤ λ < 360°."""
@@ -146,6 +171,7 @@ class TestHeliocentricLongitude:
 
 
 # ─── at_jd / KeplerResult ──────────────────────────────────────────────────────
+
 
 class TestKeplerResult:
     def test_kepler_result_has_all_fields(self):
@@ -173,6 +199,7 @@ class TestKeplerResult:
 
 # ─── No NaN / No Errors ────────────────────────────────────────────────────────
 
+
 class TestNoNaN:
     def test_no_nan_in_earth_results(self):
         orbit = KeplerOrbit(OrbitalElements.earth())
@@ -198,6 +225,7 @@ class TestNoNaN:
 
 
 # ─── Swiss Ephemeris Validation ───────────────────────────────────────────────
+
 
 class TestSwissEphemerisValidation:
     def test_validate_returns_dict(self):

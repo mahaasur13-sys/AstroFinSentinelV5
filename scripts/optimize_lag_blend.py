@@ -20,6 +20,7 @@ Usage:
     # With .env update
     python scripts/optimize_lag_blend.py --data data/logs.csv --update-env
 """
+
 import argparse
 import json
 import logging
@@ -52,6 +53,7 @@ WARMUP_THRESHOLD = 20  # must match lag_windowing.py
 
 # ─── Data Classes ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class BlendResult:
     blend: float
@@ -62,6 +64,7 @@ class BlendResult:
 
 
 # ─── Synthetic Data Generator ─────────────────────────────────────────────────
+
 
 def generate_demo_data(n: int = 500, seed: int = 42) -> pd.DataFrame:
     """
@@ -86,17 +89,21 @@ def generate_demo_data(n: int = 500, seed: int = 42) -> pd.DataFrame:
     # Position is determined by raw confidence at bar i
     position_signal = np.where(raw >= 55, 1, np.where(raw <= 45, -1, 0))
     # returns has n elements, position_signal has n elements, align them
-    pnl = position_signal * returns[:len(position_signal)]
+    pnl = position_signal * returns[: len(position_signal)]
 
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2026-01-01", periods=n, freq="5min"),
-        "raw_confidence": raw,
-        "true_direction": true_direction,
-        "pnl": pnl,
-    })
+    df = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2026-01-01", periods=n, freq="5min"),
+            "raw_confidence": raw,
+            "true_direction": true_direction,
+            "pnl": pnl,
+        }
+    )
 
-    logger.info(f"[Demo] Generated {n} rows, "
-                f"reversals in raw: {sum(np.abs(np.diff(np.sign(raw - 50))) > 0)}")
+    logger.info(
+        f"[Demo] Generated {n} rows, "
+        f"reversals in raw: {sum(np.abs(np.diff(np.sign(raw - 50))) > 0)}"
+    )
 
     return df
 
@@ -110,8 +117,9 @@ def load_data(path: str) -> pd.DataFrame:
     required = {"timestamp", "raw_confidence"}
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(f"Missing required columns: {missing}. "
-                         f"Found: {list(df.columns)}")
+        raise ValueError(
+            f"Missing required columns: {missing}. Found: {list(df.columns)}"
+        )
 
     if len(df) < 50:
         logger.warning(f"Only {len(df)} rows — statistics may be unreliable.")
@@ -124,6 +132,7 @@ def load_data(path: str) -> pd.DataFrame:
 
 
 # ─── Metrics Computation ───────────────────────────────────────────────────────
+
 
 def compute_reversals(adjusted: List[float]) -> int:
     """
@@ -164,9 +173,9 @@ def compute_sharpe(df: pd.DataFrame, adjusted: List[float]) -> Optional[float]:
     if "pnl" not in df.columns:
         return None
 
-    adj = np.array(adjusted[:len(df)])
+    adj = np.array(adjusted[: len(df)])
     pos_signal = np.where(adj > 60, 1, np.where(adj < 40, -1, 0))
-    pnl_arr = df["pnl"].values[:len(pos_signal)]
+    pnl_arr = df["pnl"].values[: len(pos_signal)]
 
     # Align lengths
     min_len = min(len(pos_signal), len(pnl_arr))
@@ -186,12 +195,13 @@ def compute_sharpe(df: pd.DataFrame, adjusted: List[float]) -> Optional[float]:
 
 def compute_mae(raw_list: List[int], adjusted: List[float]) -> float:
     """Mean Absolute Error between raw and adjusted."""
-    arr = np.array(adjusted[:len(raw_list)])
+    arr = np.array(adjusted[: len(raw_list)])
     raw_arr = np.array(raw_list)
     return round(float(np.mean(np.abs(arr - raw_arr))), 4)
 
 
 # ─── Core Evaluation ───────────────────────────────────────────────────────────
+
 
 def evaluate_blend(
     blend: float,
@@ -206,6 +216,7 @@ def evaluate_blend(
     """
     # Patch the module constant for this evaluation
     import agents._impl.amre.lag_windowing as lw_module
+
     original_mature = lw_module.BLEND_MATURE
     lw_module.BLEND_MATURE = blend
 
@@ -259,13 +270,15 @@ def run_optimization(
             window_size=window_size,
             adaptive_enabled=False,
         )
-        results.append(BlendResult(
-            blend=round(blend, 2),
-            reversals=reversals,
-            stability=stability,
-            sharpe=sharpe,
-            mae=mae,
-        ))
+        results.append(
+            BlendResult(
+                blend=round(blend, 2),
+                reversals=reversals,
+                stability=stability,
+                sharpe=sharpe,
+                mae=mae,
+            )
+        )
 
     # Select optimal
     if metric == "reversals":
@@ -282,12 +295,15 @@ def run_optimization(
         best = max(valid, key=lambda r: r.sharpe)
         maximize = True
     else:
-        raise ValueError(f"Unknown metric: {metric}. Use: reversals, stability, sharpe.")
+        raise ValueError(
+            f"Unknown metric: {metric}. Use: reversals, stability, sharpe."
+        )
 
     return results, best
 
 
 # ─── Output ────────────────────────────────────────────────────────────────────
+
 
 def print_table(results: List[BlendResult], best: BlendResult, metric: str):
     """Print ASCII table to console."""
@@ -299,9 +315,9 @@ def print_table(results: List[BlendResult], best: BlendResult, metric: str):
     header += f"  {'MAE':>8}"
     separator = "-" * len(header)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Metric optimized: {metric.upper()}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(header)
     print(separator)
 
@@ -314,8 +330,7 @@ def print_table(results: List[BlendResult], best: BlendResult, metric: str):
 
     print(separator)
     marker = ">>>" if metric != "stability" else "<<<"
-    best_row = (f"{best.blend:>6.2f}  {best.reversals:>10}  "
-                f"{best.stability:>10.4f}")
+    best_row = f"{best.blend:>6.2f}  {best.reversals:>10}  {best.stability:>10.4f}"
     if best.sharpe is not None:
         best_row += f"  {best.sharpe:>10.4f}"
     best_row += f"  {best.mae:>8.4f}"
@@ -323,8 +338,13 @@ def print_table(results: List[BlendResult], best: BlendResult, metric: str):
     print()
 
 
-def save_json(results: List[BlendResult], best: BlendResult,
-              metric: str, window_size: int, output_path: str):
+def save_json(
+    results: List[BlendResult],
+    best: BlendResult,
+    metric: str,
+    window_size: int,
+    output_path: str,
+):
     """Save results to JSON file."""
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
@@ -332,9 +352,13 @@ def save_json(results: List[BlendResult], best: BlendResult,
         "metric": metric,
         "window_size": window_size,
         "best_blend": best.blend,
-        "best_value": (best.reversals if metric == "reversals"
-                       else best.stability if metric == "stability"
-                       else best.sharpe),
+        "best_value": (
+            best.reversals
+            if metric == "reversals"
+            else best.stability
+            if metric == "stability"
+            else best.sharpe
+        ),
         "results": [asdict(r) for r in results],
     }
 
@@ -344,8 +368,9 @@ def save_json(results: List[BlendResult], best: BlendResult,
     logger.info(f"Saved: {output_path}")
 
 
-def plot_results(results: List[BlendResult], best: BlendResult,
-                  metric: str, output_path: str):
+def plot_results(
+    results: List[BlendResult], best: BlendResult, metric: str, output_path: str
+):
     """Plot metric vs blend and save as PNG."""
     try:
         import matplotlib.pyplot as plt
@@ -368,9 +393,18 @@ def plot_results(results: List[BlendResult], best: BlendResult,
         best_val = best.sharpe
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(blends[:len(values)], values, "b-o", linewidth=2, markersize=5)
-    ax.axvline(x=best.blend, color="r", linestyle="--", label=f"Optimal blend={best.blend:.2f}")
-    ax.scatter([best.blend], [best_val], color="red", s=120, zorder=5, label=f"{label}={best_val}")
+    ax.plot(blends[: len(values)], values, "b-o", linewidth=2, markersize=5)
+    ax.axvline(
+        x=best.blend, color="r", linestyle="--", label=f"Optimal blend={best.blend:.2f}"
+    )
+    ax.scatter(
+        [best.blend],
+        [best_val],
+        color="red",
+        s=120,
+        zorder=5,
+        label=f"{label}={best_val}",
+    )
 
     ax.set_xlabel("Blend (mature phase)")
     ax.set_ylabel(label)
@@ -387,51 +421,65 @@ def plot_results(results: List[BlendResult], best: BlendResult,
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Optimize LagWindow blend_mature parameter.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--data", type=str, default=None,
-        help="Path to CSV file with columns: timestamp, raw_confidence, true_direction, pnl (optional)."
+        "--data",
+        type=str,
+        default=None,
+        help="Path to CSV file with columns: timestamp, raw_confidence, true_direction, pnl (optional).",
     )
     parser.add_argument(
-        "--demo", action="store_true",
-        help="Use synthetic demo data (500 rows)."
+        "--demo", action="store_true", help="Use synthetic demo data (500 rows)."
     )
     parser.add_argument(
-        "--metric", type=str, default="reversals",
+        "--metric",
+        type=str,
+        default="reversals",
         choices=["reversals", "stability", "sharpe"],
-        help="Metric to optimize. Default: reversals."
+        help="Metric to optimize. Default: reversals.",
     )
     parser.add_argument(
-        "--window", type=int, default=DEFAULT_WINDOW_SIZE,
-        help=f"LagWindow base window size. Default: {DEFAULT_WINDOW_SIZE}."
+        "--window",
+        type=int,
+        default=DEFAULT_WINDOW_SIZE,
+        help=f"LagWindow base window size. Default: {DEFAULT_WINDOW_SIZE}.",
     )
     parser.add_argument(
-        "--blend-min", type=float, default=BLEND_MIN,
-        help=f"Minimum blend value. Default: {BLEND_MIN}."
+        "--blend-min",
+        type=float,
+        default=BLEND_MIN,
+        help=f"Minimum blend value. Default: {BLEND_MIN}.",
     )
     parser.add_argument(
-        "--blend-max", type=float, default=BLEND_MAX,
-        help=f"Maximum blend value. Default: {BLEND_MAX}."
+        "--blend-max",
+        type=float,
+        default=BLEND_MAX,
+        help=f"Maximum blend value. Default: {BLEND_MAX}.",
     )
     parser.add_argument(
-        "--blend-step", type=float, default=BLEND_STEP,
-        help=f"Blend step size. Default: {BLEND_STEP}."
+        "--blend-step",
+        type=float,
+        default=BLEND_STEP,
+        help=f"Blend step size. Default: {BLEND_STEP}.",
     )
     parser.add_argument(
-        "--output", type=str, default="logs/blend_results.json",
-        help="Output JSON path. Default: logs/blend_results.json"
+        "--output",
+        type=str,
+        default="logs/blend_results.json",
+        help="Output JSON path. Default: logs/blend_results.json",
     )
     parser.add_argument(
-        "--plot", action="store_true",
-        help="Generate and save PNG plot."
+        "--plot", action="store_true", help="Generate and save PNG plot."
     )
     parser.add_argument(
-        "--update-env", action="store_true",
-        help="Print LAG_BLEND_MATURE=<value> to stdout for .env update."
+        "--update-env",
+        action="store_true",
+        help="Print LAG_BLEND_MATURE=<value> to stdout for .env update.",
     )
     return parser.parse_args()
 
@@ -451,9 +499,11 @@ def main():
         print(__doc__)
         sys.exit(1)
 
-    logger.info(f"[Run] metric={args.metric}, window={args.window}, "
-                f"blend=[{args.blend_min}, {args.blend_max}] step={args.blend_step}, "
-                f"data={data_label}")
+    logger.info(
+        f"[Run] metric={args.metric}, window={args.window}, "
+        f"blend=[{args.blend_min}, {args.blend_max}] step={args.blend_step}, "
+        f"data={data_label}"
+    )
 
     results, best = run_optimization(
         df=df,
@@ -478,10 +528,16 @@ def main():
 
     # Summary
     metric_key = args.metric
-    best_val = (best.reversals if args.metric == "reversals"
-                else best.stability if args.metric == "stability"
-                else best.sharpe)
-    print(f"Optimal blend for metric '{args.metric}': {best.blend} ({metric_key}={best_val})")
+    best_val = (
+        best.reversals
+        if args.metric == "reversals"
+        else best.stability
+        if args.metric == "stability"
+        else best.sharpe
+    )
+    print(
+        f"Optimal blend for metric '{args.metric}': {best.blend} ({metric_key}={best_val})"
+    )
 
 
 if __name__ == "__main__":

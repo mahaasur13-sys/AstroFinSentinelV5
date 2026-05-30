@@ -1,4 +1,5 @@
 """trading/execution/slippage.py — ATOM-STEP-10: Slippage Models"""
+
 from __future__ import annotations
 
 import math
@@ -72,8 +73,8 @@ class AdaptiveSlippageModel:
     def __init__(
         self,
         base_slippage_bps: float = 3.0,
-        vol_coefficient: float = 0.5,    # how much volatility matters
-        size_coefficient: float = 0.4,   # how much order size matters
+        vol_coefficient: float = 0.5,  # how much volatility matters
+        size_coefficient: float = 0.4,  # how much order size matters
         liquidity_coefficient: float = 0.2,
         adverse_selection_factor: float = 1.2,
     ):
@@ -123,7 +124,9 @@ class AdaptiveSlippageModel:
         # Volume impact: nonlinear in participation
         # Small orders (<1% ADV): minimal impact
         # Large orders (>10% ADV): severe impact
-        size_impact = self.size_coefficient * math.sqrt(max(participation, 0.0001)) * 100
+        size_impact = (
+            self.size_coefficient * math.sqrt(max(participation, 0.0001)) * 100
+        )
 
         # Vol impact: proportional to realized volatility
         vol_impact = self.vol_coefficient * volatility_bps / 100
@@ -166,8 +169,10 @@ class AdaptiveSlippageModel:
         )
 
     def __repr__(self) -> str:
-        return (f"AdaptiveSlippageModel(base={self.base_slippage_bps}bps, "
-                f"vol={self.vol_coefficient}, size={self.size_coefficient})")
+        return (
+            f"AdaptiveSlippageModel(base={self.base_slippage_bps}bps, "
+            f"vol={self.vol_coefficient}, size={self.size_coefficient})"
+        )
 
 
 if __name__ == "__main__":
@@ -175,16 +180,22 @@ if __name__ == "__main__":
     m = SlippageModel(slippage_bps=5, spread_bps=2.5)
     for side, qty in [("buy", 100), ("sell", 100)]:
         r = m.calculate(side, qty, 50000)
-        print(f"  {side.upper()} {qty} units: {r.slippage_bps:.2f}bps, "
-              f"cost=${r.slippage_cost:.2f}, exec=${r.exec_price:.2f}")
+        print(
+            f"  {side.upper()} {qty} units: {r.slippage_bps:.2f}bps, "
+            f"cost=${r.slippage_cost:.2f}, exec=${r.exec_price:.2f}"
+        )
 
     print("\n=== AdaptiveSlippageModel ===")
     a = AdaptiveSlippageModel()
     for regime, vol, qty in [
-        ("low", 30, 500), ("normal", 80, 500),
-        ("high", 200, 500), ("extreme", 500, 500),
+        ("low", 30, 500),
+        ("normal", 80, 500),
+        ("high", 200, 500),
+        ("extreme", 500, 500),
     ]:
         r = a.calculate("buy", qty, 50000, volatility_bps=vol, market_regime=regime)
-        print(f"  [{regime.upper():8s}] vol={vol:4d}bps, qty={qty}: "
-              f"{r.slippage_bps:.2f}bps, cost=${r.slippage_cost:.2f}, "
-              f"exec=${r.exec_price:.2f}")
+        print(
+            f"  [{regime.upper():8s}] vol={vol:4d}bps, qty={qty}: "
+            f"{r.slippage_bps:.2f}bps, cost=${r.slippage_cost:.2f}, "
+            f"exec=${r.exec_price:.2f}"
+        )

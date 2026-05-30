@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Compare synthetic vs real agent backtest modes (CI-friendly)."""
+
 import argparse
 import asyncio
 import sys
@@ -21,18 +22,33 @@ async def _run_real_mocked():
     идентичный тому, что мог бы дать реальный движок (но с фиктивными метриками).
     """
     from backtest.engine import BacktestResult, Trade
+
     fake_trade = Trade(
-        entry_time="2025-01-01", exit_time="2025-01-02", direction="LONG",
-        entry_price=50000.0, exit_price=51000.0, pnl_pct=2.0,
-        confidence=75, signal_reasoning="mock", session_id="mock"
+        entry_time="2025-01-01",
+        exit_time="2025-01-02",
+        direction="LONG",
+        entry_price=50000.0,
+        exit_price=51000.0,
+        pnl_pct=2.0,
+        confidence=75,
+        signal_reasoning="mock",
+        session_id="mock",
     )
     result = BacktestResult(
-        session_id="mock", symbol="BTCUSDT",
-        start_date="2025-01-01", end_date="2025-01-10",
-        total_trades=1, winning_trades=1, losing_trades=0,
-        win_rate=100.0, avg_win_pct=2.0, avg_loss_pct=0.0,
-        total_return_pct=2.0, max_drawdown_pct=0.0,
-        sharpe_ratio=1.5, avg_confidence=75.0,
+        session_id="mock",
+        symbol="BTCUSDT",
+        start_date="2025-01-01",
+        end_date="2025-01-10",
+        total_trades=1,
+        winning_trades=1,
+        losing_trades=0,
+        win_rate=100.0,
+        avg_win_pct=2.0,
+        avg_loss_pct=0.0,
+        total_return_pct=2.0,
+        max_drawdown_pct=0.0,
+        sharpe_ratio=1.5,
+        avg_confidence=75.0,
         trades=[fake_trade],
     )
     return result
@@ -69,7 +85,9 @@ async def compare(ci=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Compare backtest modes")
-    parser.add_argument("--ci", action="store_true", help="Run in CI mode with identical mock results")
+    parser.add_argument(
+        "--ci", action="store_true", help="Run in CI mode with identical mock results"
+    )
     args = parser.parse_args()
 
     result = asyncio.run(compare(ci=args.ci))

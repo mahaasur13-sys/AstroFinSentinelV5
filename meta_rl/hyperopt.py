@@ -1,4 +1,5 @@
 """meta_rl/hyperopt.py — ATOM-META-RL-015: Hyperparameter Optimization"""
+
 import logging
 import os
 
@@ -7,8 +8,10 @@ HYPEROPT_ENABLED = os.getenv("HYPEROPT_ENABLED", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
+
 class HyperOptimizer:
     """ATOM-META-RL-015: Bayesian optimization of Meta-RL hyperparameters."""
+
     def __init__(self, agent_cls=None, market_data=None, seed=42):
         self.agent_cls = agent_cls
         self.market_data = market_data or {}
@@ -21,6 +24,7 @@ class HyperOptimizer:
         try:
             from meta_rl.evolution import EvolutionEngine
             from meta_rl.meta_agent import MetaAgent
+
             agent = self.agent_cls or MetaAgent
             engine = EvolutionEngine(
                 agent=agent(),
@@ -42,6 +46,7 @@ class HyperOptimizer:
             return {"status": "disabled"}
         try:
             import optuna
+
             study = optuna.study.create_study(direction="maximize")
             study.optimize(self.objective, n_trials=n_trials, timeout=timeout)
             return {
@@ -54,7 +59,10 @@ class HyperOptimizer:
             logger.warning(f"[HYPEROPT] Optimize failed: {e}")
             return {"error": str(e)}
 
+
 _meta_optimizer = None
+
+
 def get_hyper_optimizer(market_data=None, seed=42):
     global _meta_optimizer
     if _meta_optimizer is None:

@@ -1,7 +1,7 @@
 # AstroFin Sentinel V5 — Project Specification
 
-**Version:** 5.0.0-production  
-**Status:** ✅ PRODUCTION READY  
+**Version:** 5.0.0-production
+**Status:** ✅ PRODUCTION READY
 **Last Updated:** 2026-03-29
 
 ---
@@ -483,10 +483,10 @@ AstroFinSentinelV5/
 
 ## License
 
-Proprietary — All rights reserved  
+Proprietary — All rights reserved
 Author: mahaasur13-sys
 
 ---
 
-**Generated:** 2026-03-29  
+**Generated:** 2026-03-29
 **Version:** 5.0.0-production

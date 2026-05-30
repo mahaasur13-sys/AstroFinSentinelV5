@@ -1,4 +1,5 @@
 """validators/ — ATOM-VALIDATE-001: YAML validators for GitAgent packages."""
+
 from .agent_validator import (
     BLUE,
     BOLD,
@@ -18,7 +19,7 @@ from .agent_validator import (
 __all__ = [
     "AgentYamlValidator",
     "ValidationResult",
-    "ValidationReport", 
+    "ValidationReport",
     "ValidationIssue",
     "Severity",
     "run_validation",

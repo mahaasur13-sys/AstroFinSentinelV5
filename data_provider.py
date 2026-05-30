@@ -3,6 +3,7 @@ Primary: Yahoo Finance v8 (free, no key) + yfinance fallback
 Fallback 1: metals-api.com (free tier: 50 req/month)
 Fallback 2: Twelve Data (free tier: 800 req/day)
 """
+
 import os
 from datetime import datetime, timezone
 
@@ -15,25 +16,33 @@ TWELVE_DATA_KEY = os.environ.get("TWELVE_DATA_KEY", "")
 
 # ── Symbol mapping: Sentinel internal → Yahoo Finance v8 ─────────────────────
 BINANCE_TO_YAHOO = {
-    "BTCUSDT": "BTC-USD", "ETHUSDT": "ETH-USD",
-    "BNBUSDT": "BNB-USD", "SOLUSDT": "SOL-USD",
-    "XRPUSDT": "XRP-USD", "ADAUSDT": "ADA-USD",
-    "DOGEUSDT": "DOGE-USD", "AVAXUSDT": "AVAX-USD",
-    "DOTUSDT": "DOT-USD", "LINKUSDT": "LINK-USD",
+    "BTCUSDT": "BTC-USD",
+    "ETHUSDT": "ETH-USD",
+    "BNBUSDT": "BNB-USD",
+    "SOLUSDT": "SOL-USD",
+    "XRPUSDT": "XRP-USD",
+    "ADAUSDT": "ADA-USD",
+    "DOGEUSDT": "DOGE-USD",
+    "AVAXUSDT": "AVAX-USD",
+    "DOTUSDT": "DOT-USD",
+    "LINKUSDT": "LINK-USD",
     "MATICUSDT": "MATIC-USD",
-    "SPY": "SPY", "QQQ": "QQQ",
-    "GLD": "GLD", "TLT": "TLT",
-    "DXY": "UUP", "VIX": "^VIX",
+    "SPY": "SPY",
+    "QQQ": "QQQ",
+    "GLD": "GLD",
+    "TLT": "TLT",
+    "DXY": "UUP",
+    "VIX": "^VIX",
     # Commodities (Yahoo Finance futures)
-    "GC%3DF": "GC=F",   # Gold
-    "SI%3DF": "SI=F",   # Silver
-    "PL%3DF": "PL=F",   # Platinum
-    "PA%3DF": "PA=F",   # Palladium
-    "HG%3DF": "HG=F",   # Copper
-    "NG%3DF": "NG=F",   # Natural Gas
-    "CL%3DF": "CL=F",   # Crude Oil
+    "GC%3DF": "GC=F",  # Gold
+    "SI%3DF": "SI=F",  # Silver
+    "PL%3DF": "PL=F",  # Platinum
+    "PA%3DF": "PA=F",  # Palladium
+    "HG%3DF": "HG=F",  # Copper
+    "NG%3DF": "NG=F",  # Natural Gas
+    "CL%3DF": "CL=F",  # Crude Oil
     # Metals ETF proxies
-    "JJN": "JJN",       # iPath Nickel Subindex ETF (delisted on yfinance lib, works on v8 API)
+    "JJN": "JJN",  # iPath Nickel Subindex ETF (delisted on yfinance lib, works on v8 API)
     # Crypto
     "XMR-USD": "XMR-USD",
 }
@@ -43,23 +52,36 @@ YAHOO_V8_ONLY = {"JJN"}
 
 # metals-api.com symbol mapping
 METALS_API_SYMBOLS = {
-    "GC%3DF": "gold", "SI%3DF": "silver",
-    "HG%3DF": "copper", "PL%3DF": "platinum",
-    "PA%3DF": "palladium", "NG%3DF": "natural_gas",
-    "CL%3DF": "crude_oil", "JJN": "nickel",
+    "GC%3DF": "gold",
+    "SI%3DF": "silver",
+    "HG%3DF": "copper",
+    "PL%3DF": "platinum",
+    "PA%3DF": "palladium",
+    "NG%3DF": "natural_gas",
+    "CL%3DF": "crude_oil",
+    "JJN": "nickel",
 }
 
 # Twelve Data symbol mapping
 TWELVE_SYMBOLS = {
-    "GC%3DF": "GC=F", "SI%3DF": "SI=F",
-    "HG%3DF": "HG=F", "PL%3DF": "PL=F",
-    "PA%3DF": "PA=F", "NG%3DF": "NG=F",
-    "CL%3DF": "CL=F", "JJN": "JJN",
+    "GC%3DF": "GC=F",
+    "SI%3DF": "SI=F",
+    "HG%3DF": "HG=F",
+    "PL%3DF": "PL=F",
+    "PA%3DF": "PA=F",
+    "NG%3DF": "NG=F",
+    "CL%3DF": "CL=F",
+    "JJN": "JJN",
 }
 
 YAHOO_INTERVAL_MAP = {
-    "1m": "1m", "5m": "5m", "15m": "15m",
-    "1h": "60m", "4h": "1h", "1d": "1d", "1w": "1wk",
+    "1m": "1m",
+    "5m": "5m",
+    "15m": "15m",
+    "1h": "60m",
+    "4h": "1h",
+    "1d": "1d",
+    "1w": "1wk",
 }
 
 
@@ -73,7 +95,15 @@ def _to_yahoo_interval(interval: str) -> str:
 
 # ── OHLCV dataclass ──────────────────────────────────────────────────────────
 class OHLCV:
-    def __init__(self, timestamp: int, open_: float, high: float, low: float, close: float, volume: float):
+    def __init__(
+        self,
+        timestamp: int,
+        open_: float,
+        high: float,
+        low: float,
+        close: float,
+        volume: float,
+    ):
         self.timestamp = timestamp
         self.open = open_
         self.high = high
@@ -98,12 +128,20 @@ class OHLCV:
 
     @classmethod
     def from_binance_kline(cls, k):
-        return cls(timestamp=int(k[0]), open_=float(k[1]), high=float(k[2]),
-                   low=float(k[3]), close=float(k[4]), volume=float(k[5]))
+        return cls(
+            timestamp=int(k[0]),
+            open_=float(k[1]),
+            high=float(k[2]),
+            low=float(k[3]),
+            close=float(k[4]),
+            volume=float(k[5]),
+        )
 
 
 # ── Yahoo Finance v8 (direct REST API) ──────────────────────────────────────
-def _fetch_yahoo_v8(symbol: str, interval: str = "1d", range_: str = "60d", limit: int = 500) -> list[OHLCV]:
+def _fetch_yahoo_v8(
+    symbol: str, interval: str = "1d", range_: str = "60d", limit: int = 500
+) -> list[OHLCV]:
     """
     Yahoo Finance v8 API — works for symbols that yfinance lib marks as delisted.
     JJN (iPath Nickel) works here but not in yfinance.Ticker().
@@ -112,16 +150,27 @@ def _fetch_yahoo_v8(symbol: str, interval: str = "1d", range_: str = "60d", limi
     yInterval = _to_yahoo_interval(interval)
 
     # Map range to yfinance period
-    range_map = {"5d": "5d", "10d": "5d", "1mo": "1mo", "2mo": "2mo",
-                 "3mo": "3mo", "6mo": "6mo", "1y": "1y", "2y": "2y",
-                 "5d+": "5d", "max": "2y"}
+    range_map = {
+        "5d": "5d",
+        "10d": "5d",
+        "1mo": "1mo",
+        "2mo": "2mo",
+        "3mo": "3mo",
+        "6mo": "6mo",
+        "1y": "1y",
+        "2y": "2y",
+        "5d+": "5d",
+        "max": "2y",
+    }
     period = range_map.get(range_, "1y")
 
     try:
         r = requests.get(
             f"https://query1.finance.yahoo.com/v8/finance/chart/{ySymbol}",
             params={"interval": yInterval, "range": range_},
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            },
             timeout=10,
         )
         data = r.json()
@@ -144,26 +193,32 @@ def _fetch_yahoo_v8(symbol: str, interval: str = "1d", range_: str = "60d", limi
             if current_price is None:
                 raise ValueError(f"No current price for {symbol}")
             current_timestamp = int(datetime.now(timezone.utc).timestamp() * 1000)
-            return [OHLCV(
-                timestamp=current_timestamp,
-                open_=current_price, high=current_price,
-                low=current_price, close=current_price,
-                volume=0.0,
-            )]
+            return [
+                OHLCV(
+                    timestamp=current_timestamp,
+                    open_=current_price,
+                    high=current_price,
+                    low=current_price,
+                    close=current_price,
+                    volume=0.0,
+                )
+            ]
 
         candles = []
         for i, ts in enumerate(timestamps):
             close = ohlcv_data.get("close", [None])[i]
             if close is None:
                 continue
-            candles.append(OHLCV(
-                timestamp=int(ts * 1000),
-                open_=ohlcv_data.get("open", [None])[i] or close,
-                high=ohlcv_data.get("high", [None])[i] or close,
-                low=ohlcv_data.get("low", [None])[i] or close,
-                close=float(close),
-                volume=ohlcv_data.get("volume", [None])[i] or 0.0,
-            ))
+            candles.append(
+                OHLCV(
+                    timestamp=int(ts * 1000),
+                    open_=ohlcv_data.get("open", [None])[i] or close,
+                    high=ohlcv_data.get("high", [None])[i] or close,
+                    low=ohlcv_data.get("low", [None])[i] or close,
+                    close=float(close),
+                    volume=ohlcv_data.get("volume", [None])[i] or 0.0,
+                )
+            )
 
         if limit and len(candles) > limit:
             candles = candles[-limit:]
@@ -174,7 +229,9 @@ def _fetch_yahoo_v8(symbol: str, interval: str = "1d", range_: str = "60d", limi
 
 
 # ── Yahoo Finance (yfinance library) ─────────────────────────────────────────
-def _fetch_yfinance_lib(symbol: str, interval: str = "1d", period: str = "60d", limit: int = 500) -> list[OHLCV]:
+def _fetch_yfinance_lib(
+    symbol: str, interval: str = "1d", period: str = "60d", limit: int = 500
+) -> list[OHLCV]:
     """yfinance library fallback (works for most standard symbols)."""
     ySymbol = _to_yahoo_symbol(symbol)
     yInterval = _to_yahoo_interval(interval)
@@ -195,7 +252,9 @@ def _fetch_yfinance_lib(symbol: str, interval: str = "1d", period: str = "60d", 
 
 
 # ── Metals-API (free tier: 50 req/month) ────────────────────────────────────
-def _fetch_metals_api(symbol: str, interval: str = "1d", limit: int = 500) -> list[OHLCV]:
+def _fetch_metals_api(
+    symbol: str, interval: str = "1d", limit: int = 500
+) -> list[OHLCV]:
     if not METALS_API_KEY:
         raise ValueError("METALS_API_KEY not set")
     metal = METALS_API_SYMBOLS.get(symbol)
@@ -218,11 +277,16 @@ def _fetch_metals_api(symbol: str, interval: str = "1d", limit: int = 500) -> li
                 if metal in day_rates and day_rates[metal] and day_rates[metal] != 0:
                     price = 1.0 / day_rates[metal]
                     dt = datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
-                    result.append(OHLCV(
-                        timestamp=int(dt.timestamp() * 1000),
-                        open_=price, high=price * 1.002,
-                        low=price * 0.998, close=price, volume=0.0
-                    ))
+                    result.append(
+                        OHLCV(
+                            timestamp=int(dt.timestamp() * 1000),
+                            open_=price,
+                            high=price * 1.002,
+                            low=price * 0.998,
+                            close=price,
+                            volume=0.0,
+                        )
+                    )
             return result
         raise ValueError("metals-api returned no rates")
     except Exception as e:
@@ -230,20 +294,31 @@ def _fetch_metals_api(symbol: str, interval: str = "1d", limit: int = 500) -> li
 
 
 # ── Twelve Data (free tier: 800 req/day) ─────────────────────────────────────
-def _fetch_twelve_data(symbol: str, interval: str = "1d", limit: int = 500) -> list[OHLCV]:
+def _fetch_twelve_data(
+    symbol: str, interval: str = "1d", limit: int = 500
+) -> list[OHLCV]:
     if not TWELVE_DATA_KEY:
         raise ValueError("TWELVE_DATA_KEY not set")
 
     td_sym = TWELVE_SYMBOLS.get(symbol, symbol)
-    interval_map = {"1m": "1min", "5m": "5min", "15m": "15min",
-                    "1h": "1h", "4h": "4h", "1d": "1day", "1w": "1week"}
+    interval_map = {
+        "1m": "1min",
+        "5m": "5min",
+        "15m": "15min",
+        "1h": "1h",
+        "4h": "4h",
+        "1d": "1day",
+        "1w": "1week",
+    }
     td_interval = interval_map.get(interval, "1day")
 
     try:
         url = "https://api.twelvedata.com/time_series"
         params = {
-            "symbol": td_sym, "interval": td_interval,
-            "outputsize": min(limit, 500), "format": "JSON",
+            "symbol": td_sym,
+            "interval": td_interval,
+            "outputsize": min(limit, 500),
+            "format": "JSON",
             "apikey": TWELVE_DATA_KEY,
         }
         r = requests.get(url, params=params, timeout=10)
@@ -252,12 +327,18 @@ def _fetch_twelve_data(symbol: str, interval: str = "1d", limit: int = 500) -> l
         if "values" in data and data["values"]:
             result = []
             for bar in reversed(data["values"]):
-                result.append(OHLCV(
-                    timestamp=int(datetime.fromisoformat(bar["datetime"]).timestamp() * 1000),
-                    open_=float(bar["open"]), high=float(bar["high"]),
-                    low=float(bar["low"]), close=float(bar["close"]),
-                    volume=float(bar.get("volume", 0)),
-                ))
+                result.append(
+                    OHLCV(
+                        timestamp=int(
+                            datetime.fromisoformat(bar["datetime"]).timestamp() * 1000
+                        ),
+                        open_=float(bar["open"]),
+                        high=float(bar["high"]),
+                        low=float(bar["low"]),
+                        close=float(bar["close"]),
+                        volume=float(bar.get("volume", 0)),
+                    )
+                )
             return result
         raise ValueError("Twelve Data returned no values")
     except Exception as e:

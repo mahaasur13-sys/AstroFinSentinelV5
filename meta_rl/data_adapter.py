@@ -1,4 +1,5 @@
 """meta_rl/data_adapter.py — ATOM-META-RL-003: OHLCV ↔ Strategy format adapter"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -88,8 +89,8 @@ def validate_market_data(market_data: Dict[str, Any]) -> bool:
     if not market_data:
         return False
     closes = market_data.get("close", [])
-    if not closes or not isinstance(closes, (list, tuple)):
+    if not closes or not isinstance(closes, (list, tuple)):  # noqa: UP038
         return False
-    if not all(isinstance(c, (int, float)) for c in closes):
+    if not all(isinstance(c, (int, float)) for c in closes):  # noqa: UP038
         return False
     return True

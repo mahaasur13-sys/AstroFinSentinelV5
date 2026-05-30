@@ -9,6 +9,7 @@ Sandbox-безопасная версия: никаких embeddings, тольк
 - k_neighbors ≤ 5
 - БЕЗ embeddings
 """
+
 from dataclasses import dataclass, field
 from typing import List
 
@@ -21,14 +22,16 @@ from core.coordination.constants import (
 
 # ─── AgentSignal Dataclass ───────────────────────────────────────────────────────
 
+
 @dataclass
 class AgentSignal:
     """Унифицированный формат сигнала агента."""
+
     name: str
-    signal: str          # BUY | SELL | NEUTRAL
-    confidence: float    # raw confidence (0–100)
-    eff_conf: float      # effective confidence (после uncertainty + regime)
-    weight: float        # вес в гибридном сигнале
+    signal: str  # BUY | SELL | NEUTRAL
+    confidence: float  # raw confidence (0–100)
+    eff_conf: float  # effective confidence (после uncertainty + regime)
+    weight: float  # вес в гибридном сигнале
     regime: str = "NORMAL"
     uncertainty: float = 0.5
     sources: List[str] = field(default_factory=list)
@@ -47,16 +50,24 @@ class AgentSignal:
 
 # ─── Signal Mapping ─────────────────────────────────────────────────────────────
 
+
 def signal_to_direction(signal: str) -> int:
     """Map signal → direction vector (+1=BUY, -1=SELL, 0=NEUTRAL)."""
     return {
-        "BUY": 1, "LONG": 1, "STRONG_BUY": 1,
-        "SELL": -1, "SHORT": -1, "STRONG_SELL": -1,
-        "NEUTRAL": 0, "HOLD": 0, "AVOID": 0,
+        "BUY": 1,
+        "LONG": 1,
+        "STRONG_BUY": 1,
+        "SELL": -1,
+        "SHORT": -1,
+        "STRONG_SELL": -1,
+        "NEUTRAL": 0,
+        "HOLD": 0,
+        "AVOID": 0,
     }.get(signal.upper(), 0)
 
 
 # ─── Similarity (Sandbox: без embeddings) ───────────────────────────────────────
+
 
 def compute_similarity(a: AgentSignal, b: AgentSignal) -> float:
     """
@@ -64,12 +75,17 @@ def compute_similarity(a: AgentSignal, b: AgentSignal) -> float:
     - нейтральный → 0.0 (нет влияния)
     - иначе → 1.0
     """
-    if a.signal in ("NEUTRAL", "HOLD", "AVOID") or b.signal in ("NEUTRAL", "HOLD", "AVOID"):
+    if a.signal in ("NEUTRAL", "HOLD", "AVOID") or b.signal in (
+        "NEUTRAL",
+        "HOLD",
+        "AVOID",
+    ):
         return 0.0
     return 1.0
 
 
 # ─── Regime-Aware Influence ──────────────────────────────────────────────────────
+
 
 def get_regime_multiplier(regime: str) -> float:
     """Regime reception discount: agent в EXTREME получает меньше influence."""
@@ -77,6 +93,7 @@ def get_regime_multiplier(regime: str) -> float:
 
 
 # ─── Core: apply_pressure_field ────────────────────────────────────────────────
+
 
 def apply_pressure_field(
     agents: List[AgentSignal],
@@ -144,9 +161,9 @@ def apply_pressure_field(
             if dir_i == 0 or dir_j == 0:
                 score = 0.0
             elif dir_i == dir_j:
-                score = conf_b         # согласны → A усиливается
+                score = conf_b  # согласны → A усиливается
             else:
-                score = -conf_b        # несогласны → A теряет conviction
+                score = -conf_b  # несогласны → A теряет conviction
 
             influences.append((j, agent_j.name, score, agent_j.signal))
 
@@ -168,7 +185,7 @@ def apply_pressure_field(
         # Consensus discount: если consensus < min, снижаем alpha
         effective_alpha = alpha
         if 0 < consensus_pct < min_consensus:
-            effective_alpha *= (consensus_pct / min_consensus)
+            effective_alpha *= consensus_pct / min_consensus
 
         # Delta
         delta = effective_alpha * regime_mult * total_influence
@@ -206,6 +223,7 @@ def apply_pressure_field(
 
 # ─── Batch apply с метриками ─────────────────────────────────────────────────
 
+
 def apply_pressure_field_with_metrics(
     agents: List[AgentSignal],
     **kwargs,
@@ -228,8 +246,12 @@ def apply_pressure_field_with_metrics(
         "pressure_field_enabled": PRESSURE_FIELD_ENABLED,
         "agents_count": len(agents),
         "k_neighbors": kwargs.get("k_neighbors", PRESSURE_FIELD_K_NEIGHBORS),
-        "influence_strength": kwargs.get("influence_strength", PRESSURE_FIELD_INFLUENCE_STRENGTH),
-        "avg_delta": sum(abs(v) for v in deltas.values()) / len(deltas) if deltas else 0,
+        "influence_strength": kwargs.get(
+            "influence_strength", PRESSURE_FIELD_INFLUENCE_STRENGTH
+        ),
+        "avg_delta": sum(abs(v) for v in deltas.values()) / len(deltas)
+        if deltas
+        else 0,
         "max_delta": max(abs(v) for v in deltas.values()) if deltas else 0,
         "deltas": deltas,
     }

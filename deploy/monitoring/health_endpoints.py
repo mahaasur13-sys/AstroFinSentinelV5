@@ -1,18 +1,35 @@
 """Health check, metrics, and KARL diagnostics endpoints."""
-import os, time, psutil, asyncpg, redis.asyncio as aioredis
+
+import os
+import time
 from typing import Dict
+
+import asyncpg
+import psutil
+import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import generate_latest, REGISTRY
+from prometheus_client import REGISTRY, generate_latest
 from pydantic import BaseModel
-from starlette.responses import PlainTextResponse
-from starlette.responses import JSONResponse
+
+# NEW: Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from starlette.responses import JSONResponse, PlainTextResponse
 
 import tools.metrics_server
 from core.auth import fastapi_require_api_key
 
+# NEW: инициализируем лимитер (100 запросов в минуту глобально)
+limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
+
 app = FastAPI(title="AstroFin Sentinel — Health & Metrics")
 process = psutil.Process(os.getpid())
+
+# NEW: привязываем лимитер к приложению
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -22,7 +39,9 @@ class HealthResponse(BaseModel):
     cpu_percent: float
     version: str = "5.0.0"
 
+
 _start_time = time.time()
+
 
 # ------------------------------------------------------------
 # Startup
@@ -30,7 +49,9 @@ _start_time = time.time()
 @app.on_event("startup")
 async def startup_event():
     from core.logging import setup_logging
+
     setup_logging()
+
 
 # ------------------------------------------------------------
 # Auth middleware – только для /api/*
@@ -44,6 +65,7 @@ async def auth_middleware(request: Request, call_next):
             return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     response = await call_next(request)
     return response
+
 
 # ------------------------------------------------------------
 # Dependency checks
@@ -63,6 +85,7 @@ async def check_postgres() -> bool:
     except Exception:
         return False
 
+
 async def check_redis() -> bool:
     try:
         redis_url = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}"
@@ -73,8 +96,9 @@ async def check_redis() -> bool:
     except Exception:
         return False
 
+
 # ------------------------------------------------------------
-# Public endpoints
+# Public endpoints (без лимитов)
 # ------------------------------------------------------------
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -86,6 +110,7 @@ async def health_check():
         cpu_percent=process.cpu_percent(interval=0.1),
     )
 
+
 @app.get("/health/ready")
 async def readiness_check():
     pg_ok = await check_postgres()
@@ -93,51 +118,67 @@ async def readiness_check():
     if pg_ok and redis_ok:
         return {"status": "ready", "timestamp": time.time()}
     else:
-        raise HTTPException(status_code=503, detail={
-            "postgres": "ok" if pg_ok else "fail",
-            "redis": "ok" if redis_ok else "fail",
-        })
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "postgres": "ok" if pg_ok else "fail",
+                "redis": "ok" if redis_ok else "fail",
+            },
+        )
+
 
 @app.get("/metrics")
 async def metrics_endpoint():
     return PlainTextResponse(
-        content=generate_latest(REGISTRY).decode(),
-        media_type="text/plain"
+        content=generate_latest(REGISTRY).decode(), media_type="text/plain"
     )
+
 
 @app.get("/")
 async def root():
-    return {"service": "AstroFin Sentinel V5", "version": "5.0.0", "status": "running", "docs": "/docs"}
+    return {
+        "service": "AstroFin Sentinel V5",
+        "version": "5.0.0",
+        "status": "running",
+        "docs": "/docs",
+    }
+
 
 # ------------------------------------------------------------
-# Protected endpoints (require X-API-Key)
+# Protected endpoints (require X-API-Key) + Rate Limited
 # ------------------------------------------------------------
 @app.get("/api/ab/compare")
+@limiter.limit("10 per minute")  # NEW: жёсткий лимит
 async def ab_compare(request: Request):
     """A/B compare two sessions: ?sid_a=X&sid_b=Y"""
     sid_a = request.query_params.get("sid_a", "")
     sid_b = request.query_params.get("sid_b", "")
     if not sid_a or not sid_b:
         raise HTTPException(status_code=400, detail="sid_a and sid_b required")
-    # Здесь вызов реального сравнения, пока заглушка
     return {"status": "OK", "sid_a": sid_a, "sid_b": sid_b}
 
+
 @app.get("/api/karl/status")
-async def karl_status():
+@limiter.limit("10 per minute")  # NEW
+async def karl_status(request: Request):
     try:
         from agents.karl_synthesis import get_karl_agent
+
         agent = get_karl_agent()
         return agent.get_status()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
+
 # ------------------------------------------------------------
 # Metrics (protected)
 # ------------------------------------------------------------
 @app.get("/metrics/karl")
-async def karl_metrics():
+@limiter.limit("30 per minute")  # NEW: метрики могут запрашиваться чаще
+async def karl_metrics(request: Request):
     try:
         from agents.karl_synthesis import get_karl_agent
+
         agent = get_karl_agent()
         status = agent.get_status()
         diag = status.get("karl_diagnostics", {})
@@ -145,6 +186,7 @@ async def karl_metrics():
         audit = diag.get("audit_summary", {})
         calibr = diag.get("calibration", {})
         drift = diag.get("drift_status", {})
+
         class KARLMetrics(BaseModel):
             oos_fail_rate: float
             entropy_avg: float
@@ -163,6 +205,7 @@ async def karl_metrics():
             sharpe_ratio: float
             max_drawdown: float
             total_trades: int
+
         return KARLMetrics(
             oos_fail_rate=oap.get("oos_fail_rate", 0.0),
             entropy_avg=oap.get("entropy_avg", 0.0),
@@ -185,8 +228,10 @@ async def karl_metrics():
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
+
 @app.get("/metrics/system")
-async def system_metrics():
+@limiter.limit("30 per minute")  # NEW
+async def system_metrics(request: Request):
     return {
         "memory_percent": process.memory_percent(),
         "memory_mb": process.memory_info().rss / 1024 / 1024,
@@ -196,6 +241,8 @@ async def system_metrics():
         "connections": len(process.connections()),
     }
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

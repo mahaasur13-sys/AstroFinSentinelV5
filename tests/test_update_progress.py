@@ -1,25 +1,35 @@
 import os
 import subprocess
 import sys
-from pathlib import Path
 from datetime import date
+from pathlib import Path
+
 import pytest
 
 ROOT = Path(__file__).parent.parent
 SCRIPT = ROOT / "tools" / "update_progress.sh"
 
+
 def run_script():
     result = subprocess.run(
         ["bash", str(SCRIPT)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         cwd=str(ROOT),
-        env={**os.environ, "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@test.com",
-             "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@test.com"}
+        env={
+            **os.environ,
+            "GIT_AUTHOR_NAME": "Test",
+            "GIT_AUTHOR_EMAIL": "test@test.com",
+            "GIT_COMMITTER_NAME": "Test",
+            "GIT_COMMITTER_EMAIL": "test@test.com",
+        },
     )
     return result.stdout, result.stderr, result.returncode
 
+
 def test_update_progress_script_exists():
     assert SCRIPT.exists(), "tools/update_progress.sh not found"
+
 
 def test_generates_progress_file():
     if not SCRIPT.exists():
@@ -42,7 +52,9 @@ def test_generates_progress_file():
     content = progress_file.read_text()
     today = date.today().isoformat()
     assert today in content, "progress.md does not contain today's date"
-    assert "Test commit for progress" in content, "progress.md does not contain commit message"
+    assert "Test commit for progress" in content, (
+        "progress.md does not contain commit message"
+    )
     # Уберем тестовый мусор
     test_file.unlink(missing_ok=True)
     subprocess.run(["git", "rm", "--cached", "test_temp.txt"], capture_output=True)

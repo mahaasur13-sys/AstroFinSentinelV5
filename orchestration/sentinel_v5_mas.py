@@ -1,4 +1,5 @@
 """orchestration/sentinel_v5_mas.py - ATOM-R-025: MASFactory Integration"""
+
 import asyncio
 import logging
 import uuid
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     from db import init_db_if_needed, is_postgres_available
     from db.repositories import DecisionRecordRepository
+
     PG_AVAILABLE = is_postgres_available()
 except Exception:
     PG_AVAILABLE = False
@@ -58,7 +60,11 @@ async def run_sentinel_v5_mas(
 
     logger.info("masfactory.building_topology")
     architect = MASFactoryArchitect()
-    karl_context = {"enable_meta_questioning": enable_meta_questioning, "symbol": symbols[0], "timeframe": timeframe}
+    karl_context = {
+        "enable_meta_questioning": enable_meta_questioning,
+        "symbol": symbols[0],
+        "timeframe": timeframe,
+    }
     topology = architect.build(intention=user_query, context=karl_context)
     logger.info("masfactory.topology_hash", hash=topology.hash[:8])
     logger.info("masfactory.roles", roles=[r.name for r in topology.roles])
@@ -91,6 +97,7 @@ async def run_sentinel_v5_mas(
     state["all_signals"] = signals
 
     from agents._impl.synthesis_agent import SynthesisAgent
+
     synth = SynthesisAgent()
     try:
         synth_result = await synth.run(state)
@@ -98,7 +105,11 @@ async def run_sentinel_v5_mas(
             synth_result = synth_result.to_dict()
     except Exception as e:
         logger.error("synthesis.error", error=str(e))
-        synth_result = {"signal": "NEUTRAL", "confidence": 50, "reasoning": "Synthesis failed"}
+        synth_result = {
+            "signal": "NEUTRAL",
+            "confidence": 50,
+            "reasoning": "Synthesis failed",
+        }
 
     exec_summary = executor.get_execution_summary()
     final_output = {
@@ -127,7 +138,9 @@ async def run_sentinel_v5_mas(
                 init_db_if_needed()
                 repo = DecisionRecordRepository()
                 repo.save_decision_record(
-                    session_id=session_id, symbol=symbols[0], price=current_price,
+                    session_id=session_id,
+                    symbol=symbols[0],
+                    price=current_price,
                     regime=state.get("regime", "NORMAL"),
                     final_action=synth_result.get("signal", "NEUTRAL"),
                     confidence=synth_result.get("confidence", 50),
@@ -144,12 +157,15 @@ async def run_sentinel_v5_mas(
 
 if __name__ == "__main__":
     import sys
+
     logger.info("masfactory.mode_start")
     query = sys.argv[2] if len(sys.argv) > 2 else "Analyze BTC"
     symbol = sys.argv[3] if len(sys.argv) > 3 else "BTCUSDT"
     timeframe = sys.argv[4] if len(sys.argv) > 4 else "SWING"
 
-    result = asyncio.run(run_sentinel_v5_mas(user_query=query, symbol=symbol, timeframe=timeframe))
+    result = asyncio.run(
+        run_sentinel_v5_mas(user_query=query, symbol=symbol, timeframe=timeframe)
+    )
 
     sig = result["final_recommendation"].get("signal", "?")
     conf = result["final_recommendation"].get("confidence", 0)

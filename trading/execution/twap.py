@@ -1,4 +1,5 @@
 """trading/execution/twap.py — ATOM-STEP-10: TWAP Execution Strategy"""
+
 from __future__ import annotations
 
 import time
@@ -117,7 +118,9 @@ class TWAPExecutor:
             )
 
             slip = self.slippage.calculate(
-                side, slice_qty, slice_price,
+                side,
+                slice_qty,
+                slice_price,
                 volatility_bps=impact.slippage_bps * 100,
                 spread_bps=self.ob_sim.spread_bps,
                 adv=self.ob_sim.adv,
@@ -126,16 +129,18 @@ class TWAPExecutor:
             )
 
             if slip.slippage_bps > cfg.max_price_slippage_bps:
-                report.slices.append(TWAPSlice(
-                    slice_num=i + 1,
-                    scheduled_time=now + i * cfg.slice_duration_seconds,
-                    qty=slice_qty,
-                    exec_price=0,
-                    slippage_bps=slip.slippage_bps,
-                    slippage_cost=0,
-                    filled=False,
-                    order_id="ABORTED",
-                ))
+                report.slices.append(
+                    TWAPSlice(
+                        slice_num=i + 1,
+                        scheduled_time=now + i * cfg.slice_duration_seconds,
+                        qty=slice_qty,
+                        exec_price=0,
+                        slippage_bps=slip.slippage_bps,
+                        slippage_cost=0,
+                        filled=False,
+                        order_id="ABORTED",
+                    )
+                )
                 continue
 
             exec_price = slip.exec_price
@@ -149,16 +154,18 @@ class TWAPExecutor:
             total_slippage_cost += slip_cost
             total_commission += commission
 
-            report.slices.append(TWAPSlice(
-                slice_num=i + 1,
-                scheduled_time=now + i * cfg.slice_duration_seconds,
-                qty=slice_qty,
-                exec_price=exec_price,
-                slippage_bps=slip.slippage_bps,
-                slippage_cost=slip_cost,
-                filled=True,
-                order_id=f"TWAP-{int(now*1000)}-{i}",
-            ))
+            report.slices.append(
+                TWAPSlice(
+                    slice_num=i + 1,
+                    scheduled_time=now + i * cfg.slice_duration_seconds,
+                    qty=slice_qty,
+                    exec_price=exec_price,
+                    slippage_bps=slip.slippage_bps,
+                    slippage_cost=slip_cost,
+                    filled=True,
+                    order_id=f"TWAP-{int(now * 1000)}-{i}",
+                )
+            )
 
             time.sleep(0.01)
 
@@ -168,9 +175,15 @@ class TWAPExecutor:
         filled = [s for s in report.slices if s.filled]
         report.filled_qty = sum(s.qty for s in filled)
         report.remaining_qty = qty - report.filled_qty
-        report.avg_price = sum(s.exec_price * s.qty for s in filled) / report.filled_qty if report.filled_qty > 0 else 0
+        report.avg_price = (
+            sum(s.exec_price * s.qty for s in filled) / report.filled_qty
+            if report.filled_qty > 0
+            else 0
+        )
         report.vwap = report.avg_price
-        report.avg_slippage_bps = sum(s.slippage_bps for s in filled) / len(filled) if filled else 0
+        report.avg_slippage_bps = (
+            sum(s.slippage_bps for s in filled) / len(filled) if filled else 0
+        )
         report.total_slippage_cost = total_slippage_cost
         report.total_commission = total_commission
         report.total_cost = total_cost
@@ -178,7 +191,9 @@ class TWAPExecutor:
         report.execution_prices = exec_prices
 
         if report.price_start > 0:
-            report.price_impact_bps = abs(report.avg_price - report.price_start) / report.price_start * 10000
+            report.price_impact_bps = (
+                abs(report.avg_price - report.price_start) / report.price_start * 10000
+            )
 
         return report
 
@@ -190,9 +205,15 @@ if __name__ == "__main__":
     print("=== TWAP Execution ===")
     executor = TWAPExecutor()
     cfg = TWAPConfig(num_slices=5, slice_duration_seconds=10)
-    report = executor.execute("BTC/USDT", "buy", qty=1.0, current_price=50000, config=cfg)
+    report = executor.execute(
+        "BTC/USDT", "buy", qty=1.0, current_price=50000, config=cfg
+    )
     print(f"  {report.summary()}")
     for s in report.slices:
         status = "FILLED" if s.filled else "ABORTED"
-        print(f"    Slice {s.slice_num}: {status} @ ${s.exec_price:.2f}, slip={s.slippage_bps:.2f}bps, cost=${s.slippage_cost:.2f}")
-    print(f"  Total cost: ${report.total_cost:.2f} (commissions ${report.total_commission:.2f})")
+        print(
+            f"    Slice {s.slice_num}: {status} @ ${s.exec_price:.2f}, slip={s.slippage_bps:.2f}bps, cost=${s.slippage_cost:.2f}"
+        )
+    print(
+        f"  Total cost: ${report.total_cost:.2f} (commissions ${report.total_commission:.2f})"
+    )

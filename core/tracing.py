@@ -2,12 +2,14 @@
 Инициализация OpenTelemetry с экспортом в Jaeger (OTLP gRPC).
 Добавлено автоматическое инструментирование aiohttp, если пакет установлен.
 """
-import os
+
 import logging
+import os
+
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ def setup_tracing(service_name: str = "astrofin-sentinel") -> trace.Tracer:
     # Попытка автоматически инструментировать aiohttp (если пакет есть)
     try:
         from opentelemetry.instrumentation.aiohttp import AioHttpInstrumentor
+
         AioHttpInstrumentor().instrument()
         logger.info("tracing.aiohttp_instrumentation_enabled")
     except ImportError:

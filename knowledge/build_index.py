@@ -25,6 +25,7 @@ DIM = 768  # nomic-embed-text output dimension
 
 def get_embedding(text: str, model: str = "nomic-embed-text") -> list[float]:
     import urllib.request
+
     payload = json.dumps({"model": model, "prompt": text}).encode()
     req = urllib.request.Request(
         "http://localhost:11434/api/embeddings",
@@ -36,6 +37,7 @@ def get_embedding(text: str, model: str = "nomic-embed-text") -> list[float]:
 
 
 # ─── Chunk loading ─────────────────────────────────────────────────────────────
+
 
 def load_chunks(chunks_dir: Path) -> list[dict]:
     """Load all markdown files, split into semantic chunks."""
@@ -54,18 +56,23 @@ def load_chunks(chunks_dir: Path) -> list[dict]:
                 body = section.strip()
             if not body or len(body) < 20:
                 continue
-            chunk_id = hashlib.md5(f"{md_file.name}#{current_title}".encode()).hexdigest()[:12]
-            chunks.append({
-                "id": chunk_id,
-                "content": body,
-                "source": str(md_file.relative_to(chunks_dir.parent)),
-                "title": current_title,
-                "domain": domain,
-            })
+            chunk_id = hashlib.md5(
+                f"{md_file.name}#{current_title}".encode()
+            ).hexdigest()[:12]
+            chunks.append(
+                {
+                    "id": chunk_id,
+                    "content": body,
+                    "source": str(md_file.relative_to(chunks_dir.parent)),
+                    "title": current_title,
+                    "domain": domain,
+                }
+            )
     return chunks
 
 
 # ─── FAISS index building ─────────────────────────────────────────────────────
+
 
 def build_index(chunks: list[dict], domain: str) -> tuple[faiss.Index, list[dict]]:
     """Build FAISS IndexFlatIP (cosine sim via normalized vectors)."""
@@ -83,9 +90,13 @@ def build_index(chunks: list[dict], domain: str) -> tuple[faiss.Index, list[dict
     return index, chunks
 
 
-def save_index(index: faiss.Index, chunks: list[dict], index_path: Path, meta_path: Path):
+def save_index(
+    index: faiss.Index, chunks: list[dict], index_path: Path, meta_path: Path
+):
     faiss.write_index(index, str(index_path))
-    meta_path.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
+    meta_path.write_text(
+        json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def load_index(index_path: Path, meta_path: Path) -> tuple[faiss.Index, list[dict]]:
@@ -95,6 +106,7 @@ def load_index(index_path: Path, meta_path: Path) -> tuple[faiss.Index, list[dic
 
 
 # ─── CLI ───────────────────────────────────────────────────────────────────────
+
 
 def cmd_build(args):
     kb_dir = Path(__file__).parent
@@ -150,7 +162,9 @@ def cmd_stats(args):
             continue
         index = faiss.read_index(str(index_path))
         chunks = json.loads(meta_path.read_text(encoding="utf-8"))
-        print(f"  {d:12s}: ✅ {index.ntotal:3d} chunks  ({', '.join(c['title'][:25] for c in chunks[:3])}…)")
+        print(
+            f"  {d:12s}: ✅ {index.ntotal:3d} chunks  ({', '.join(c['title'][:25] for c in chunks[:3])}…)"
+        )
         total += index.ntotal
 
     all_path = indexes_dir / "all.index"
@@ -173,7 +187,9 @@ def cmd_search(args):
     meta_path = indexes_dir / f"{domain}.meta.json"
 
     if not index_path.exists():
-        print(f"❌ No index for domain '{domain}'. Run: python build_index.py --domain {domain}")
+        print(
+            f"❌ No index for domain '{domain}'. Run: python build_index.py --domain {domain}"
+        )
         sys.exit(1)
 
     index, chunks = load_index(index_path, meta_path)
@@ -199,8 +215,12 @@ if __name__ == "__main__":
     sub = parser.add_subparsers(dest="cmd")
 
     p_build = sub.add_parser("build", help="Build FAISS index")
-    p_build.add_argument("--domain", default="all", choices=["astrology", "technical", "trading", "all"])
-    p_build.add_argument("--rebuild", action="store_true", help="Force rebuild even if index exists")
+    p_build.add_argument(
+        "--domain", default="all", choices=["astrology", "technical", "trading", "all"]
+    )
+    p_build.add_argument(
+        "--rebuild", action="store_true", help="Force rebuild even if index exists"
+    )
 
     p_stats = sub.add_parser("stats", help="Show index statistics")
 

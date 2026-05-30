@@ -53,6 +53,7 @@ _VERSION_SQL = f"""CREATE TABLE IF NOT EXISTS {_VERSION_TABLE} (
 
 RE_MIGRATION = re.compile(r"^(?P<ver>\d+)_(?P<name>.+?)\.sql$")
 
+
 def discover_migrations() -> list[dict]:
     """Return sorted list of migration metadata."""
     migrations = []
@@ -60,14 +61,18 @@ def discover_migrations() -> list[dict]:
         m = RE_MIGRATION.match(path.name)
         if not m:
             continue
-        migrations.append({
-            "version": int(m.group("ver")),
-            "name":    m.group("name"),
-            "path":    path,
-        })
+        migrations.append(
+            {
+                "version": int(m.group("ver")),
+                "name": m.group("name"),
+                "path": path,
+            }
+        )
     return migrations
 
+
 # ── DB helpers ────────────────────────────────────────────────────────────────
+
 
 def get_version(db_path: Path) -> int:
     """Current schema version for a DB, or 0 if never seeded."""
@@ -81,16 +86,20 @@ def get_version(db_path: Path) -> int:
     finally:
         conn.close()
 
+
 def get_all_versions(db_path: Path) -> list[int]:
     """All applied versions for a DB."""
     if not db_path.exists():
         return []
     conn = sqlite3.connect(db_path)
     try:
-        rows = conn.execute(f"SELECT version FROM {_VERSION_TABLE} ORDER BY version").fetchall()
+        rows = conn.execute(
+            f"SELECT version FROM {_VERSION_TABLE} ORDER BY version"
+        ).fetchall()
         return [r[0] for r in rows]
     finally:
         conn.close()
+
 
 def apply_migration(db_path: Path, migration: dict, simulate: bool = False) -> bool:
     """Apply a single migration. Returns True if successful."""
@@ -107,7 +116,9 @@ def apply_migration(db_path: Path, migration: dict, simulate: bool = False) -> b
     )
 
     if simulate:
-        print(f"  [SIMULATE] Would apply: v{migration['version']} — {migration['name']}")
+        print(
+            f"  [SIMULATE] Would apply: v{migration['version']} — {migration['name']}"
+        )
         return True
 
     conn = sqlite3.connect(db_path)
@@ -129,18 +140,23 @@ def apply_migration(db_path: Path, migration: dict, simulate: bool = False) -> b
     finally:
         conn.close()
 
+
 # ── CLI commands ──────────────────────────────────────────────────────────────
 
+
 def cmd_status() -> None:
-    print(f"\n📋 Schema version status\n{'─'*50}")
+    print(f"\n📋 Schema version status\n{'─' * 50}")
     for name, path in DBs.items():
         version = get_version(path)
         applied = get_all_versions(path)
         status_icon = "🟢" if version == _latest() else "🟡"
-        print(f"  {status_icon} {name}: v{version} / {_latest()} applied={applied or '—'}")
+        print(
+            f"  {status_icon} {name}: v{version} / {_latest()} applied={applied or '—'}"
+        )
+
 
 def cmd_plan() -> None:
-    print(f"\n📋 Migration plan\n{'─'*50}")
+    print(f"\n📋 Migration plan\n{'─' * 50}")
     for name, path in DBs.items():
         cur = get_version(path)
         pending = [m for m in discover_migrations() if m["version"] > cur]
@@ -150,6 +166,7 @@ def cmd_plan() -> None:
         else:
             for m in pending:
                 print(f"    → v{m['version']} — {m['name']}")
+
 
 def cmd_check() -> None:
     """Exit 0 if all DBs are at latest version."""
@@ -161,8 +178,9 @@ def cmd_check() -> None:
             print(f"❌ {name} is v{cur}, expected v{_latest()}", file=sys.stderr)
     sys.exit(0 if all_ok else 1)
 
+
 def cmd_migrate(simulate: bool = False) -> None:
-    print(f"\n🔄 Running migrations (simulate={simulate})\n{'─'*50}")
+    print(f"\n🔄 Running migrations (simulate={simulate})\n{'─' * 50}")
     for name, path in DBs.items():
         cur = get_version(path)
         pending = [m for m in discover_migrations() if m["version"] > cur]
@@ -180,8 +198,9 @@ def cmd_migrate(simulate: bool = False) -> None:
             if not ok:
                 print(f"    ❌ Failed: v{m['version']}")
                 sys.exit(1)
-    print(f"\n{'─'*50}")
+    print(f"\n{'─' * 50}")
     print("✅ Migration complete.")
+
 
 def cmd_init_single(db_key: str) -> None:
     """Bootstrap a fresh DB with all migrations."""
@@ -191,11 +210,13 @@ def cmd_init_single(db_key: str) -> None:
     path = DBs[db_key]
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n🆕 Initializing {db_key} at {path}\n{'─'*50}")
+    print(f"\n🆕 Initializing {db_key} at {path}\n{'─' * 50}")
     cur = get_version(path)
     if cur > 0:
         print(f"  ⚠️  DB already has schema v{cur}. Re-initialising from scratch.")
-        backup = path.with_suffix(".db.backup_{}".format(datetime.now().strftime("%Y%m%d%H%M%S")))
+        backup = path.with_suffix(
+            ".db.backup_{}".format(datetime.now().strftime("%Y%m%d%H%M%S"))
+        )
         path.rename(backup)
         print(f"  → Renamed old DB to {backup}")
 
@@ -203,22 +224,27 @@ def cmd_init_single(db_key: str) -> None:
     path.touch()
     for m in discover_migrations():
         apply_migration(path, m)
-    print(f"\n{'─'*50}")
+    print(f"\n{'─' * 50}")
     print(f"✅ {db_key} initialised at v{_latest()}.")
+
 
 def cmd_rollback(version: int) -> None:
     """
     Rollback: recreate DB from scratch at specified version.
     This is pragmatic for SQLite — no DROP COLUMN support.
     """
-    print(f"\n⚠️  Rollback to v{version} for SQLite = re-bootstrap from v0 + apply through v{version}")
+    print(
+        f"\n⚠️  Rollback to v{version} for SQLite = re-bootstrap from v0 + apply through v{version}"
+    )
     for name, path in DBs.items():
         cur = get_version(path)
         if cur <= version:
             print(f"  {name}: already at v{cur} — nothing to do")
             continue
         # Backup
-        backup = path.with_suffix(f".rollback_v{version}_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+        backup = path.with_suffix(
+            f".rollback_v{version}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        )
         if path.exists():
             path.rename(backup)
             print(f"  → Backed up {name} to {backup}")
@@ -228,22 +254,45 @@ def cmd_rollback(version: int) -> None:
                 apply_migration(path, m)
     print(f"\n✅ Rollback complete to v{version}.")
 
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _latest() -> int:
     migrations = discover_migrations()
     return max((m["version"] for m in migrations), default=0)
 
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main():
-    parser = argparse.ArgumentParser(description="AstroFin Sentinel V5 — Schema Migration Runner")
-    parser.add_argument("--status", action="store_true", help="Show current schema version per DB")
-    parser.add_argument("--check", action="store_true", help="Exit 0 if all DBs are current")
+    parser = argparse.ArgumentParser(
+        description="AstroFin Sentinel V5 — Schema Migration Runner"
+    )
+    parser.add_argument(
+        "--status", action="store_true", help="Show current schema version per DB"
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="Exit 0 if all DBs are current"
+    )
     parser.add_argument("--plan", action="store_true", help="Show pending migrations")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without doing it")
-    parser.add_argument("--init-single", metavar="DB", help="Bootstrap a single DB (sessions|backtest) from scratch")
-    parser.add_argument("--rollback", type=int, metavar="N", help="Rollback all DBs to version N (re-applies <=N)")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without doing it",
+    )
+    parser.add_argument(
+        "--init-single",
+        metavar="DB",
+        help="Bootstrap a single DB (sessions|backtest) from scratch",
+    )
+    parser.add_argument(
+        "--rollback",
+        type=int,
+        metavar="N",
+        help="Rollback all DBs to version N (re-applies <=N)",
+    )
 
     args = parser.parse_args()
 
@@ -259,6 +308,7 @@ def main():
         cmd_rollback(args.rollback)
     else:
         cmd_migrate(simulate=args.dry_run)
+
 
 if __name__ == "__main__":
     main()

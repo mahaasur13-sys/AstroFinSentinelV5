@@ -9,19 +9,24 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-from tools.metrics_server import (
-    OLLAMA_STATUS, CACHE_HITS, CACHE_MISSES,
-    RAG_RELEVANCE_SCORE, RAG_CHUNK_COUNT,
-    RAG_QUERY_CACHE_HITS, RAG_QUERY_CACHE_MISSES,
-)
-
 import faiss
 import numpy as np
+
+from tools.metrics_server import (
+    CACHE_HITS,
+    CACHE_MISSES,
+    OLLAMA_STATUS,
+    RAG_CHUNK_COUNT,
+    RAG_QUERY_CACHE_HITS,
+    RAG_QUERY_CACHE_MISSES,
+    RAG_RELEVANCE_SCORE,
+)
 
 DIM = 768
 
 
 # ─── Embeddings ────────────────────────────────────────────────────────────────
+
 
 def _embed(text: str) -> np.ndarray:
     """Get nomic-embed-text embedding via Ollama API, updating health status."""
@@ -45,6 +50,7 @@ def _embed(text: str) -> np.ndarray:
 
 # ─── RAGRetriever ─────────────────────────────────────────────────────────────
 
+
 class RAGRetriever:
     """
     FAISS-backed RAG retrieval.
@@ -65,11 +71,10 @@ class RAGRetriever:
         self._cache: dict[str, tuple[faiss.Index, list[dict]]] = {}
         self._query_cache: dict[tuple, list[dict]] = {}
 
-
     def _load(self, domain: str):
         """Load (and cache) FAISS index + metadata for a domain."""
         if domain in self._cache:
-            CACHE_HITS.inc()           # cache hit
+            CACHE_HITS.inc()  # cache hit
             return self._cache[domain]
 
         index_path = self.indexes_dir / f"{domain}.index"
@@ -82,7 +87,7 @@ class RAGRetriever:
         index = faiss.read_index(str(index_path))
         chunks = json.loads(meta_path.read_text(encoding="utf-8"))
         self._cache[domain] = (index, chunks)
-        CACHE_MISSES.inc()             # cache miss (first load)
+        CACHE_MISSES.inc()  # cache miss (first load)
         return index, chunks
 
     def retrieve(
@@ -176,6 +181,7 @@ class RAGRetriever:
 
 # ─── Agent Tool ───────────────────────────────────────────────────────────────
 
+
 def retrieve_knowledge(
     query: str,
     domain: Optional[str] = None,
@@ -229,4 +235,6 @@ if __name__ == "__main__":
     else:
         print("\n📊 Index stats:")
         for domain, stat in retriever.stats().items():
-            print(f"  {domain:12s}: {stat['indexed_chunks']:3d} chunks  files={stat['files']}")
+            print(
+                f"  {domain:12s}: {stat['indexed_chunks']:3d} chunks  files={stat['files']}"
+            )

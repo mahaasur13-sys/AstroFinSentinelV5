@@ -3,6 +3,7 @@ core/online_trainer.py — ATOM-STEP-6: Online RL Trainer
 ======================================================
 Trains Kepler + market models online using REINFORCE-style policy gradient.
 """
+
 import json
 import random
 from dataclasses import dataclass, field
@@ -13,11 +14,13 @@ from typing import Optional
 @dataclass
 class PolicyParams:
     """Trainable policy parameters."""
+
     base_position_pct: float = 0.05
     astro_position_scale: float = 0.02
     risk_position_scale: float = 0.03
     uncertainty_cap: float = 0.70
     min_confidence_for_trade: float = 50.0
+
 
 @dataclass
 class Experience:
@@ -30,6 +33,7 @@ class Experience:
     astro_alignment: float
     actual_pnl: float
 
+
 @dataclass
 class TrainingState:
     episode: int = 0
@@ -37,6 +41,7 @@ class TrainingState:
     best_reward: float = float("-inf")
     reward_history: list[float] = field(default_factory=list)
     params_history: list[dict] = field(default_factory=list)
+
 
 class OnlineTrainer:
     """
@@ -57,14 +62,25 @@ class OnlineTrainer:
         self.noise = exploration_noise
         self.experience_buffer: list[Experience] = []
         self.state = TrainingState()
-        self._best_params = PolicyParams(**{k: getattr(self.params, k) for k in ["base_position_pct", "astro_position_scale", "risk_position_scale", "uncertainty_cap", "min_confidence_for_trade"]})
+        self._best_params = PolicyParams(
+            **{
+                k: getattr(self.params, k)
+                for k in [
+                    "base_position_pct",
+                    "astro_position_scale",
+                    "risk_position_scale",
+                    "uncertainty_cap",
+                    "min_confidence_for_trade",
+                ]
+            }
+        )
 
     def decide_position(
         self,
         signal_strength: float,  # 0-100
-        uncertainty: float,       # 0-1
-        astro_alignment: float,   # -1 to +1
-        regime: str = "NORMAL",   # LOW/NORMAL/HIGH/EXTREME
+        uncertainty: float,  # 0-1
+        astro_alignment: float,  # -1 to +1
+        regime: str = "NORMAL",  # LOW/NORMAL/HIGH/EXTREME
     ) -> dict:
         """
         Decide position size based on current policy + exploration noise.
@@ -86,9 +102,13 @@ class OnlineTrainer:
                 }
 
         # Regime-based risk multiplier
-        regime_mult = {"LOW": 1.0, "NORMAL": 0.75, "HIGH": 0.5, "EXTREME": 0.25}.get(regime, 0.5)
+        regime_mult = {"LOW": 1.0, "NORMAL": 0.75, "HIGH": 0.5, "EXTREME": 0.25}.get(
+            regime, 0.5
+        )
 
-        position = max(0.0, base + astro_adj - self.params.risk_position_scale * uncertainty)
+        position = max(
+            0.0, base + astro_adj - self.params.risk_position_scale * uncertainty
+        )
         position *= regime_mult
 
         # Exploration noise
@@ -147,7 +167,9 @@ class OnlineTrainer:
 
         # Baseline = exponential moving average of past rewards
         if self.state.reward_history:
-            baseline = sum(self.state.reward_history[-100:]) / min(len(self.state.reward_history), 100)
+            baseline = sum(self.state.reward_history[-100:]) / min(
+                len(self.state.reward_history), 100
+            )
         else:
             baseline = 0.0
 
@@ -164,9 +186,17 @@ class OnlineTrainer:
             # Gradient of position w.r.t. base_position_pct ≈ 1.0
             d_base += advantage * 1.0 * (1.0 if exp.reward > baseline else -1.0)
             # Gradient w.r.t. astro_position_scale
-            d_astro += advantage * max(exp.astro_alignment, 0) * (1.0 if exp.reward > baseline else -1.0)
+            d_astro += (
+                advantage
+                * max(exp.astro_alignment, 0)
+                * (1.0 if exp.reward > baseline else -1.0)
+            )
             # Gradient w.r.t. risk_position_scale (penalized by uncertainty)
-            d_risk += advantage * (1.0 - exp.uncertainty) * (1.0 if exp.reward > baseline else -1.0)
+            d_risk += (
+                advantage
+                * (1.0 - exp.uncertainty)
+                * (1.0 if exp.reward > baseline else -1.0)
+            )
 
         # Normalize gradients
         n = len(recent)
@@ -176,14 +206,31 @@ class OnlineTrainer:
 
         # Apply gradient ascent (maximize reward)
         old_base = self.params.base_position_pct
-        self.params.base_position_pct = max(0.01, min(0.2, self.params.base_position_pct + lr * d_base))
-        self.params.astro_position_scale = max(0.0, min(0.1, self.params.astro_position_scale + lr * d_astro))
-        self.params.risk_position_scale = max(0.0, min(0.1, self.params.risk_position_scale + lr * d_risk))
+        self.params.base_position_pct = max(
+            0.01, min(0.2, self.params.base_position_pct + lr * d_base)
+        )
+        self.params.astro_position_scale = max(
+            0.0, min(0.1, self.params.astro_position_scale + lr * d_astro)
+        )
+        self.params.risk_position_scale = max(
+            0.0, min(0.1, self.params.risk_position_scale + lr * d_risk)
+        )
 
         # Track best
         if mean_reward > self.state.best_reward:
             self.state.best_reward = mean_reward
-            self._best_params = PolicyParams(**{k: getattr(self.params, k) for k in ["base_position_pct", "astro_position_scale", "risk_position_scale", "uncertainty_cap", "min_confidence_for_trade"]})
+            self._best_params = PolicyParams(
+                **{
+                    k: getattr(self.params, k)
+                    for k in [
+                        "base_position_pct",
+                        "astro_position_scale",
+                        "risk_position_scale",
+                        "uncertainty_cap",
+                        "min_confidence_for_trade",
+                    ]
+                }
+            )
 
         self.state.episode += 1
         self.state.params_history.append(self._snapshot())
@@ -204,16 +251,49 @@ class OnlineTrainer:
 
     def reset_to_best(self):
         """Reset parameters to best observed configuration."""
-        self.params = PolicyParams(**{k: getattr(self._best_params, k) for k in ["base_position_pct", "astro_position_scale", "risk_position_scale", "uncertainty_cap", "min_confidence_for_trade"]})
+        self.params = PolicyParams(
+            **{
+                k: getattr(self._best_params, k)
+                for k in [
+                    "base_position_pct",
+                    "astro_position_scale",
+                    "risk_position_scale",
+                    "uncertainty_cap",
+                    "min_confidence_for_trade",
+                ]
+            }
+        )
 
     def _snapshot(self) -> dict:
-        return {k: getattr(self.params, k) for k in ["base_position_pct", "astro_position_scale", "risk_position_scale", "uncertainty_cap", "min_confidence_for_trade"]}
+        return {
+            k: getattr(self.params, k)
+            for k in [
+                "base_position_pct",
+                "astro_position_scale",
+                "risk_position_scale",
+                "uncertainty_cap",
+                "min_confidence_for_trade",
+            ]
+        }
 
     def save(self, path: str):
         data = {
             "params": self._snapshot(),
-            "best_params": {k: getattr(self._best_params, k) for k in ["base_position_pct", "astro_position_scale", "risk_position_scale", "uncertainty_cap", "min_confidence_for_trade"]},
-            "state": {"episode": self.state.episode, "total_experiences": self.state.total_experiences, "best_reward": self.state.best_reward},
+            "best_params": {
+                k: getattr(self._best_params, k)
+                for k in [
+                    "base_position_pct",
+                    "astro_position_scale",
+                    "risk_position_scale",
+                    "uncertainty_cap",
+                    "min_confidence_for_trade",
+                ]
+            },
+            "state": {
+                "episode": self.state.episode,
+                "total_experiences": self.state.total_experiences,
+                "best_reward": self.state.best_reward,
+            },
         }
         with open(path, "w") as f:
             json.dump(data, f, indent=2, default=str)
@@ -223,7 +303,11 @@ class OnlineTrainer:
             data = json.load(f)
         self.params = PolicyParams(**data["params"])
         self._best_params = PolicyParams(**data["best_params"])
-        self.state = TrainingState(episode=data["state"]["episode"], total_experiences=data["state"]["total_experiences"], best_reward=data["state"]["best_reward"])
+        self.state = TrainingState(
+            episode=data["state"]["episode"],
+            total_experiences=data["state"]["total_experiences"],
+            best_reward=data["state"]["best_reward"],
+        )
 
     def run_episode(self, n_trades: int = 10) -> dict:
         """
@@ -266,6 +350,7 @@ class OnlineTrainer:
 
 if __name__ == "__main__":
     import numpy as np
+
     np.random.seed(42)
     random.seed(42)
 
@@ -279,9 +364,11 @@ if __name__ == "__main__":
         result = trainer.run_episode(n_trades=20)
         update = result["update"]
         if update["updated"]:
-            print(f"  Ep {ep:2d}: reward={result['mean_reward']:+.4f}  "
-                  f"base={trainer.params.base_position_pct:.4f}  "
-                  f"best={trainer.state.best_reward:.4f}")
+            print(
+                f"  Ep {ep:2d}: reward={result['mean_reward']:+.4f}  "
+                f"base={trainer.params.base_position_pct:.4f}  "
+                f"best={trainer.state.best_reward:.4f}"
+            )
 
     print(f"\n  Best reward: {trainer.state.best_reward:.4f}")
     print(f"  Final params: {trainer._snapshot()}")

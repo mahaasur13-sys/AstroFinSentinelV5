@@ -1,4 +1,5 @@
 """meta_rl/strategy_pool.py — ATOM-META-RL-001: Strategy Pool with Diversity Control"""
+
 from __future__ import annotations
 
 import logging
@@ -23,8 +24,13 @@ class ScoredStrategy:
     """
 
     __slots__ = (
-        "_reward", "strategy", "evaluation", "generation",
-        "parent_ids", "reward_history", "id",
+        "_reward",
+        "strategy",
+        "evaluation",
+        "generation",
+        "parent_ids",
+        "reward_history",
+        "id",
     )
 
     def __init__(
@@ -41,7 +47,9 @@ class ScoredStrategy:
         object.__setattr__(self, "evaluation", evaluation)
         object.__setattr__(self, "generation", generation)
         object.__setattr__(self, "parent_ids", parent_ids)
-        object.__setattr__(self, "reward_history", reward_history if reward_history is not None else [])
+        object.__setattr__(
+            self, "reward_history", reward_history if reward_history is not None else []
+        )
         object.__setattr__(self, "id", id if id else str(uuid.uuid4())[:12])
         # Use property setter to auto-append to history
         object.__setattr__(self, "_reward", 0.0)
@@ -68,7 +76,9 @@ class ScoredStrategy:
     def __eq__(self, other) -> bool:
         if not isinstance(other, ScoredStrategy):
             return False
-        return object.__getattribute__(self, "id") == object.__getattribute__(other, "id")
+        return object.__getattribute__(self, "id") == object.__getattribute__(
+            other, "id"
+        )
 
     def to_dict(self) -> dict:
         return {
@@ -103,6 +113,7 @@ class ScoredStrategy:
             strategy = GeneratedStrategy.from_dict(strat_dict)
         except Exception as strat_err:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
                 f"[META-RL-SERIAL] Strategy reconstruction failed: {strat_err}, "
@@ -111,7 +122,11 @@ class ScoredStrategy:
             strategy = GeneratedStrategy(random_chromosome(), generation=1)
 
         eval_dict = d.get("evaluation", {})
-        evaluation = EvaluationResult.from_dict(eval_dict) if eval_dict else EvaluationResult.fail()
+        evaluation = (
+            EvaluationResult.from_dict(eval_dict)
+            if eval_dict
+            else EvaluationResult.fail()
+        )
 
         return cls(
             id=d.get("id", ""),
@@ -171,7 +186,10 @@ class StrategyPool:
         """Remove lowest-reward strategy from pool."""
         if not self._pool:
             return
-        worst = min(self._pool, key=lambda s: s.reward_history[-1] if s.reward_history else s.reward)
+        worst = min(
+            self._pool,
+            key=lambda s: s.reward_history[-1] if s.reward_history else s.reward,
+        )
         self._pool.remove(worst)
         self._id_set.discard(worst.id)
 
@@ -179,7 +197,7 @@ class StrategyPool:
         """Sort pool by latest reward descending."""
         self._pool.sort(
             key=lambda s: s.reward_history[-1] if s.reward_history else s.reward,
-            reverse=True
+            reverse=True,
         )
 
     def top_k(self, k: int) -> list[ScoredStrategy]:
@@ -191,7 +209,9 @@ class StrategyPool:
         """Return top-N strategies for breeding (parents for next generation)."""
         return self.top_k(n)
 
-    def diversity_filter(self, candidates: list[ScoredStrategy]) -> list[ScoredStrategy]:
+    def diversity_filter(
+        self, candidates: list[ScoredStrategy]
+    ) -> list[ScoredStrategy]:
         """
         Filter candidates to ensure chromosome diversity.
 
@@ -210,9 +230,7 @@ class StrategyPool:
                 continue
 
             cand_vec = self._chrom_to_vec(candidate.strategy)
-            max_sim = max(
-                self._cosine_sim(cand_vec, vec) for vec in existing_vectors
-            )
+            max_sim = max(self._cosine_sim(cand_vec, vec) for vec in existing_vectors)
             if max_sim < self.diversity_threshold:
                 filtered.append(candidate)
 
@@ -225,7 +243,7 @@ class StrategyPool:
         for v in c.values():
             if isinstance(v, bool):
                 values.append(1.0 if v else 0.0)
-            elif isinstance(v, (int, float)):
+            elif isinstance(v, (int, float)):  # noqa: UP038
                 values.append(float(v))
             else:
                 values.append(0.0)
@@ -245,7 +263,9 @@ class StrategyPool:
         if not self._pool:
             return {"size": 0, "mean_reward": 0.0, "max_reward": 0.0, "min_reward": 0.0}
 
-        rewards = [s.reward_history[-1] if s.reward_history else s.reward for s in self._pool]
+        rewards = [
+            s.reward_history[-1] if s.reward_history else s.reward for s in self._pool
+        ]
         return {
             "size": len(self._pool),
             "mean_reward": float(np.mean(rewards)),

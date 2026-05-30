@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """ATOM-R-032: Final MAS Factory E2E Test"""
+
 import asyncio
 import sys
 import time
@@ -7,12 +8,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+
 def p(msg, style=""):
-    s = {"g": "\033[92m", "r": "\033[91m", "y": "\033[93m", "b": "\033[94m"}.get(style, "")
+    s = {"g": "\033[92m", "r": "\033[91m", "y": "\033[93m", "b": "\033[94m"}.get(
+        style, ""
+    )
     print(f"{s}{msg}\033[0m")
 
+
 def sec(name):
-    print(f"\n{'='*70}\n{p(f' {name}', 'b')}\n{'='*70}")
+    print(f"\n{'=' * 70}\n{p(f' {name}', 'b')}\n{'=' * 70}")
+
 
 async def main():
     sec("ATOM-R-032: MAS Factory E2E")
@@ -21,9 +27,13 @@ async def main():
     # TEST 1: Architect
     try:
         from mas_factory.architect import MASFactoryArchitect
+
         arch = MASFactoryArchitect()
         topo = arch.build(intention="swING trade", symbol="BTCUSDT", timeframe="SWING")
-        p(f"  Architect: {len(topo.roles)} roles, {len(topo.switch_nodes)} switches, hash={topo.hash[:12]}", "y")
+        p(
+            f"  Architect: {len(topo.roles)} roles, {len(topo.switch_nodes)} switches, hash={topo.hash[:12]}",
+            "y",
+        )
         assert len(topo.roles) >= 2, f"Need 2+ roles, got {len(topo.roles)}"
         p("  ✅ Architect OK", "g")
         results.append(("Architect", True))
@@ -47,6 +57,7 @@ async def main():
     # TEST 3: TopologyUpdater
     try:
         from mas_factory.topology import TopologyUpdater
+
         updater = TopologyUpdater(topo)
         p(f"  TopologyUpdater: {len(updater.current_topology.roles)} roles", "y")
         p("  ✅ TopologyUpdater OK", "g")
@@ -58,9 +69,17 @@ async def main():
     # TEST 4: Executor (returns dict, may need adapter wiring)
     try:
         from mas_factory.engine import TopologyExecutor
+
         exec = TopologyExecutor(topo)
-        ctx = {"symbol": "BTCUSDT", "timeframe": "SWING", "current_price": 67400.0,
-                "regime": "NORMAL", "uncertainty": 0.35, "signals": [], "market_data": {}}
+        ctx = {
+            "symbol": "BTCUSDT",
+            "timeframe": "SWING",
+            "current_price": 67400.0,
+            "regime": "NORMAL",
+            "uncertainty": 0.35,
+            "signals": [],
+            "market_data": {},
+        }
         t0 = time.time()
         res = await exec.run(ctx)
         elapsed = time.time() - t0
@@ -75,6 +94,7 @@ async def main():
     # TEST 5: Topologyviz
     try:
         from mas_factory.visualizer import TopologyVisualizer
+
         viz = TopologyVisualizer(topo)
         out = viz.to_mermaid()
         p(f"  Visualizer: {len(out)} chars Mermaid", "y")
@@ -88,11 +108,20 @@ async def main():
     # TEST 6: Legacy KARL
     try:
         from agents.karl_synthesis import KARLSynthesisAgent
+
         legacy = KARLSynthesisAgent()
-        state = {"symbol": "BTCUSDT", "timeframe_requested": "SWING", "current_price": 67400.0,
-                  "all_signals": [], "session_id": "test-e2e"}
+        state = {
+            "symbol": "BTCUSDT",
+            "timeframe_requested": "SWING",
+            "current_price": 67400.0,
+            "all_signals": [],
+            "session_id": "test-e2e",
+        }
         res3 = await legacy.run(state)
-        p(f"  Legacy KARL: signal={res3.get('signal')} conf={res3.get('confidence')}", "y")
+        p(
+            f"  Legacy KARL: signal={res3.get('signal')} conf={res3.get('confidence')}",
+            "y",
+        )
         p("  ✅ Legacy OK", "g")
         results.append(("Legacy", True))
     except Exception as e:
@@ -120,8 +149,9 @@ async def main():
                 p(f"    - {name}", "r")
     else:
         p("  🎉 ALL TESTS PASSED!", "g")
-    print(f"\n{'='*70}\n")
+    print(f"\n{'=' * 70}\n")
     return passed >= 5  # Pass if 5+/7
+
 
 if __name__ == "__main__":
     ok = asyncio.run(main())

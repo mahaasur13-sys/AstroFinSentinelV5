@@ -59,39 +59,38 @@ class RiskAgent(BaseAgent[AgentResponse]):
         avg_loss = state.get("avg_loss_pct", 0.015)
 
         position_size = self._calc_position_size(
-            volatility=volatility,
-            win_rate=win_rate,
-            avg_win=avg_win,
-            avg_loss=avg_loss
+            volatility=volatility, win_rate=win_rate, avg_win=avg_win, avg_loss=avg_loss
         )
 
         # Stop-loss calculation
         stop_distance = atr * 1.5
-        stop_loss = current_price - stop_distance if stop_distance > 0 else current_price * 0.97
+        stop_loss = (
+            current_price - stop_distance if stop_distance > 0 else current_price * 0.97
+        )
 
         # Risk assessment
         risk_score = self._assess_risk(
             volatility=volatility,
             position_size=position_size,
             atr=atr,
-            current_price=current_price
+            current_price=current_price,
         )
 
         if risk_score > 0.7:
             signal = SignalDirection.AVOID
-            confidence=70
+            confidence = 70
         elif risk_score > 0.5:
             signal = SignalDirection.NEUTRAL
-            confidence=50
+            confidence = 50
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=60
+            confidence = 60
 
         reasoning = (
-            f"ATR(14): ${atr:,.2f} ({volatility*100:.2f}% of price). "
+            f"ATR(14): ${atr:,.2f} ({volatility * 100:.2f}% of price). "
             f"Volatility: {'high' if volatility > 0.03 else 'moderate' if volatility > 0.015 else 'low'}. "
-            f"Recommended position: {position_size*100:.1f}% of capital. "
-            f"Stop-loss: ${stop_loss:,.2f} ({((current_price-stop_loss)/current_price)*100:.1f}% below). "
+            f"Recommended position: {position_size * 100:.1f}% of capital. "
+            f"Stop-loss: ${stop_loss:,.2f} ({((current_price - stop_loss) / current_price) * 100:.1f}% below). "
             f"Risk score: {risk_score:.2f}"
         )
 
@@ -117,12 +116,17 @@ class RiskAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
-            return [[float(x[2]), float(x[3]), float(x[4])] for x in data]  # high, low, close
+            return [
+                [float(x[2]), float(x[3]), float(x[4])] for x in data
+            ]  # high, low, close
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}")
+            logger.warning(
+                f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}"
+            )
             return []
 
     def _calculate_atr(self, data: list, period: int = 14) -> float:
@@ -134,23 +138,15 @@ class RiskAgent(BaseAgent[AgentResponse]):
         for i in range(1, len(data)):
             high = data[i][0]
             low = data[i][1]
-            prev_close = data[i-1][2]
+            prev_close = data[i - 1][2]
 
-            tr = max(
-                high - low,
-                abs(high - prev_close),
-                abs(low - prev_close)
-            )
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
             true_ranges.append(tr)
 
         return sum(true_ranges[-period:]) / period
 
     def _calc_position_size(
-        self,
-        volatility: float,
-        win_rate: float,
-        avg_win: float,
-        avg_loss: float
+        self, volatility: float, win_rate: float, avg_win: float, avg_loss: float
     ) -> float:
         """
         Calculate position size using simplified Kelly + volatility adjustment.
@@ -172,11 +168,7 @@ class RiskAgent(BaseAgent[AgentResponse]):
         return kelly
 
     def _assess_risk(
-        self,
-        volatility: float,
-        position_size: float,
-        atr: float,
-        current_price: float
+        self, volatility: float, position_size: float, atr: float, current_price: float
     ) -> float:
         """Assess overall risk score (0-1, higher = more risky)."""
         risk = 0.3

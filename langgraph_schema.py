@@ -30,6 +30,7 @@ from core.thompson import (
 
 # ─── State ─────────────────────────────────────────────────────────────────────
 
+
 class AgentState(TypedDict, total=False):
     symbol: str
     query: str
@@ -39,8 +40,8 @@ class AgentState(TypedDict, total=False):
     include_technical: bool
     include_astro: bool
     include_electoral: bool
-    query_type: Optional[str]          # ELECTIONAL_ONLY, TECHNICAL_ONLY, etc.
-    include_electoral_only: bool      # True when router requests election-only flow
+    query_type: Optional[str]  # ELECTIONAL_ONLY, TECHNICAL_ONLY, etc.
+    include_electoral_only: bool  # True when router requests election-only flow
 
     # Thompson selection results per flow
     thompson_selections: dict
@@ -90,14 +91,16 @@ def _pool_decide(pool: AgentPool, k_override: int = None) -> tuple[bool, list[st
     pool_agents = pool.agents
 
     # Resolve K: explicit arg > pool.k > default_k from sampler
-    k_resolved = k_override if k_override is not None else (
-        pool.k if pool.k is not None else sampler.default_k
+    k_resolved = (
+        k_override
+        if k_override is not None
+        else (pool.k if pool.k is not None else sampler.default_k)
     )
     k = max(k_resolved, pool.min_select)
     k = min(k, len(pool_agents))
 
     # Step 1: filter by usefulness threshold
-    eligible: list[tuple[str, float]] = []   # (name, sampled_theta)
+    eligible: list[tuple[str, float]] = []  # (name, sampled_theta)
     below: list[str] = []
 
     for name in pool_agents:
@@ -110,7 +113,7 @@ def _pool_decide(pool: AgentPool, k_override: int = None) -> tuple[bool, list[st
         else:
             # Unseen: apply exploration_bonus to alpha
             alpha = sampler.DEFAULT_PRIOR_ALPHA + sampler.exploration_bonus
-            beta  = sampler.DEFAULT_PRIOR_BETA
+            beta = sampler.DEFAULT_PRIOR_BETA
         theta = sampler._sample_beta(alpha, beta)
         eligible.append((name, theta))
 
@@ -123,7 +126,7 @@ def _pool_decide(pool: AgentPool, k_override: int = None) -> tuple[bool, list[st
                 alpha, beta = belief.alpha, belief.beta
             else:
                 alpha = sampler.DEFAULT_PRIOR_ALPHA + sampler.exploration_bonus
-                beta  = sampler.DEFAULT_PRIOR_BETA
+                beta = sampler.DEFAULT_PRIOR_BETA
             theta = sampler._sample_beta(alpha, beta)
             eligible.append((name, theta))
         below = []
@@ -133,13 +136,16 @@ def _pool_decide(pool: AgentPool, k_override: int = None) -> tuple[bool, list[st
     selected = [name for name, _ in eligible[:k]]
 
     if below:
-        print(f"[BeliefGuard] '{pool.name}' — filtered (low utility): {below} | selected: {selected}")
+        print(
+            f"[BeliefGuard] '{pool.name}' — filtered (low utility): {below} | selected: {selected}"
+        )
 
     should_run = len(selected) >= pool.min_select
     return should_run, selected
 
 
 # ─── Graph Nodes ───────────────────────────────────────────────────────────────
+
 
 def _run_technical_agents(state: AgentState, selected: list[str]) -> dict:
     """Run Thompson-selected technical agents in parallel."""
@@ -168,6 +174,7 @@ def _run_technical_agents(state: AgentState, selected: list[str]) -> dict:
     for name, r in zip(names, results):
         if isinstance(r, Exception):
             from agents.base_agent import AgentResponse, SignalDirection
+
             merged[f"{name.lower()}_signal"] = AgentResponse(
                 agent_name=name,
                 signal=SignalDirection.NEUTRAL,
@@ -178,7 +185,9 @@ def _run_technical_agents(state: AgentState, selected: list[str]) -> dict:
         elif hasattr(r, "model_dump"):  # AgentResponse Pydantic model
             merged[f"{name.lower()}_signal"] = r.model_dump()
         elif isinstance(r, dict):
-            merged[f"{name.lower()}_signal"] = r.get(f"{name.lower()}_signal") or (list(r.values())[0] if r else {})
+            merged[f"{name.lower()}_signal"] = r.get(f"{name.lower()}_signal") or (
+                list(r.values())[0] if r else {}
+            )
         else:
             merged[f"{name.lower()}_signal"] = {"signal": "NEUTRAL", "confidence": 0}
     return merged
@@ -209,7 +218,11 @@ def technical_node(state: AgentState) -> AgentState:
         errors.append(f"technical_node: {e}")
         state = {**state, "errors": errors}
 
-    return {**state, "technical_result": result or {}, "thompson_selections": selections}
+    return {
+        **state,
+        "technical_result": result or {},
+        "thompson_selections": selections,
+    }
 
 
 def astro_council_node(state: AgentState) -> AgentState:
@@ -248,6 +261,7 @@ def astro_council_node(state: AgentState) -> AgentState:
 
     try:
         from agents.astro_council_agent import run_astro_council
+
         enriched = {**state, "_thompson_selected_astro": selected}
         result = asyncio.run(run_astro_council(enriched))
     except Exception as e:
@@ -255,7 +269,11 @@ def astro_council_node(state: AgentState) -> AgentState:
         errors = list(state.get("errors", []))
         errors.append(f"astro_council_node: {e}")
 
-    return {**state, "astro_council_result": result or {}, "thompson_selections": selections}
+    return {
+        **state,
+        "astro_council_result": result or {},
+        "thompson_selections": selections,
+    }
 
 
 def electoral_node(state: AgentState) -> AgentState:
@@ -277,13 +295,18 @@ def electoral_node(state: AgentState) -> AgentState:
 
     try:
         from agents._impl.electoral_agent import run_electoral_agent
+
         result = asyncio.run(run_electoral_agent(state))
     except Exception as e:
         result = {}
         errors = list(state.get("errors", []))
         errors.append(f"electoral_node: {e}")
 
-    return {**state, "electoral_result": result or {}, "thompson_selections": selections}
+    return {
+        **state,
+        "electoral_result": result or {},
+        "thompson_selections": selections,
+    }
 
 
 def synthesis_node(state: AgentState) -> AgentState:
@@ -342,7 +365,10 @@ def synthesis_node(state: AgentState) -> AgentState:
 
 # ─── Conditional Edge Routing ─────────────────────────────────────────────────
 
-def route_after_start(state: AgentState) -> Literal["technical", "astro_council", "electoral", "synthesis"]:
+
+def route_after_start(
+    state: AgentState,
+) -> Literal["technical", "astro_council", "electoral", "synthesis"]:
     """
     Маршрутизация с полным уважением к флагам из router.py.
     Priority order: ELECTORAL_ONLY > astro-only (no tech) > technical > astro > electional > synthesis.
@@ -374,7 +400,9 @@ def route_after_start(state: AgentState) -> Literal["technical", "astro_council"
     return "synthesis"
 
 
-def route_from_technical(state: AgentState) -> Literal["astro_council", "electoral", "synthesis", "__end__"]:
+def route_from_technical(
+    state: AgentState,
+) -> Literal["astro_council", "electoral", "synthesis", "__end__"]:
     """After technical: skip to next active node (or synthesis/END)."""
     if state.get("include_astro", True):
         return "astro_council"
@@ -392,23 +420,24 @@ def route_from_astro(state: AgentState) -> Literal["electoral", "synthesis", "__
 
 # ─── Graph Builder ─────────────────────────────────────────────────────────────
 
+
 def build_graph() -> StateGraph:
     g = StateGraph(AgentState)
 
-    g.add_node("technical",    technical_node)
+    g.add_node("technical", technical_node)
     g.add_node("astro_council", astro_council_node)
-    g.add_node("electoral",    electoral_node)
-    g.add_node("synthesis",    synthesis_node)
+    g.add_node("electoral", electoral_node)
+    g.add_node("synthesis", synthesis_node)
 
     # Start → first active agent
     g.add_conditional_edges(
         "__start__",
         route_after_start,
         {
-            "technical":    "technical",
+            "technical": "technical",
             "astro_council": "astro_council",
-            "electoral":    "electoral",
-            "synthesis":    "synthesis",
+            "electoral": "electoral",
+            "synthesis": "synthesis",
         },
     )
 
@@ -418,9 +447,9 @@ def build_graph() -> StateGraph:
         route_from_technical,
         {
             "astro_council": "astro_council",
-            "electoral":    "electoral",
-            "synthesis":    "synthesis",
-            "__end__":     END,
+            "electoral": "electoral",
+            "synthesis": "synthesis",
+            "__end__": END,
         },
     )
 
@@ -430,7 +459,7 @@ def build_graph() -> StateGraph:
         {
             "electoral": "electoral",
             "synthesis": "synthesis",
-            "__end__":  END,
+            "__end__": END,
         },
     )
 

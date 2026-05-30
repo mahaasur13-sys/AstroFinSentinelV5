@@ -1,4 +1,3 @@
-
 import pytest
 
 from core.base_agent import AgentResponse, SignalDirection
@@ -61,7 +60,16 @@ class TestAgentResponseModel:
             reasoning="Price above 200 EMA",
         )
         d = resp.to_dict()
-        for field in ("agent_name", "signal", "confidence", "reasoning", "sources", "metadata", "timestamp", "session_id"):
+        for field in (
+            "agent_name",
+            "signal",
+            "confidence",
+            "reasoning",
+            "sources",
+            "metadata",
+            "timestamp",
+            "session_id",
+        ):
             assert field in d
 
     def test_to_dict_signal_is_string(self):
@@ -97,9 +105,16 @@ class TestOrchestratorIntegration:
         )
 
         required_fields = [
-            "session_id", "symbol", "timeframe", "current_price",
-            "query_type", "flows_run", "agent_count",
-            "final_recommendation", "final_report", "timestamp",
+            "session_id",
+            "symbol",
+            "timeframe",
+            "current_price",
+            "query_type",
+            "flows_run",
+            "agent_count",
+            "final_recommendation",
+            "final_report",
+            "timestamp",
         ]
         for field in required_fields:
             assert field in result, f"Missing field: {field}"
@@ -114,7 +129,7 @@ class TestOrchestratorIntegration:
         rec = result["final_recommendation"]
         assert rec is not None
         conf = rec.get("confidence")
-        assert isinstance(conf, (int, float)), f"confidence is {type(conf)}: {conf}"
+        assert isinstance(conf, (int, float)), f"confidence is {type(conf)}: {conf}"  # noqa: UP038
         assert 0 <= conf <= 100, f"confidence={conf} out of range"
 
     @pytest.mark.asyncio
@@ -157,6 +172,7 @@ class TestOrchestratorIntegration:
             timeframe="SWING",
         )
         from datetime import datetime
+
         dt = datetime.fromisoformat(result["timestamp"].replace("Z", "+00:00"))
         assert dt.year >= 2024
 
@@ -187,7 +203,7 @@ class TestOrchestratorIntegration:
             symbol="BTCUSDT",
             timeframe="SWING",
         )
-        assert isinstance(result["current_price"], (int, float))
+        assert isinstance(result["current_price"], (int, float))  # noqa: UP038
         assert result["current_price"] > 0
 
     @pytest.mark.asyncio

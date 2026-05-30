@@ -57,21 +57,21 @@ class GannAgent(BaseAgent[AgentResponse]):
 
         # Combine signals
         gann_score = (
-            angles["score"] * 0.40 +
-            price_square["score"] * 0.25 +
-            time_clusters["score"] * 0.20 +
-            astro_dates["score"] * 0.15
+            angles["score"] * 0.40
+            + price_square["score"] * 0.25
+            + time_clusters["score"] * 0.20
+            + astro_dates["score"] * 0.15
         )
 
         if gann_score >= 0.60:
             signal = SignalDirection.LONG
-            confidence=min(int(gann_score * 100), 75)
+            confidence = min(int(gann_score * 100), 75)
         elif gann_score <= 0.35:
             signal = SignalDirection.SHORT
-            confidence=min(int((1 - gann_score) * 100), 75)
+            confidence = min(int((1 - gann_score) * 100), 75)
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=40
+            confidence = 40
 
         reasoning = (
             f"Gann angles: {angles['summary']}. "
@@ -102,6 +102,7 @@ class GannAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
@@ -152,7 +153,7 @@ class GannAgent(BaseAgent[AgentResponse]):
             summary = f"price ${price:,.0f} is square of {round(root)}"
         elif distance_pct < 3:
             score = 0.55
-            summary = f"price near square ({(1-distance_pct/3)*100:.0f}% close)"
+            summary = f"price near square ({(1 - distance_pct / 3) * 100:.0f}% close)"
         else:
             score = 0.45
             summary = f"price not at key square ({distance_pct:.1f}% from nearest)"
@@ -198,7 +199,15 @@ class GannAgent(BaseAgent[AgentResponse]):
         jd = _julian_day(now)
 
         # Check if any major planet is at a Gann degree (0°, 90°, 180°, 270°)
-        planets_to_check = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]
+        planets_to_check = [
+            "sun",
+            "moon",
+            "mercury",
+            "venus",
+            "mars",
+            "jupiter",
+            "saturn",
+        ]
         gann_degrees = [0, 90, 180, 270]
         hits = []
 

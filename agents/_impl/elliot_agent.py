@@ -55,20 +55,20 @@ class ElliotAgent(BaseAgent[AgentResponse]):
 
         # Elliott score
         elliot_score = (
-            wave_count["score"] * 0.50 +
-            fib_targets["score"] * 0.30 +
-            corrective["score"] * 0.20
+            wave_count["score"] * 0.50
+            + fib_targets["score"] * 0.30
+            + corrective["score"] * 0.20
         )
 
         if wave_count["suggestion"] == "long":
             signal = SignalDirection.LONG
-            confidence=min(int(elliot_score * 100 + 10), 70)
+            confidence = min(int(elliot_score * 100 + 10), 70)
         elif wave_count["suggestion"] == "short":
             signal = SignalDirection.SHORT
-            confidence=min(int(elliot_score * 100 + 10), 70)
+            confidence = min(int(elliot_score * 100 + 10), 70)
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=40
+            confidence = 40
 
         reasoning = (
             f"Wave structure: {wave_count['summary']}. "
@@ -97,6 +97,7 @@ class ElliotAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
@@ -109,21 +110,29 @@ class ElliotAgent(BaseAgent[AgentResponse]):
         Simplified wave counting.
         """
         if len(closes) < 30:
-            return {"score": 0.5, "summary": "insufficient data", "suggestion": "neutral"}
+            return {
+                "score": 0.5,
+                "summary": "insufficient data",
+                "suggestion": "neutral",
+            }
 
         # Detect swings
         swing_highs = []
         swing_lows = []
 
         for i in range(2, len(highs) - 2):
-            if highs[i] > highs[i-1] and highs[i] > highs[i+1]:
+            if highs[i] > highs[i - 1] and highs[i] > highs[i + 1]:
                 swing_highs.append((i, highs[i]))
-            if lows[i] < lows[i-1] and lows[i] < lows[i+1]:
+            if lows[i] < lows[i - 1] and lows[i] < lows[i + 1]:
                 swing_lows.append((i, lows[i]))
 
         # Simplified wave detection
         if len(swing_highs) < 3 or len(swing_lows) < 3:
-            return {"score": 0.5, "summary": "no clear wave pattern", "suggestion": "neutral"}
+            return {
+                "score": 0.5,
+                "summary": "no clear wave pattern",
+                "suggestion": "neutral",
+            }
 
         # Check trend
         recent_trend = closes[-1] - closes[-20]
@@ -148,9 +157,16 @@ class ElliotAgent(BaseAgent[AgentResponse]):
             score = 0.40
             summary = f"wave count unclear ({num_swings} swings)"
 
-        return {"score": score, "summary": summary, "suggestion": suggestion, "num_swings": num_swings}
+        return {
+            "score": score,
+            "summary": summary,
+            "suggestion": suggestion,
+            "num_swings": num_swings,
+        }
 
-    def _calculate_fib_targets(self, wave_count: dict, highs: list, lows: list, closes: list) -> dict:
+    def _calculate_fib_targets(
+        self, wave_count: dict, highs: list, lows: list, closes: list
+    ) -> dict:
         """
         Calculate Fibonacci retracement/extension targets.
         """
@@ -179,10 +195,10 @@ class ElliotAgent(BaseAgent[AgentResponse]):
 
         if near_level is not None:
             score = 0.65
-            summary = f"price at {near_level*100:.1f}% Fibonacci level"
+            summary = f"price at {near_level * 100:.1f}% Fibonacci level"
         else:
             score = 0.50
-            summary = f"price at {current_level*100:.1f}% of recent range"
+            summary = f"price at {current_level * 100:.1f}% of recent range"
 
         return {"score": score, "summary": summary, "current_level": current_level}
 

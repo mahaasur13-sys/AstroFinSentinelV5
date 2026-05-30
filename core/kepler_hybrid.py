@@ -7,6 +7,7 @@ Architecture:
   2. ResidualModel.predict(jd, body) → Δ correction in arcmin
   3. hybrid_propagate(Elements, jd) → Kepler + ML correction
 """
+
 from __future__ import annotations
 
 import math
@@ -20,19 +21,21 @@ from core.kepler import OrbitalElementsDB, propagate_kepler
 
 # ─── Types ─────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class HybridResult:
     body: str
     jd: float
-    kepler_lon: float      # degrees (heliocentric)
+    kepler_lon: float  # degrees (heliocentric)
     correction_arcmin: float  # ML correction in arcminutes
     corrected_lon: float  # degrees (kepler + correction)
     residual_predicted_arcmin: float
-    confidence: float     # 0-1
-    method: str            # "kepler_only" | "kepler_ml"
+    confidence: float  # 0-1
+    method: str  # "kepler_only" | "kepler_ml"
 
 
 # ─── ResidualModel ─────────────────────────────────────────────────────────────
+
 
 class ResidualModel:
     """
@@ -44,7 +47,13 @@ class ResidualModel:
     """
 
     MODEL_PATH = Path(__file__).parent.parent / "models" / "residual_model.joblib"
-    FEATURE_NAMES = ["jd_normalized", "body_encoded", "sin_orb", "cos_orb", "body_saturn"]
+    FEATURE_NAMES = [
+        "jd_normalized",
+        "body_encoded",
+        "sin_orb",
+        "cos_orb",
+        "body_saturn",
+    ]
 
     def __init__(self):
         self.model: Optional[object] = None
@@ -69,7 +78,9 @@ class ResidualModel:
         jd_norm = (jd - 2451545.0) / 10000.0
         body_enc = {"earth": 0, "jupiter": 1, "saturn": 2}.get(body.lower(), -1)
         elements = OrbitalElementsDB[body.lower()]
-        mean_lon = (elements.mean_longitude + elements.mean_motion * (jd - elements.epoch_jd)) % 360
+        mean_lon = (
+            elements.mean_longitude + elements.mean_motion * (jd - elements.epoch_jd)
+        ) % 360
         sin_orb = math.sin(math.radians(mean_lon))
         cos_orb = math.cos(math.radians(mean_lon))
         is_saturn = 1.0 if body.lower() == "saturn" else 0.0
@@ -88,7 +99,9 @@ class ResidualModel:
         features = [self._features(jd, body)]
         try:
             pred = self.model.predict(features)[0]
-            conf = getattr(self.model, "predict_proba", lambda x: [[0.5, 0.5]])(features)[0]
+            conf = getattr(self.model, "predict_proba", lambda x: [[0.5, 0.5]])(
+                features
+            )[0]
             if hasattr(conf, "__len__") and len(conf) >= 2:
                 confidence = float(max(conf))
             else:
@@ -101,6 +114,7 @@ class ResidualModel:
 
 # Singleton instance
 _residual_model: Optional[ResidualModel] = None
+
 
 def get_residual_model() -> ResidualModel:
     global _residual_model
@@ -162,7 +176,9 @@ def print_hybrid_comparison(jd_start: float = 2451545.0, jd_end: float = 2460000
     import core.ephemeris as eph
 
     bodies = ["earth", "jupiter", "saturn"]
-    print(f"\n{'BODY':<10} {'JD':>10} {'KEPLER':>8} {'CORRECTED':>10} {'CORR_ARCMIN':>12} {'METHOD'}")
+    print(
+        f"\n{'BODY':<10} {'JD':>10} {'KEPLER':>8} {'CORRECTED':>10} {'CORR_ARCMIN':>12} {'METHOD'}"
+    )
     print("-" * 70)
 
     for body in bodies:
@@ -182,6 +198,9 @@ def print_hybrid_comparison(jd_start: float = 2451545.0, jd_end: float = 2460000
 
 
 __all__ = [
-    "HybridResult", "ResidualModel", "get_residual_model",
-    "hybrid_propagate", "print_hybrid_comparison",
+    "HybridResult",
+    "ResidualModel",
+    "get_residual_model",
+    "hybrid_propagate",
+    "print_hybrid_comparison",
 ]

@@ -1,4 +1,5 @@
 """strategies/base.py — ATOM-STEP-11: Strategy Base Classes"""
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -7,11 +8,16 @@ import numpy as np
 
 
 class Signal(Enum):
-    LONG = "LONG"; SHORT = "SHORT"; NEUTRAL = "NEUTRAL"
+    LONG = "LONG"
+    SHORT = "SHORT"
+    NEUTRAL = "NEUTRAL"
 
 
 class Regime(Enum):
-    BULL = "BULL"; BEAR = "BEAR"; NEUTRAL_R = "NEUTRAL"; VOLATILE = "VOLATILE"
+    BULL = "BULL"
+    BEAR = "BEAR"
+    NEUTRAL_R = "NEUTRAL"
+    VOLATILE = "VOLATILE"
 
 
 @dataclass
@@ -79,12 +85,21 @@ class BaseStrategy:
     def is_enabled(self) -> bool:
         return self._enabled
 
-    def enable(self): self._enabled = True
-    def disable(self): self._enabled = False
+    def enable(self):
+        self._enabled = True
+
+    def disable(self):
+        self._enabled = False
 
     def update_params(self, params: dict):
         self.config.params.update(params)
 
 
-__all__ = ["Signal", "Regime", "StrategyConfig", "StrategyResult",
-           "PerformanceRecord", "BaseStrategy"]
+__all__ = [
+    "Signal",
+    "Regime",
+    "StrategyConfig",
+    "StrategyResult",
+    "PerformanceRecord",
+    "BaseStrategy",
+]

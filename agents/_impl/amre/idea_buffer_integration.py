@@ -25,6 +25,7 @@ from core.idea_model import Idea, IdeaStatus
 
 class BufferEntry:
     """Wrapper that adapts Idea into a buffer-compatible entry."""
+
     def __init__(
         self,
         idea: Idea,
@@ -56,6 +57,7 @@ def inject_idea_to_buffer(idea: Idea, market_context: dict = None) -> str:
         trajectory_id: str — used to link backtest results
     """
     import uuid
+
     trajectory_id = f"TRAJ-{uuid.uuid4().hex[:8].upper()}"
 
     entry = BufferEntry(
@@ -106,6 +108,7 @@ def clear_buffer():
 
 
 # ─── Idea → KARL Workflow ──────────────────────────────────────────────────────
+
 
 def karl_inject_idea(
     idea: Idea,
@@ -182,6 +185,7 @@ def karl_evaluate_idea(
 
 # ─── Self-Questioning Integration ───────────────────────────────────────────────
 
+
 def ideas_to_self_questioning_prompts(
     ideas: List[Idea],
     max_ideas: int = 5,
@@ -206,6 +210,7 @@ def ideas_to_self_questioning_prompts(
 
 
 # ─── Buffer Stats ───────────────────────────────────────────────────────────────
+
 
 def get_buffer_stats() -> dict:
     """Return buffer diagnostics for KPI dashboard."""

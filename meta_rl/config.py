@@ -3,6 +3,7 @@
 All production settings are controlled via environment variables.
 NEVER hardcode exchange credentials or API keys here.
 """
+
 from __future__ import annotations
 
 import os
@@ -20,9 +21,15 @@ DEFAULT_TIMEFRAME = os.getenv("META_RL_TIMEFRAME", "1h")
 
 # ── Core Meta-RL ──────────────────────────────────────────────────────────────
 META_RL_ENABLED = os.getenv("META_RL_ENABLED", "true").lower() == "true"
-RISK_INTEGRATION_ENABLED = os.getenv("RISK_INTEGRATION_ENABLED", "true").lower() == "true"
-KARL_META_UPDATE_ENABLED = os.getenv("KARL_META_UPDATE_ENABLED", "true").lower() == "true"
-EXECUTION_SANITY_ENABLED = os.getenv("EXECUTION_SANITY_ENABLED", "true").lower() == "true"
+RISK_INTEGRATION_ENABLED = (
+    os.getenv("RISK_INTEGRATION_ENABLED", "true").lower() == "true"
+)
+KARL_META_UPDATE_ENABLED = (
+    os.getenv("KARL_META_UPDATE_ENABLED", "true").lower() == "true"
+)
+EXECUTION_SANITY_ENABLED = (
+    os.getenv("EXECUTION_SANITY_ENABLED", "true").lower() == "true"
+)
 LIVE_DATA_ENABLED = os.getenv("LIVE_DATA_ENABLED", "true").lower() == "true"
 
 # ── Alpha Decay / Early Stopping (ATOM-META-RL-003) ──────────────────────────
@@ -34,7 +41,9 @@ DECAY_KILL_THRESHOLD = float(os.getenv("DECAY_KILL_THRESHOLD", "0.01"))
 # ── Diversity ──────────────────────────────────────────────────────────────
 DIVERSITY_ENFORCEMENT = os.getenv("DIVERSITY_ENFORCEMENT", "true").lower() == "true"
 MIN_DIVERSITY_POPULATION = int(os.getenv("MIN_DIVERSITY_POPULATION", "3"))
-DIVERSITY_SIMILARITY_THRESHOLD = float(os.getenv("DIVERSITY_SIMILARITY_THRESHOLD", "0.95"))
+DIVERSITY_SIMILARITY_THRESHOLD = float(
+    os.getenv("DIVERSITY_SIMILARITY_THRESHOLD", "0.95")
+)
 
 # ── Batch Evaluation ─────────────────────────────────────────────────────
 BATCH_EVALUATION_SIZE = int(os.getenv("BATCH_EVALUATION_SIZE", "10"))
@@ -54,7 +63,9 @@ CCXT_RATE_LIMIT = int(os.getenv("CCXT_RATE_LIMIT", "50"))
 CCXT_ENABLE_RATE_LIMIT = os.getenv("CCXT_ENABLE_RATE_LIMIT", "true").lower() == "true"
 
 # ── Telegram Alerts (P1.3) ────────────────────────────────────────────────────
-TELEGRAM_ALERTS_ENABLED = os.getenv("TELEGRAM_ALERTS_ENABLED", "false").lower() == "true"
+TELEGRAM_ALERTS_ENABLED = (
+    os.getenv("TELEGRAM_ALERTS_ENABLED", "false").lower() == "true"
+)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 TELEGRAM_MIN_REWARD_ALERT = float(os.getenv("TELEGRAM_MIN_REWARD_ALERT", "0.8"))
@@ -65,7 +76,9 @@ REPORTS_OUTPUT_DIR = os.getenv("REPORTS_OUTPUT_DIR", "data/meta_rl/reports")
 REPORTS_BASE_URL = os.getenv("REPORTS_BASE_URL", "")
 
 # ── Composite Ranking (P1.1) ────────────────────────────────────────────────────
-COMPOSITE_RANKING_ENABLED = os.getenv("COMPOSITE_RANKING_ENABLED", "true").lower() == "true"
+COMPOSITE_RANKING_ENABLED = (
+    os.getenv("COMPOSITE_RANKING_ENABLED", "true").lower() == "true"
+)
 COMPOSITE_WEIGHTS = {
     "sharpe": float(os.getenv("CW_SHARPE", "0.35")),
     "win_rate": float(os.getenv("CW_WIN_RATE", "0.20")),
@@ -89,6 +102,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 @dataclass
 class MetaRLConfig:
     """Unified production configuration for Meta-RL engine."""
+
     # Core
     meta_rl_enabled: bool = field(default=META_RL_ENABLED)
     risk_integration_enabled: bool = field(default=RISK_INTEGRATION_ENABLED)
@@ -127,7 +141,13 @@ class MetaRLConfig:
     def __post_init__(self):
         total = sum(
             self.composite_weights.get(k, 0)
-            for k in ["sharpe", "win_rate", "risk_adjusted_pnl", "stability", "diversity"]
+            for k in [
+                "sharpe",
+                "win_rate",
+                "risk_adjusted_pnl",
+                "stability",
+                "diversity",
+            ]
         )
         if abs(total - 1.0) > 0.01:
             norm = total

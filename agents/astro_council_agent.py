@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 # TradingSignal.from_agents looks up weights by agent_name.
 # CATEGORY_WEIGHTS keys are categories; AGENT_WEIGHTS keys are full class names.
 _AGENT_CATEGORY_MAP = {
-    "Fundamental":    "fundamental",
-    "Macro":          "macro",
-    "Quant":          "quant",
-    "OptionsFlow":    "options",
-    "Sentiment":      "sentiment",
-    "Technical":      "technical",
+    "Fundamental": "fundamental",
+    "Macro": "macro",
+    "Quant": "quant",
+    "OptionsFlow": "options",
+    "Sentiment": "sentiment",
+    "Technical": "technical",
     "BullResearcher": "sentiment",
     "BearResearcher": "sentiment",
 }
@@ -60,10 +60,10 @@ HYBRID_WEIGHTS = _build_agent_weights()
 class AstroCouncilAgent(BaseAgent):
     """
     AstroCouncil — координатор всех агентов.
-    
+
     Получает данные от всех аналитических агентов и объединяет
     через гибридное взвешивание TradingSignal.from_agents.
-    
+
     Критично: всегда вызывает Swiss Ephemeris.
     """
 
@@ -85,7 +85,7 @@ class AstroCouncilAgent(BaseAgent):
     async def run(self, context: Dict[str, Any]) -> AgentResponse:
         """
         Главный метод координации.
-        
+
         1. Swiss Ephemeris (критично)
         2. Параллельно все суб-агенты
         3. TradingSignal.from_agents для финального взвешивания
@@ -158,14 +158,16 @@ class AstroCouncilAgent(BaseAgent):
         responses = []
         for name, result in zip(names, results):
             if isinstance(result, Exception):
-                responses.append(AgentResponse(
-                    agent_name=name,
-                    signal="NEUTRAL",
-                    confidence=30,
-                    reasoning=f"Agent error: {str(result)[:100]}",
-                    sources=[],
-                    metadata={"error": True},
-                ))
+                responses.append(
+                    AgentResponse(
+                        agent_name=name,
+                        signal="NEUTRAL",
+                        confidence=30,
+                        reasoning=f"Agent error: {str(result)[:100]}",
+                        sources=[],
+                        metadata={"error": True},
+                    )
+                )
             else:
                 responses.append(result)
 
@@ -200,7 +202,11 @@ class AstroCouncilAgent(BaseAgent):
     def _call_ephemeris(self, dt: datetime) -> Dict[str, Any]:
         """Критичный вызов Swiss Ephemeris."""
         try:
-            from core.ephemeris import HAS_SWISS_EPHEMERIS, _julian_day, calculate_planet
+            from core.ephemeris import (
+                HAS_SWISS_EPHEMERIS,
+                _julian_day,
+                calculate_planet,
+            )
 
             if not HAS_SWISS_EPHEMERIS:
                 return {"yoga": "unknown", "score": 50}
@@ -252,6 +258,7 @@ class AstroCouncilAgent(BaseAgent):
 
 
 # ─── Convenience runner ────────────────────────────────────────────────────────
+
 
 async def run_astro_council(context: Dict[str, Any]) -> Dict[str, Any]:
     """Runner для оркестратора."""

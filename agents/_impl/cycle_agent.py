@@ -61,13 +61,13 @@ class CycleAgent(BaseAgent[AgentResponse]):
 
         if cycle_phase["direction"] == "up" and cycle_score > 0.55:
             signal = SignalDirection.LONG
-            confidence=min(int(cycle_score * 100 + 10), 75)
+            confidence = min(int(cycle_score * 100 + 10), 75)
         elif cycle_phase["direction"] == "down" and cycle_score > 0.55:
             signal = SignalDirection.SHORT
-            confidence=min(int(cycle_score * 100 + 10), 75)
+            confidence = min(int(cycle_score * 100 + 10), 75)
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=40
+            confidence = 40
 
         reasoning = (
             f"Dominant cycle: {dominant_cycle['period']} days "
@@ -99,12 +99,15 @@ class CycleAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
             return [[float(x[4])] for x in data]  # close prices
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}")
+            logger.warning(
+                f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}"
+            )
             return []
 
     def _find_dominant_cycle(self, data: list) -> dict:
@@ -127,8 +130,10 @@ class CycleAgent(BaseAgent[AgentResponse]):
             if period >= len(closes) // 2:
                 continue
             # Calculate autocorrelation at lag=period
-            corr_sum = sum((closes[i] - mean) * (closes[i - period] - mean)
-                          for i in range(period, len(closes)))
+            corr_sum = sum(
+                (closes[i] - mean) * (closes[i - period] - mean)
+                for i in range(period, len(closes))
+            )
             corr = corr_sum / var if var > 0 else 0
 
             if corr > best_corr:
@@ -138,7 +143,7 @@ class CycleAgent(BaseAgent[AgentResponse]):
         return {
             "period": best_period,
             "strength": min(abs(best_corr), 1.0),
-            "method": "autocorrelation"
+            "method": "autocorrelation",
         }
 
     def _get_cycle_phase(self, data: list, dominant_cycle: dict) -> dict:
@@ -179,7 +184,9 @@ class CycleAgent(BaseAgent[AgentResponse]):
 
         return {"name": phase_name, "direction": direction, "strength": strength}
 
-    def _predict_turning_point(self, data: list, dominant_cycle: dict, cycle_phase: dict) -> dict:
+    def _predict_turning_point(
+        self, data: list, dominant_cycle: dict, cycle_phase: dict
+    ) -> dict:
         """Predict next cycle turning point."""
         period = dominant_cycle["period"]
 
@@ -194,7 +201,7 @@ class CycleAgent(BaseAgent[AgentResponse]):
         return {
             "direction": next_direction,
             "eta_days": eta_days,
-            "confidence": cycle_phase["strength"] * 0.8
+            "confidence": cycle_phase["strength"] * 0.8,
         }
 
     async def _check_astro_cycles(self, state: dict) -> dict:

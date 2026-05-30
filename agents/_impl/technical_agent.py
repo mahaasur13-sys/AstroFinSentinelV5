@@ -80,7 +80,11 @@ class TechnicalAgent(BaseAgent):
     def _call_ephemeris(self, dt: datetime) -> Dict:
         """Критичный вызов Swiss Ephemeris."""
         try:
-            from core.ephemeris import HAS_SWISS_EPHEMERIS, _julian_day, calculate_planet
+            from core.ephemeris import (
+                HAS_SWISS_EPHEMERIS,
+                _julian_day,
+                calculate_planet,
+            )
 
             if not HAS_SWISS_EPHEMERIS:
                 return {"yoga": "unknown", "score": 50}
@@ -123,7 +127,9 @@ class TechnicalAgent(BaseAgent):
             data = resp.json()
             return [[float(x[4]), float(x[5])] for x in data]  # [close, volume]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV for {symbol} with interval {interval} and limit {limit}")
+            logger.warning(
+                f"Failed to fetch OHLCV for {symbol} with interval {interval} and limit {limit}"
+            )
             return []
 
     def _calculate_indicators(self, data: list, current_price: float) -> Dict:
@@ -141,7 +147,7 @@ class TechnicalAgent(BaseAgent):
         closes = [d[0] for d in data]
 
         # RSI(14)
-        deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
         gains = [d if d > 0 else 0 for d in deltas[-14:]]
         losses = [-d if d < 0 else 0 for d in deltas[-14:]]
         avg_gain = sum(gains) / 14 if gains else 0
@@ -164,7 +170,12 @@ class TechnicalAgent(BaseAgent):
             upper = middle + 2 * std
             lower = middle - 2 * std
             pos = (current_price - lower) / (upper - lower) if upper > lower else 0.5
-            indicators["bollinger"] = {"upper": upper, "lower": lower, "middle": middle, "position": pos}
+            indicators["bollinger"] = {
+                "upper": upper,
+                "lower": lower,
+                "middle": middle,
+                "position": pos,
+            }
 
         # Volume profile
         if len(data) >= 20:

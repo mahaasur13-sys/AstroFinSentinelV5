@@ -1,6 +1,6 @@
 # AstroFin Sentinel V5 — Database Layer
 
-**Атом:** ATOM-DB-MIGRATION-002 (P0)  
+**Атом:** ATOM-DB-MIGRATION-002 (P0)
 **Статус:** ✅ PostgreSQL + TimescaleDB + pgvector + Docker + CI/CD полностью готовы
 
 ---

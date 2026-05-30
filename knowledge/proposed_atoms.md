@@ -230,7 +230,7 @@ Week 2:
   KARL-015 Phase 4 → Phase 5
   DEDUP-001
   FIX-ROUTER
-  
+
 Week 3-4:
   DB-MIGRATION
   MODEL-SPEC

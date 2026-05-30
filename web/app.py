@@ -1,5 +1,3 @@
-from web.wsgi import app, server
-
 #!/usr/bin/env python3
 """
 web/app.py — AstroFinSentinelV5 Meta-RL Web Dashboard (ATOM-META-RL-006)
@@ -15,6 +13,7 @@ Run:
     Production:  gunicorn -w 4 -b 0.0.0.0:8050 web.wsgi:app
     Zo Service:  registered via register_user_service
 """
+
 import logging
 import os
 import sys
@@ -30,12 +29,15 @@ from dash import Input, Output, dcc, html
 
 # ── Security headers (Flask middleware) ────────────────────────────────────────
 try:
+
     @server.after_request
     def add_security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         return response
 except Exception:
     pass  # non-Flask environment
@@ -56,7 +58,10 @@ app = dash.Dash(
     assets_url_path="assets",
     url_base_pathname=os.getenv("URL_BASE_PATHNAME", "/"),
     meta_tags=[
-        {"name": "description", "content": "AstroFinSentinelV5 Meta-RL Strategy Discovery Engine"},
+        {
+            "name": "description",
+            "content": "AstroFinSentinelV5 Meta-RL Strategy Discovery Engine",
+        },
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
     ],
 )
@@ -70,42 +75,75 @@ _log.setLevel(logging.WARNING if not DEBUG else logging.INFO)
 
 class EngineRef:
     """Shared engine state between callbacks."""
+
     _engine = None
+
 
 _engine_ref = EngineRef()
 
 
 # ── Layout ──────────────────────────────────────────────────────────────────────
-app.layout = dbc.Container([
-    dbc.Row([
-        dbc.Col([
-            html.Div([
-                html.Span("🧬", className="fs-3 me-2"),
-                html.H1("AstroFinSentinelV5", className="d-inline fs-4"),
-                html.Span(" • ", className="text-muted"),
-                html.Span("Meta-RL Engine", className="text-info"),
-                html.Span(" • ", className="text-muted"),
-                html.Span("ATOM-META-RL-006", className="text-warning", id="header-version"),
-            ], className="d-flex align-items-center"),
-        ], width=9),
-        dbc.Col([
-            html.Div([
-                html.Code(datetime.now().strftime("%Y-%m-%d %H:%M"), className="text-muted small", id="header-time"),
-            ], className="text-end"),
-        ], width=3),
-    ], className="mb-3 border-bottom pb-2"),
-
-    dcc.Tabs(id="main-tabs", value="tab-dashboard", children=[
-        dcc.Tab(label="📊 Dashboard", value="tab-dashboard"),
-        dcc.Tab(label="▶ Evolution", value="tab-evolution"),
-        dcc.Tab(label="📋 Sessions", value="tab-sessions"),
-        dcc.Tab(label="🔬 Explorer", value="tab-explorer"),
-        dcc.Tab(label="📡 Live", value="tab-live"),
-    ]),
-
-    html.Div(id="tab-content", className="mt-3"),
-    dcc.Interval(id="clock-interval", interval=60000, n_intervals=0),
-], fluid=True, className="pe-4 ps-4 pt-3")
+app.layout = dbc.Container(
+    [
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.Div(
+                            [
+                                html.Span("🧬", className="fs-3 me-2"),
+                                html.H1(
+                                    "AstroFinSentinelV5", className="d-inline fs-4"
+                                ),
+                                html.Span(" • ", className="text-muted"),
+                                html.Span("Meta-RL Engine", className="text-info"),
+                                html.Span(" • ", className="text-muted"),
+                                html.Span(
+                                    "ATOM-META-RL-006",
+                                    className="text-warning",
+                                    id="header-version",
+                                ),
+                            ],
+                            className="d-flex align-items-center",
+                        ),
+                    ],
+                    width=9,
+                ),
+                dbc.Col(
+                    [
+                        html.Div(
+                            [
+                                html.Code(
+                                    datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                    className="text-muted small",
+                                    id="header-time",
+                                ),
+                            ],
+                            className="text-end",
+                        ),
+                    ],
+                    width=3,
+                ),
+            ],
+            className="mb-3 border-bottom pb-2",
+        ),
+        dcc.Tabs(
+            id="main-tabs",
+            value="tab-dashboard",
+            children=[
+                dcc.Tab(label="📊 Dashboard", value="tab-dashboard"),
+                dcc.Tab(label="▶ Evolution", value="tab-evolution"),
+                dcc.Tab(label="📋 Sessions", value="tab-sessions"),
+                dcc.Tab(label="🔬 Explorer", value="tab-explorer"),
+                dcc.Tab(label="📡 Live", value="tab-live"),
+            ],
+        ),
+        html.Div(id="tab-content", className="mt-3"),
+        dcc.Interval(id="clock-interval", interval=60000, n_intervals=0),
+    ],
+    fluid=True,
+    className="pe-4 ps-4 pt-3",
+)
 
 
 @app.callback(Output("header-time", "children"), Input("clock-interval", "n_intervals"))
@@ -121,7 +159,9 @@ register_callbacks(app, _engine_ref)
 register_sessions_callbacks(app)
 
 _log.info(f"[DASH] AstroFinSentinelV5 ready → http://0.0.0.0:{PORT}")
-_log.info(f"[DASH] Config: DEBUG={DEBUG} PORT={PORT} URL_BASE={os.getenv('URL_BASE_PATHNAME','/')}")
+_log.info(
+    f"[DASH] Config: DEBUG={DEBUG} PORT={PORT} URL_BASE={os.getenv('URL_BASE_PATHNAME', '/')}"
+)
 
 if __name__ == "__main__":
     app.run(debug=DEBUG, host="0.0.0.0", port=PORT)

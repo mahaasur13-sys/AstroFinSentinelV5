@@ -22,23 +22,25 @@ from typing import Any, List, Optional
 
 # ─── Feature Flags ──────────────────────────────────────────────────────────────
 
-SAFETY_STACK_ENABLED    = os.getenv("SAFETY_STACK_ENABLED",    "true").lower() == "true"
-RISK_ENGINE_V2_ENABLED  = os.getenv("RISK_ENGINE_V2_ENABLED",   "true").lower() == "true"
-MODE_ENFORCER_ENABLED   = os.getenv("MODE_ENFORCER_ENABLED",   "true").lower() == "true"
-SANITY_CHECKER_ENABLED  = os.getenv("SANITY_CHECKER_ENABLED",  "true").lower() == "true"
+SAFETY_STACK_ENABLED = os.getenv("SAFETY_STACK_ENABLED", "true").lower() == "true"
+RISK_ENGINE_V2_ENABLED = os.getenv("RISK_ENGINE_V2_ENABLED", "true").lower() == "true"
+MODE_ENFORCER_ENABLED = os.getenv("MODE_ENFORCER_ENABLED", "true").lower() == "true"
+SANITY_CHECKER_ENABLED = os.getenv("SANITY_CHECKER_ENABLED", "true").lower() == "true"
 
 # ─── Result Types ──────────────────────────────────────────────────────────────
 
+
 class SafetyStatus(Enum):
-    APPROVED  = "APPROVED"
-    REDUCED   = "REDUCED"
-    REJECTED  = "REJECTED"
+    APPROVED = "APPROVED"
+    REDUCED = "REDUCED"
+    REJECTED = "REJECTED"
+
 
 @dataclass
 class SafetyDecision:
     status: SafetyStatus
     reason: str
-    reduced_position_pct: float = 1.0          # 0.0–1.0
+    reduced_position_pct: float = 1.0  # 0.0–1.0
     adjusted_signal: Optional[str] = None
     checks_passed: List[str] = field(default_factory=list)
     checks_failed: List[str] = field(default_factory=list)
@@ -65,19 +67,20 @@ class SafetyDecision:
 
 # ─── SafetyGate ───────────────────────────────────────────────────────────────
 
+
 class SafetyGate:
     """
     Unified safety layer. Instantiated per-session with a shared portfolio.
-    
+
     Каждый .check() вызывает цепочку:
       ModeEnforcer → RiskEngineV2 → ExecutionSanityChecker
-    
+
     При SAFETY_STACK_ENABLED=False — возвращает APPROVED без overhead.
     """
 
     def __init__(
         self,
-        portfolio: Optional["RiskPortfolioV2"] = None,   # forward ref
+        portfolio: Optional["RiskPortfolioV2"] = None,  # forward ref
         market_mode: Optional["MarketMode"] = None,
     ):
         self.portfolio = portfolio
@@ -91,7 +94,7 @@ class SafetyGate:
 
     def check(
         self,
-        signal: Any,         # AgentResponse или dict
+        signal: Any,  # AgentResponse или dict
         state: dict,
         current_price: float = 0.0,
         symbol: str = "BTCUSDT",
@@ -99,7 +102,7 @@ class SafetyGate:
     ) -> SafetyDecision:
         """
         Synchronous check. Returns SafetyDecision immediately.
-        
+
         Если SAFETY_STACK_ENABLED=False — возвращает APPROVED без overhead.
         """
         self._call_count += 1
@@ -133,8 +136,11 @@ class SafetyGate:
         # ── 2. RiskEngineV2 ──────────────────────────────────────────────────
         if RISK_ENGINE_V2_ENABLED and self.portfolio is not None:
             risk_decision = self._check_risk(
-                symbol, sig_direction, sig_confidence,
-                suggested_position_pct, current_price,
+                symbol,
+                sig_direction,
+                sig_confidence,
+                suggested_position_pct,
+                current_price,
             )
             if risk_decision.is_rejected:
                 self._total_rejected += 1
@@ -152,7 +158,10 @@ class SafetyGate:
         # ── 3. ExecutionSanityChecker ─────────────────────────────────────────
         if SANITY_CHECKER_ENABLED:
             sanity_decision = self._check_sanity(
-                symbol, sig_direction, current_price, state,
+                symbol,
+                sig_direction,
+                current_price,
+                state,
             )
             if sanity_decision.is_rejected:
                 self._total_rejected += 1
@@ -187,7 +196,9 @@ class SafetyGate:
 
     # ── Internal Checks ─────────────────────────────────────────────────────────
 
-    def _check_mode(self, state: dict, proposed_size_pct: float = 0.2) -> SafetyDecision:
+    def _check_mode(
+        self, state: dict, proposed_size_pct: float = 0.2
+    ) -> SafetyDecision:
         """ModeEnforcer (TradingMode) check — validates operational mode constraints."""
         try:
             from trading.mode import ModeEnforcer, TradingMode
@@ -201,7 +212,9 @@ class SafetyGate:
 
             enforcer = ModeEnforcer(mode=mode)
 
-            sig_direction = self._normalize_signal(state.get("signal", "NEUTRAL")).get("signal", "NEUTRAL")
+            sig_direction = self._normalize_signal(state.get("signal", "NEUTRAL")).get(
+                "signal", "NEUTRAL"
+            )
 
             is_short = sig_direction == "SHORT"
             is_market = state.get("order_type") != "limit"
@@ -260,20 +273,24 @@ class SafetyGate:
 
             # Sync portfolio from self.portfolio (if it's a mock)
             if self.portfolio is not None:
-                equity = getattr(self.portfolio, 'total_value', None)
-                if not isinstance(equity, (int, float)):
+                equity = getattr(self.portfolio, "total_value", None)
+                if not isinstance(equity, (int, float)):  # noqa: UP038
                     equity = 100_000.0
                 engine._equity_history = [equity]
-                if hasattr(self.portfolio, 'positions'):
+                if hasattr(self.portfolio, "positions"):
                     for sym, pos in self.portfolio.positions.items():
-                        if hasattr(pos, 'notional_value'):
+                        if hasattr(pos, "notional_value"):
+
                             class _FakeAsset:
                                 pass
+
                             fa = _FakeAsset()
                             fa.symbol = sym
                             fa.notional_value = pos.notional_value
-                            fa.current_price = getattr(pos, 'current_price', 0) or current_price
-                            fa.entry_price = getattr(pos, 'entry_price', current_price)
+                            fa.current_price = (
+                                getattr(pos, "current_price", 0) or current_price
+                            )
+                            fa.entry_price = getattr(pos, "entry_price", current_price)
                             engine._positions[sym] = fa
 
             # Build notional for proposed position
@@ -407,6 +424,7 @@ class SafetyGate:
 
 _default_gate: Optional[SafetyGate] = None
 
+
 def get_safety_gate(
     portfolio=None,
     market_mode=None,
@@ -419,7 +437,9 @@ def get_safety_gate(
 
 
 __all__ = [
-    "SafetyGate", "SafetyDecision", "SafetyStatus",
+    "SafetyGate",
+    "SafetyDecision",
+    "SafetyStatus",
     "get_safety_gate",
     "SAFETY_STACK_ENABLED",
     "RISK_ENGINE_V2_ENABLED",

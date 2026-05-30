@@ -1,5 +1,6 @@
 """trading/execution/sanity.py — ATOM-PRODUCTION: Execution Sanity Layer
 ========================================================================"""
+
 from __future__ import annotations
 
 import math
@@ -60,26 +61,48 @@ class ExecutionSanityChecker:
         if not self._is_valid(order.qty) or order.qty <= 0:
             return SanityResult(ValidationStatus.REJECTED, f"INVALID_QTY: {order.qty}")
         if not self._is_valid(market.last_price) or market.last_price <= 0:
-            return SanityResult(ValidationStatus.REJECTED, f"INVALID_PRICE: {market.last_price}")
+            return SanityResult(
+                ValidationStatus.REJECTED, f"INVALID_PRICE: {market.last_price}"
+            )
         vol_rank = {"LOW": 0, "NORMAL": 1, "HIGH": 2, "EXTREME": 3}
         regime_level = vol_rank.get(market.current_vol_regime, 1)
         max_level = vol_rank.get(self.config.max_vol_regime, 2)
         if regime_level > max_level:
-            return SanityResult(ValidationStatus.REJECTED, f"VOL_REGIME: {market.current_vol_regime} > {self.config.max_vol_regime}")
+            return SanityResult(
+                ValidationStatus.REJECTED,
+                f"VOL_REGIME: {market.current_vol_regime} > {self.config.max_vol_regime}",
+            )
         if market.spread_bps > self.config.max_spread_bps:
-            return SanityResult(ValidationStatus.REJECTED, f"SPREAD_FILTER: {market.spread_bps:.1f}bps > {self.config.max_spread_bps:.1f}bps")
+            return SanityResult(
+                ValidationStatus.REJECTED,
+                f"SPREAD_FILTER: {market.spread_bps:.1f}bps > {self.config.max_spread_bps:.1f}bps",
+            )
         if order.slippage_bp_estimate > self.config.max_slippage_bps:
-            return SanityResult(ValidationStatus.REJECTED, f"SLIPPAGE: {order.slippage_bp_estimate:.1f}bps > {self.config.max_slippage_bps:.1f}bps")
+            return SanityResult(
+                ValidationStatus.REJECTED,
+                f"SLIPPAGE: {order.slippage_bp_estimate:.1f}bps > {self.config.max_slippage_bps:.1f}bps",
+            )
         if market.adv_24h > 0:
             order_notional = order.qty * market.last_price
             participation = order_notional / market.adv_24h
             if participation > self.config.max_adv_participation:
                 if self.config.scale_instead_of_reject:
-                    scaled = market.adv_24h * self.config.max_adv_participation / market.last_price
+                    scaled = (
+                        market.adv_24h
+                        * self.config.max_adv_participation
+                        / market.last_price
+                    )
                     scaled = max(0.0, scaled)
-                    return SanityResult(ValidationStatus.SCALED, f"LIQUIDITY_SCALED: {participation:.2%} > limit", scaled)
+                    return SanityResult(
+                        ValidationStatus.SCALED,
+                        f"LIQUIDITY_SCALED: {participation:.2%} > limit",
+                        scaled,
+                    )
                 else:
-                    return SanityResult(ValidationStatus.REJECTED, f"LIQUIDITY: {participation:.2%} > limit")
+                    return SanityResult(
+                        ValidationStatus.REJECTED,
+                        f"LIQUIDITY: {participation:.2%} > limit",
+                    )
         return SanityResult(ValidationStatus.APPROVED, "OK")
 
     @staticmethod

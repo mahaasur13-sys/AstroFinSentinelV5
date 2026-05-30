@@ -1,4 +1,5 @@
 """amre/replay_buffer.py — Replay Buffer for trajectory learning"""
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -7,6 +8,7 @@ from .trajectory import Trajectory, TrajectoryMetrics
 
 DEFAULT_BUFFER_SIZE = 1000
 
+
 @dataclass
 class BufferEntry:
     trajectory: Trajectory
@@ -14,6 +16,7 @@ class BufferEntry:
     outcome: float
     market_context: Dict[str, Any]
     created_at: str
+
 
 class ReplayBuffer:
     def __init__(self, max_size: int = DEFAULT_BUFFER_SIZE):
@@ -28,13 +31,21 @@ class ReplayBuffer:
     def get_all_trajectories(self) -> List[Trajectory]:
         return [e.trajectory for e in self.buffer]
 
-    def get_similar(self, trajectory: Trajectory, threshold: float = 0.3) -> List[BufferEntry]:
-        return [e for e in self.buffer if is_similar_trajectory(trajectory, e.trajectory, threshold)]
+    def get_similar(
+        self, trajectory: Trajectory, threshold: float = 0.3
+    ) -> List[BufferEntry]:
+        return [
+            e
+            for e in self.buffer
+            if is_similar_trajectory(trajectory, e.trajectory, threshold)
+        ]
 
     def size(self) -> int:
         return len(self.buffer)
 
+
 _DEFAULT_BUFFER: Optional[ReplayBuffer] = None
+
 
 def get_default_buffer() -> ReplayBuffer:
     global _DEFAULT_BUFFER
@@ -42,7 +53,10 @@ def get_default_buffer() -> ReplayBuffer:
         _DEFAULT_BUFFER = ReplayBuffer()
     return _DEFAULT_BUFFER
 
-def _select_best_trajectory(trajectories: List[Trajectory], q_star_scores: List[float]) -> Trajectory:
+
+def _select_best_trajectory(
+    trajectories: List[Trajectory], q_star_scores: List[float]
+) -> Trajectory:
     if not trajectories:
         raise ValueError("No trajectories provided")
     scored = list(zip(trajectories, q_star_scores))

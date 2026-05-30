@@ -6,6 +6,7 @@
     from agents.karl_synthesis import KARLSynthesisAgent
     result = await karl_agent.run(state)
 """
+
 import hashlib
 import uuid
 from datetime import datetime, timezone
@@ -48,6 +49,7 @@ try:
         DecisionRecordRepository,
         is_postgres_available,
     )
+
     PG_AVAILABLE = is_postgres_available()
 except Exception:
     PG_AVAILABLE = False
@@ -61,10 +63,11 @@ from agents._impl.amre.trajectory import MarketState, market_state_hash
 
 # ─── KARL Synthesis Agent ────────────────────────────────────────────────────────
 
+
 class KARLSynthesisAgent:
     """
     SynthesisAgent + Full AMRE/KARL Control Loop.
-    
+
     Adds to SynthesisAgent:
     - DecisionRecord на каждое решение
     - OAPOptimizer.update_from_decision() после синтеза
@@ -84,11 +87,15 @@ class KARLSynthesisAgent:
         self.sync_interval = sync_interval  # Recalibrate every N decisions
         self.enable_self_question = enable_self_question
         self.enable_backtest = enable_backtest
-        
+
         # Sub-systems
         self.decision_counter = 0
         self.self_questioner = SelfQuestioningEngine() if enable_self_question else None
-        self.backtest = create_backtest_runner(horizon=backtest_horizon) if enable_backtest else None
+        self.backtest = (
+            create_backtest_runner(horizon=backtest_horizon)
+            if enable_backtest
+            else None
+        )
         self.oap = get_oap_optimizer()
         self.calibrator = get_calibrator()
         self.dd_tracker = get_dd_tracker()
@@ -101,7 +108,7 @@ class KARLSynthesisAgent:
     async def run(self, state: dict) -> Dict[str, Any]:
         """
         Run synthesis + AMRE post-processing.
-        
+
         Returns dict with:
           - synthesis_result: AgentResponse.to_dict()
           - amre_output: AMREOutput dataclass
@@ -110,7 +117,7 @@ class KARLSynthesisAgent:
         """
         # ── Step 1: Pre-AMRE checks ────────────────────────────────────────────
         symbol = state.get("symbol", "BTCUSDT")
-        
+
         # Delisted ticker fallback
         delist_fb = check_delisted_fallback(symbol)
         if delist_fb:
@@ -132,7 +139,7 @@ class KARLSynthesisAgent:
 
         # ── Step 2: Run base synthesis ─────────────────────────────────────────
         synthesis_result = await self.base_agent.run(state)
-        
+
         # Convert to dict for consistent handling
         if isinstance(synthesis_result, AgentResponse):
             synth_dict = synthesis_result.to_dict()
@@ -142,7 +149,7 @@ class KARLSynthesisAgent:
         signal = synth_dict.get("signal", "NEUTRAL")
         confidence = synth_dict.get("confidence", 50)
         all_signals = state.get("all_signals", [])
-        
+
         # ── Step 3: Self-questioning — Triple Trigger gate (Phase 4) ──────────
         # SelfQ запускается ТОЛЬКО при одном из трёх условий:
         #   1. Strong Disagreement: >35% LONG и >35% SHORT
@@ -161,7 +168,9 @@ class KARLSynthesisAgent:
                 print(f"[SelfQ Trigger] {sq_reason} — running self-questioning")
                 sq_result = self.self_questioner.ask(all_signals, state)
                 if sq_result.confidence_adjustment != 0:
-                    confidence = max(30, min(92, confidence + sq_result.confidence_adjustment))
+                    confidence = max(
+                        30, min(92, confidence + sq_result.confidence_adjustment)
+                    )
                     synth_dict["reasoning"] = (
                         f"[SelfQ] {sq_result.question} → {sq_result.answer}. "
                         f"{synth_dict.get('reasoning', '')}"
@@ -177,7 +186,9 @@ class KARLSynthesisAgent:
         # ── Step 4.5: Phase 5 — Grounding Soft Degrade ───────────────────────
         # Apply grounding BEFORE lag windowing so EMA gets a clean base signal.
         # New grounding returns a delta (negative = degrade) and grounding_factor.
-        grounding = validate_with_grounding(state, all_signals, current_confidence=confidence)
+        grounding = validate_with_grounding(
+            state, all_signals, current_confidence=confidence
+        )
 
         grounding_factor = grounding.get("grounding_factor", 1.0)
         if grounding_factor < 1.0:
@@ -199,7 +210,9 @@ class KARLSynthesisAgent:
         # Risk control via position_lag (only when window is mature)
         risk_adjusted = False
         if lag_meta.get("window_mature", False):
-            new_pos = apply_position_lag_risk(position_pct, lag_meta.get("position_lag", 0.0))
+            new_pos = apply_position_lag_risk(
+                position_pct, lag_meta.get("position_lag", 0.0)
+            )
             if new_pos != position_pct:
                 position_pct = new_pos
                 risk_adjusted = True
@@ -211,7 +224,10 @@ class KARLSynthesisAgent:
         # Store lag metrics in synth_dict for observability
         synth_dict["lag_metrics"] = lag_meta
         if risk_adjusted:
-            synth_dict["metadata"] = {**(synth_dict.get("metadata", {})), "position_risk_adjusted": True}
+            synth_dict["metadata"] = {
+                **(synth_dict.get("metadata", {})),
+                "position_risk_adjusted": True,
+            }
 
         # ── Step 5: Reward estimation ─────────────────────────────────────────
         reward = self._estimate_reward(state, all_signals, confidence, signal)
@@ -271,7 +287,9 @@ class KARLSynthesisAgent:
 
         confidence_adjustments = []
         if grounding.get("confidence_adjustment", 0) != 0:
-            confidence_adjustments.append(f"grounding:{grounding['confidence_adjustment']}")
+            confidence_adjustments.append(
+                f"grounding:{grounding['confidence_adjustment']}"
+            )
         # Use cached sq_result from Step 3 — NEVER call ask() again here (would double-invoke and drain question bank)
         if sq_result is not None and sq_result.confidence_adjustment != 0:
             confidence_adjustments.append(f"self_q:{sq_result.confidence_adjustment}")
@@ -308,8 +326,10 @@ class KARLSynthesisAgent:
             risk_adjusted_pnl=0.0,  # ATOM-META-RL-005: set by Meta-RL backtest path
         )
         if record.risk_adjusted_pnl != 0.0:
-            logger.debug(f"[META-RL-KARL-BIDIR] DecisionRecord {record.decision_id}: "
-                         f"risk_adj_pnl={record.risk_adjusted_pnl:+.4f}")
+            logger.debug(
+                f"[META-RL-KARL-BIDIR] DecisionRecord {record.decision_id}: "
+                f"risk_adj_pnl={record.risk_adjusted_pnl:+.4f}"
+            )
 
         # ── Step 8: Record to audit log ──────────────────────────────────────
         audit_log = get_audit_log()
@@ -409,6 +429,7 @@ class KARLSynthesisAgent:
         # Astro enrichment (ATOM-021)
         try:
             from agents._impl.amre.astro_reward import compute_astro_reward
+
             moon_long = state.get("moon_longitude", 0.0)
             aspects = state.get("planetary_aspects", [])
             nak_long = state.get("nakshatra_longitude", 0.0)
@@ -551,7 +572,7 @@ class KARLSynthesisAgent:
         """
         if not self.backtest:
             return {"error": "backtest not enabled"}
-        
+
         results = run_backtest_on_bars(
             agent_run_fn=lambda state: self.run(state),
             bars=bars,
@@ -574,6 +595,7 @@ class KARLSynthesisAgent:
 # ─── Global singleton ─────────────────────────────────────────────────────────
 
 _KARL_AGENT: Optional["KARLSynthesisAgent"] = None
+
 
 def get_karl_agent() -> KARLSynthesisAgent:
     global _KARL_AGENT

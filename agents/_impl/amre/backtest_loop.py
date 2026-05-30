@@ -3,6 +3,7 @@
 Каждый тик исторических данных проходит через:
 state → decision → reward_evaluation → buffer.add
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -14,15 +15,17 @@ from .trajectory import MarketState, compute_trajectory_metrics, trajectory_from
 
 class BacktestRegime(Enum):
     """Режимы backtest"""
-    WALK_FORWARD = "walk_forward"      # Forward testing on unseen data
-    RETRAIN_ON_HISTORY = "retrain"     # Retrain on historical window
-    CONTINUOUS = "continuous"          # Rolling window continuous
-    OOS_VALIDATION = "oos"             # Out-of-sample validation only
+
+    WALK_FORWARD = "walk_forward"  # Forward testing on unseen data
+    RETRAIN_ON_HISTORY = "retrain"  # Retrain on historical window
+    CONTINUOUS = "continuous"  # Rolling window continuous
+    OOS_VALIDATION = "oos"  # Out-of-sample validation only
 
 
 @dataclass
 class BacktestStep:
     """Один шаг backtest"""
+
     step_id: int
     timestamp: str
     price: float
@@ -39,12 +42,13 @@ class BacktestStep:
 @dataclass
 class BacktestResult:
     """Результат backtest сессии"""
+
     session_id: str
     start_date: str
     end_date: str
     total_steps: int
     oos_steps: int
-    
+
     # Метрики
     win_rate: float
     sharpe_ratio: float
@@ -52,22 +56,22 @@ class BacktestResult:
     total_return: float
     avg_confidence: float
     avg_error: float
-    
+
     # Q* метрики
     q_star_initial: float
     q_star_final: float
     q_star_improvement: float
-    
+
     # OOS метрики
     oos_win_rate: float
     oos_avg_error: float
-    
+
     # Режим
     regime: BacktestRegime
-    
+
     # Детали
     steps: List[BacktestStep]
-    
+
     def to_dict(self) -> dict:
         return {
             "session_id": self.session_id,
@@ -93,21 +97,21 @@ class BacktestResult:
 class ContinuousBacktest:
     """
     Backtest-as-a-Service:
-    
+
     Loop:
         for t in historical_data:
             state = build_state(t)
             decision = agent.run(state)
             reward = evaluate_future(t, horizon=H)
             buffer.add(decision, reward)
-    
+
     Особенности:
     - Walk-forward validation
     - Rolling window для retrain
     - OOS evaluation на каждом шаге
     - Accumulating replay buffer
     """
-    
+
     def __init__(
         self,
         buffer: Optional[ReplayBuffer] = None,
@@ -119,10 +123,10 @@ class ContinuousBacktest:
         self.horizon = horizon  # Горизонт для reward evaluation
         self.oos_ratio = oos_ratio  # Доля OOS данных
         self.window_size = window_size  # Размер окна для rolling
-        
+
         self.results: List[BacktestResult] = []
         self._q_star_history: List[float] = []
-    
+
     def run_on_data(
         self,
         historical_data: List[Dict[str, Any]],
@@ -131,42 +135,42 @@ class ContinuousBacktest:
     ) -> BacktestResult:
         """
         Запустить backtest на исторических данных.
-        
+
         Args:
-            historical_data: List of {timestamp, price, ...} 
+            historical_data: List of {timestamp, price, ...}
             agent_fn: Функция агента которая принимает MarketState и возвращает {signal, confidence, ...}
             regime_splitter: Функция определения regime по цене
         """
         if len(historical_data) < self.horizon + 10:
             raise ValueError(f"Need at least {self.horizon + 10} data points")
-        
+
         # Определяем split point
         split_idx = int(len(historical_data) * self.oos_ratio)
         train_data = historical_data[split_idx:]
         oos_data = historical_data[:split_idx]
-        
+
         steps: List[BacktestStep] = []
         q_star_initial = self._estimate_q_star()
-        
+
         # Первая фаза: train (walk forward)
         all_train_rewards = []
         for i, bar in enumerate(train_data):
             state = self._build_state(bar, regime_splitter)
-            
+
             # Decision
             decision = agent_fn(state)
-            
+
             # Reward evaluation через horizon шагов вперёд
             reward_actual, reward_predicted = self._evaluate_reward(
                 historical_data, split_idx + i, horizon=self.horizon
             )
-            
+
             step_error = abs(reward_actual - reward_predicted)
             all_train_rewards.append(reward_actual)
-            
+
             # Добавляем в buffer
             self._add_to_buffer(state, decision, reward_actual)
-            
+
             step = BacktestStep(
                 step_id=i,
                 timestamp=bar.get("timestamp", ""),
@@ -181,21 +185,21 @@ class ContinuousBacktest:
                 is_oos=False,
             )
             steps.append(step)
-        
+
         # Вторая фаза: OOS validation
         all_oos_rewards = []
         oos_steps = []
         for i, bar in enumerate(oos_data):
             state = self._build_state(bar, regime_splitter)
             decision = agent_fn(state)
-            
+
             reward_actual, reward_predicted = self._evaluate_reward(
                 historical_data, i, horizon=self.horizon
             )
-            
+
             step_error = abs(reward_actual - reward_predicted)
             all_oos_rewards.append(reward_actual)
-            
+
             step = BacktestStep(
                 step_id=len(steps) + i,
                 timestamp=bar.get("timestamp", ""),
@@ -210,17 +214,17 @@ class ContinuousBacktest:
                 is_oos=True,
             )
             oos_steps.append(step)
-        
+
         # Собираем метрики
         all_steps = steps + oos_steps
-        
+
         # Q* evolution
         q_star_final = self._estimate_q_star()
-        
+
         # Win rate
         train_wins = [s for s in steps if s.reward_actual > 0]
         oos_wins = [s for s in oos_steps if s.reward_actual > 0]
-        
+
         result = BacktestResult(
             session_id=f"bt_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             start_date=historical_data[0].get("timestamp", ""),
@@ -231,22 +235,26 @@ class ContinuousBacktest:
             sharpe_ratio=self._compute_sharpe(all_train_rewards),
             max_drawdown=self._compute_max_drawdown(all_train_rewards),
             total_return=sum(all_train_rewards),
-            avg_confidence=sum(s.confidence for s in steps) / len(steps) if steps else 0,
+            avg_confidence=sum(s.confidence for s in steps) / len(steps)
+            if steps
+            else 0,
             avg_error=sum(s.error for s in steps) / len(steps) if steps else 0,
             q_star_initial=q_star_initial,
             q_star_final=q_star_final,
             q_star_improvement=q_star_final - q_star_initial,
             oos_win_rate=len(oos_wins) / len(oos_steps) if oos_steps else 0,
-            oos_avg_error=sum(s.error for s in oos_steps) / len(oos_steps) if oos_steps else 0,
+            oos_avg_error=sum(s.error for s in oos_steps) / len(oos_steps)
+            if oos_steps
+            else 0,
             regime=BacktestRegime.WALK_FORWARD,
             steps=all_steps,
         )
-        
+
         self.results.append(result)
         self._q_star_history.append(q_star_final)
-        
+
         return result
-    
+
     def run_rolling(
         self,
         historical_data: List[Dict[str, Any]],
@@ -257,19 +265,19 @@ class ContinuousBacktest:
         Rolling backtest — окно двигается на 1 шаг за раз.
         Возвращает generator для пошагового анализа.
         """
-        window_data = historical_data[:self.window_size]
-        
+        window_data = historical_data[: self.window_size]
+
         for i in range(self.window_size, len(historical_data)):
             # Rolling window
-            window_data = historical_data[i - self.window_size:i]
-            
+            window_data = historical_data[i - self.window_size : i]
+
             result = self.run_on_window(
                 window_data,
                 agent_fn,
                 regime_splitter,
             )
             yield result
-    
+
     def run_on_window(
         self,
         window_data: List[Dict[str, Any]],
@@ -278,7 +286,7 @@ class ContinuousBacktest:
     ) -> BacktestResult:
         """Backtest на одном окне данных"""
         return self.run_on_data(window_data, agent_fn, regime_splitter)
-    
+
     def _build_state(
         self,
         bar: Dict[str, Any],
@@ -287,7 +295,7 @@ class ContinuousBacktest:
         """Build MarketState из одного бара данных"""
         price = bar.get("price", 0.0)
         regime = regime_splitter(price) if regime_splitter else "NORMAL"
-        
+
         return MarketState(
             symbol=bar.get("symbol", "UNKNOWN"),
             price=price,
@@ -298,7 +306,7 @@ class ContinuousBacktest:
             regime=regime,
             volatility_score=bar.get("volatility", 0.5),
         )
-    
+
     def _evaluate_reward(
         self,
         data: List[Dict[str, Any]],
@@ -311,25 +319,25 @@ class ContinuousBacktest:
         """
         if current_idx + horizon >= len(data):
             return 0.0, 0.0
-        
+
         current_price = data[current_idx].get("price", 0.0)
         future_price = data[current_idx + horizon].get("price", 0.0)
-        
+
         if current_price == 0:
             return 0.0, 0.0
-        
+
         # Actual return
         actual_return = (future_price - current_price) / current_price
-        
+
         # Normalize к [-1, 1]
         reward_actual = max(-1, min(1, actual_return * 10))
-        
+
         # Predicted reward (from agent's confidence as proxy)
         # В реальной реализации — из trajectory prediction
         reward_predicted = 0.0
-        
+
         return reward_actual, reward_predicted
-    
+
     def _add_to_buffer(
         self,
         state: MarketState,
@@ -339,7 +347,7 @@ class ContinuousBacktest:
         """Добавить опыт в replay buffer"""
         traj = trajectory_from_state(state)
         metrics = compute_trajectory_metrics(traj)
-        
+
         entry = BufferEntry(
             trajectory=traj,
             metrics=metrics,
@@ -353,54 +361,54 @@ class ContinuousBacktest:
             created_at=state.timestamp,
         )
         self.buffer.add(entry)
-    
+
     def _estimate_q_star(self) -> float:
         """Estimate Q* from buffer"""
         trajs = self.buffer.get_all_trajectories()
         if not trajs:
             return 0.5
-        
+
         rewards = [t.steps[0].confidence / 100 for t in trajs if t.steps]
         if not rewards:
             return 0.5
-        
+
         return sum(rewards) / len(rewards)
-    
+
     def _compute_sharpe(self, rewards: List[float]) -> float:
         if not rewards or len(rewards) < 2:
             return 0.0
-        
+
         mean = sum(rewards) / len(rewards)
         variance = sum((r - mean) ** 2 for r in rewards) / len(rewards)
-        
+
         if variance == 0:
             return 0.0
-        
-        return mean / (variance ** 0.5)
-    
+
+        return mean / (variance**0.5)
+
     def _compute_max_drawdown(self, rewards: List[float]) -> float:
         if not rewards:
             return 0.0
-        
+
         peak = rewards[0]
         max_dd = 0.0
-        
+
         for r in rewards:
             peak = max(peak, r)
             dd = (peak - r) / peak if peak > 0 else 0
             max_dd = max(max_dd, dd)
-        
+
         return max_dd
-    
+
     def get_trajectory_insights(self) -> Dict[str, Any]:
         """Анализ накопленных траекторий"""
         trajs = self.buffer.get_all_trajectories()
         if not trajs:
             return {"count": 0, "avg_confidence": 0}
-        
+
         rewards = [t.steps[0].confidence / 100 for t in trajs if t.steps]
         q_star = self._estimate_q_star()
-        
+
         return {
             "count": len(trajs),
             "q_star": round(q_star, 4),
@@ -408,14 +416,14 @@ class ContinuousBacktest:
             "q_star_history": [round(q, 4) for q in self._q_star_history[-10:]],
             "backtest_runs": len(self.results),
         }
-    
+
     def summary(self) -> Dict[str, Any]:
         """Общая статистика backtest"""
         if not self.results:
             return {"runs": 0}
-        
+
         latest = self.results[-1]
-        
+
         return {
             "total_runs": len(self.results),
             "latest": latest.to_dict(),
@@ -427,6 +435,7 @@ class ContinuousBacktest:
 # =============================================================================
 # Convenience runners
 # =============================================================================
+
 
 def create_backtest_runner(
     horizon: int = 5,

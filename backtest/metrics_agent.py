@@ -13,6 +13,7 @@ Usage:
   agent.record("BTCUSDT", 2025, win_rate=63.5, sharpe=1.42, trades=142)
   summary = agent.get_summary()
 """
+
 import sqlite3
 import statistics
 from dataclasses import asdict, dataclass
@@ -22,6 +23,7 @@ from typing import Optional
 
 # ─── Dataclasses ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class BacktestRun:
     session_id: str
@@ -29,7 +31,7 @@ class BacktestRun:
     start_date: str
     end_date: str
     timeframe: str
-    win_rate: float       # G-01
+    win_rate: float  # G-01
     sharpe_ratio: float  # G-03
     total_trades: int
     winning_trades: int
@@ -59,8 +61,8 @@ class MetricsSummary:
     symbol: str
     period: str
     total_runs: int
-    avg_win_rate: float   # G-01 average
-    avg_sharpe: float     # G-03 average
+    avg_win_rate: float  # G-01 average
+    avg_sharpe: float  # G-03 average
     best_sharpe: float
     worst_sharpe: float
     avg_return: float
@@ -83,7 +85,7 @@ class MetricsSummary:
             f"(best={self.best_sharpe:.2f} worst={self.worst_sharpe:.2f})\n"
             f"  Avg Return:    {self.avg_return:+.1f}%\n"
             f"  Avg Drawdown:  {self.avg_drawdown:.1f}%\n"
-            f"  Expectancy:    {self.expectancy*100:.2f}%/trade\n"
+            f"  Expectancy:    {self.expectancy * 100:.2f}%/trade\n"
             f"  Trend:         {self.trending}\n"
             f"{sep}"
         )
@@ -93,11 +95,13 @@ class MetricsSummary:
 
 _DB_PATH = Path(__file__).parent / "metrics_history.db"
 
+
 def _db_path() -> Path:
     global _DB_PATH
     if False:  # always use defined path
         _DB_PATH = Path(__file__).parent / "results.db"
     return _DB_PATH
+
 
 _SCHEMA = """
     CREATE TABLE IF NOT EXISTS backtest_runs (
@@ -143,14 +147,17 @@ class MetricsDB:
             c.executescript(_SCHEMA)
             # Add timeframe column if missing ( preexisting DB)
             try:
-                c.execute("ALTER TABLE backtest_runs ADD COLUMN timeframe TEXT NOT NULL DEFAULT 'SWING'")
+                c.execute(
+                    "ALTER TABLE backtest_runs ADD COLUMN timeframe TEXT NOT NULL DEFAULT 'SWING'"
+                )
                 c.commit()
             except Exception:
                 pass
 
     def save(self, run: BacktestRun) -> str:
         with self._conn() as c:
-            c.execute("""
+            c.execute(
+                """
                 INSERT OR REPLACE INTO backtest_runs
                 (session_id, symbol, start_date, end_date, timeframe,
                  win_rate, sharpe_ratio, total_trades, winning_trades, losing_trades,
@@ -161,7 +168,9 @@ class MetricsDB:
                  :win_rate, :sharpe_ratio, :total_trades, :winning_trades, :losing_trades,
                  :avg_win_pct, :avg_loss_pct, :total_return_pct, :max_drawdown_pct,
                  :avg_confidence, :initial_capital, :final_capital, :created_at)
-            """, run.to_dict())
+            """,
+                run.to_dict(),
+            )
             c.commit()
         return run.session_id
 
@@ -192,20 +201,22 @@ class MetricsDB:
             names = rows[0].keys()
             rows_data = []
             for row in rows:
-                d = {k: row[k] for k in names if k != 'id'}
+                d = {k: row[k] for k in names if k != "id"}
                 rows_data.append(d)
         runs = [BacktestRun(**d) for d in rows_data]
 
-        def _f(v): return float(v) if v not in (None, '') else 0.0
+        def _f(v):
+            return float(v) if v not in (None, "") else 0.0
+
         wr_list = [_f(r.win_rate) for r in runs]
         sh_list = [_f(r.sharpe_ratio) for r in runs]
         ret_list = [_f(r.total_return_pct) for r in runs]
-        dd_list  = [_f(r.max_drawdown_pct) for r in runs]
+        dd_list = [_f(r.max_drawdown_pct) for r in runs]
 
-        avg_wr  = statistics.mean(wr_list)
-        avg_sh  = statistics.mean(sh_list)
+        avg_wr = statistics.mean(wr_list)
+        avg_sh = statistics.mean(sh_list)
         avg_ret = statistics.mean(ret_list)
-        avg_dd  = statistics.mean(dd_list)
+        avg_dd = statistics.mean(dd_list)
 
         # Trending: compare first half vs second half
         mid = len(runs) // 2
@@ -215,7 +226,9 @@ class MetricsDB:
             first_wr = statistics.mean(r.win_rate for r in first_half)
             second_wr = statistics.mean(r.win_rate for r in second_half)
             delta = second_wr - first_wr
-            trending = "improving" if delta > 2 else "declining" if delta < -2 else "stable"
+            trending = (
+                "improving" if delta > 2 else "declining" if delta < -2 else "stable"
+            )
         else:
             trending = "stable"
 
@@ -243,7 +256,7 @@ class MetricsDB:
             else:
                 deleted = c.execute(
                     "DELETE FROM backtest_runs WHERE created_at < datetime('now', ?)",
-                    (f"-{older_than_days} days",)
+                    (f"-{older_than_days} days",),
                 ).rowcount
             c.commit()
         return deleted
@@ -253,6 +266,7 @@ class MetricsDB:
 
 _db: Optional[MetricsDB] = None
 
+
 def _get_db() -> MetricsDB:
     global _db
     if _db is None:
@@ -261,6 +275,7 @@ def _get_db() -> MetricsDB:
 
 
 # ─── Convenience API ──────────────────────────────────────────────────────────
+
 
 def record_run(run_or_result) -> str:
     """Record a backtest run. Accepts BacktestRun or BacktestResult (engine.py)."""
@@ -291,6 +306,7 @@ def record_run(run_or_result) -> str:
         )
     return _get_db().save(run)
 
+
 def record(
     symbol: str,
     win_rate: float,
@@ -302,10 +318,11 @@ def record(
     max_drawdown_pct: float = 0.0,
     avg_confidence: float = 50.0,
     session_id: str = None,
-    **kwargs
+    **kwargs,
 ) -> str:
     """Simple one-shot metric recording."""
     import uuid
+
     run = BacktestRun(
         session_id=session_id or str(uuid.uuid4())[:8],
         symbol=symbol,
@@ -328,8 +345,10 @@ def record(
     )
     return _get_db().save(run)
 
+
 def get_summary(symbol: str = None, days: int = 90) -> Optional[MetricsSummary]:
     return _get_db().summary(symbol=symbol, days=days)
+
 
 def load_results(symbol: str = None, limit: int = 50) -> list[BacktestRun]:
     return _get_db().list(symbol=symbol, limit=limit)
@@ -337,10 +356,11 @@ def load_results(symbol: str = None, limit: int = 50) -> list[BacktestRun]:
 
 # ─── Metrics Agent ────────────────────────────────────────────────────────────
 
+
 class MetricsAgent:
     """
     G-01/G-03 Metrics Agent.
-    
+
     Records and analyzes backtest performance metrics.
     """
 
@@ -350,7 +370,7 @@ class MetricsAgent:
     async def run(self, state: dict = None) -> dict:
         """
         Analyze metrics for a symbol.
-        
+
         Reads from backtest/results.db.
         Returns G-01 win rate and G-03 Sharpe ratio summary.
         """

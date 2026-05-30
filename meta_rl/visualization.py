@@ -1,4 +1,5 @@
 """meta_rl/visualization.py — ATOM-META-RL-011: Evolution Charts"""
+
 import logging
 from pathlib import Path
 from typing import Dict, Optional
@@ -22,11 +23,16 @@ def generate_all_charts(
     Returns dict of chart_name → output_path.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
 
-    out = Path(output_dir) if output_dir else Path(__file__).parent.parent / "data" / "meta_rl"
+    out = (
+        Path(output_dir)
+        if output_dir
+        else Path(__file__).parent.parent / "data" / "meta_rl"
+    )
     out.mkdir(parents=True, exist_ok=True)
 
     results: Dict[str, str] = {}
@@ -39,9 +45,21 @@ def generate_all_charts(
             max_r = [s.max_reward for s in history]
             mean_r = [s.mean_reward for s in history]
             min_r = [s.min_reward for s in history]
-            ax.plot(gens, max_r, "g-", linewidth=2, label="Best", marker="o", markersize=4)
-            ax.plot(gens, mean_r, "b--", linewidth=1.5, label="Mean", marker="s", markersize=3)
-            ax.fill_between(gens, min_r, max_r, alpha=0.15, color="green", label="Range")
+            ax.plot(
+                gens, max_r, "g-", linewidth=2, label="Best", marker="o", markersize=4
+            )
+            ax.plot(
+                gens,
+                mean_r,
+                "b--",
+                linewidth=1.5,
+                label="Mean",
+                marker="s",
+                markersize=3,
+            )
+            ax.fill_between(
+                gens, min_r, max_r, alpha=0.15, color="green", label="Range"
+            )
         ax.set_xlabel("Generation")
         ax.set_ylabel("Reward")
         ax.set_title(f"Reward Convergence — {session_id}")
@@ -96,8 +114,11 @@ def generate_all_charts(
         if elites and len(elites) >= 1:
             top = sorted(elites, key=lambda s: s.reward, reverse=True)[:3]
             labels = [
-                "conf_th", "pos_size", "atr_mult",
-                "sig_bull", "sig_bear",
+                "conf_th",
+                "pos_size",
+                "atr_mult",
+                "sig_bull",
+                "sig_bear",
             ]
             num_vars = len(labels)
 
@@ -116,7 +137,13 @@ def generate_all_charts(
                     float(c.get("signal_weights_bear", 0.5)),
                 ]
                 values += values[:1]
-                ax.plot(angles, values, color=colors[i % len(colors)], linewidth=2, label=f"#{i+1} r={s.reward:.3f}")
+                ax.plot(
+                    angles,
+                    values,
+                    color=colors[i % len(colors)],
+                    linewidth=2,
+                    label=f"#{i + 1} r={s.reward:.3f}",
+                )
                 ax.fill(angles, values, alpha=0.1, color=colors[i % len(colors)])
 
             ax.set_xticks(angles[:-1])
@@ -150,5 +177,7 @@ def generate_all_charts(
     except Exception as e:
         logger.warning(f"[META-RL-VIS] improvement failed: {e}")
 
-    logger.info(f"[META-RL-VIS] Generated {len(results)}/5 charts: {list(results.keys())}")
+    logger.info(
+        f"[META-RL-VIS] Generated {len(results)}/5 charts: {list(results.keys())}"
+    )
     return results

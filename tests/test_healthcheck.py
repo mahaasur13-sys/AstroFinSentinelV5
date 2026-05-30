@@ -1,13 +1,15 @@
 # tests/test_healthcheck.py
-import pytest
 import json
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 ROOT = Path(__file__).parent.parent
 HEALTHCHECK = ROOT / "tools" / "healthcheck.py"
+
 
 def run_healthcheck(*args):
     """Run healthcheck as subprocess and return (stdout, stderr, exitcode)."""
@@ -19,8 +21,10 @@ def run_healthcheck(*args):
     )
     return result.stdout, result.stderr, result.returncode
 
+
 def test_healthcheck_exists():
     assert HEALTHCHECK.exists(), "tools/healthcheck.py not found"
+
 
 def test_healthcheck_outputs_json():
     if not HEALTHCHECK.exists():
@@ -30,6 +34,7 @@ def test_healthcheck_outputs_json():
     assert "status" in data
     assert "checks" in data
 
+
 def test_healthcheck_exit_code_ok_when_all_good():
     if not HEALTHCHECK.exists():
         pytest.skip("healthcheck.py not found")
@@ -37,6 +42,7 @@ def test_healthcheck_exit_code_ok_when_all_good():
     # В идеальных условиях должен вернуть 0, но в тестовой среде может быть 1.
     # Мы просто проверяем, что не 2 (критическая ошибка).
     assert returncode in (0, 1), f"Expected exit code 0 or 1, got {returncode}"
+
 
 def test_healthcheck_venv_check():
     if not HEALTHCHECK.exists():
@@ -47,6 +53,7 @@ def test_healthcheck_venv_check():
     assert "venv" in checks
     assert "active" in checks["venv"]
 
+
 def test_healthcheck_db_check():
     if not HEALTHCHECK.exists():
         pytest.skip("healthcheck.py not found")
@@ -54,6 +61,7 @@ def test_healthcheck_db_check():
     data = json.loads(stdout)
     checks = data.get("checks", {})
     assert "postgresql" in checks or "database" in checks
+
 
 def test_healthcheck_ollama_check():
     if not HEALTHCHECK.exists():
@@ -63,6 +71,7 @@ def test_healthcheck_ollama_check():
     checks = data.get("checks", {})
     # Ollama может быть не запущена — это не фатально
     assert "ollama" in checks
+
 
 def test_healthcheck_handle_missing_docker_compose():
     # Мокаем отсутствие docker-compose

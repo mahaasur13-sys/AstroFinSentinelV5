@@ -1,4 +1,5 @@
 """meta_rl/backtest_adapter.py — ATOM-META-RL-003: BacktestEngine Adapter"""
+
 from __future__ import annotations
 
 import logging
@@ -78,7 +79,9 @@ class BacktestEngineAdapter:
             logger.warning(f"[META-RL-INTEGRATION] Backtester failed: {e}")
             return EvaluationResult.fail()
 
-    def _build_signals(self, strategy: Any, ohlcv: list, market_data: Optional[dict]) -> list:
+    def _build_signals(
+        self, strategy: Any, ohlcv: list, market_data: Optional[dict]
+    ) -> list:
         """Build signals by calling strategy.evaluate() on each bar."""
         from strategies.base import Regime
 
@@ -87,7 +90,11 @@ class BacktestEngineAdapter:
         sym_data: dict = {}  # resolved per-symbol market metadata
 
         if market_data:
-            if "BTCUSDT" in market_data or "ETHUSDT" in market_data or "SPY" in market_data:
+            if (
+                "BTCUSDT" in market_data
+                or "ETHUSDT" in market_data
+                or "SPY" in market_data
+            ):
                 for sym in ("BTCUSDT", "ETHUSDT", "SPY"):
                     if sym in market_data and isinstance(market_data[sym], dict):
                         symbol = sym
@@ -129,20 +136,22 @@ class BacktestEngineAdapter:
             ts = self._get_timestamp(bar)
             if ts is None:
                 ts_int = idx
-            elif hasattr(ts, 'timestamp'):
+            elif hasattr(ts, "timestamp"):
                 ts_int = int(ts.timestamp())
-            elif isinstance(ts, (int, float)) and ts > 1e9:
+            elif isinstance(ts, (int, float)) and ts > 1e9:  # noqa: UP038
                 ts_int = int(ts)
             else:
                 ts_int = idx  # fallback: bar index
 
-            signals.append({
-                "timestamp": ts_int,
-                "symbol": symbol,
-                "signal": result.signal.value,
-                "confidence": result.confidence,
-                "reasoning": result.reasoning,
-            })
+            signals.append(
+                {
+                    "timestamp": ts_int,
+                    "symbol": symbol,
+                    "signal": result.signal.value,
+                    "confidence": result.confidence,
+                    "reasoning": result.reasoning,
+                }
+            )
 
         return signals
 
@@ -154,9 +163,9 @@ class BacktestEngineAdapter:
             ts = self._get_timestamp(bar)
             close = self._get_close(bar)
             # Convert datetime to unix int for consistent comparison with _build_signals
-            if hasattr(ts, 'timestamp'):
+            if hasattr(ts, "timestamp"):
                 ts_int = int(ts.timestamp())
-            elif isinstance(ts, (int, float)) and ts > 1e9:
+            elif isinstance(ts, (int, float)) and ts > 1e9:  # noqa: UP038
                 ts_int = int(ts)
             else:
                 ts_int = idx  # fallback: bar index
@@ -193,11 +202,19 @@ class BacktestEngineAdapter:
             total = len(trades)
             win_rate = winning / max(1, total)
 
-            equity_arr = np.array([eq for _, eq in equity_curve]) if equity_curve else None
-            returns = np.diff(equity_arr) / equity_arr[:-1] if equity_arr is not None and len(equity_arr) > 1 else np.array([0.0])
+            equity_arr = (
+                np.array([eq for _, eq in equity_curve]) if equity_curve else None
+            )
+            returns = (
+                np.diff(equity_arr) / equity_arr[:-1]
+                if equity_arr is not None and len(equity_arr) > 1
+                else np.array([0.0])
+            )
             mean_ret = float(np.mean(returns)) if len(returns) > 0 else 0.0
             std_ret = float(np.std(returns)) if len(returns) > 0 else 0.01
-            sharpe = float((mean_ret / std_ret) * np.sqrt(252)) if std_ret > 1e-8 else 0.0
+            sharpe = (
+                float((mean_ret / std_ret) * np.sqrt(252)) if std_ret > 1e-8 else 0.0
+            )
 
             total_return_pct = summary.get("total_return_pct", 0.0)
             max_dd_pct = summary.get("max_drawdown_pct", 0.0)
@@ -220,36 +237,50 @@ class BacktestEngineAdapter:
 
     # Field accessors (handle both dict and dataclass)
     def _get_close(self, bar: Any) -> float:
-        if hasattr(bar, "close"): return float(bar.close)
-        if isinstance(bar, dict): return float(bar.get("close", 0))
+        if hasattr(bar, "close"):
+            return float(bar.close)
+        if isinstance(bar, dict):
+            return float(bar.get("close", 0))
         return 0.0
 
     def _get_open(self, bar: Any) -> float:
-        if hasattr(bar, "open"): return float(bar.open)
-        if isinstance(bar, dict): return float(bar.get("open", 0))
+        if hasattr(bar, "open"):
+            return float(bar.open)
+        if isinstance(bar, dict):
+            return float(bar.get("open", 0))
         return 0.0
 
     def _get_high(self, bar: Any) -> float:
-        if hasattr(bar, "high"): return float(bar.high)
-        if isinstance(bar, dict): return float(bar.get("high", 0))
+        if hasattr(bar, "high"):
+            return float(bar.high)
+        if isinstance(bar, dict):
+            return float(bar.get("high", 0))
         return 0.0
 
     def _get_low(self, bar: Any) -> float:
-        if hasattr(bar, "low"): return float(bar.low)
-        if isinstance(bar, dict): return float(bar.get("low", 0))
+        if hasattr(bar, "low"):
+            return float(bar.low)
+        if isinstance(bar, dict):
+            return float(bar.get("low", 0))
         return 0.0
 
     def _get_volume(self, bar: Any) -> float:
-        if hasattr(bar, "volume"): return float(bar.volume)
-        if isinstance(bar, dict): return float(bar.get("volume", 0))
+        if hasattr(bar, "volume"):
+            return float(bar.volume)
+        if isinstance(bar, dict):
+            return float(bar.get("volume", 0))
         return 0.0
 
     def _get_timestamp(self, bar: Any):
-        if hasattr(bar, "dt"): return bar.dt
-        if hasattr(bar, "timestamp"): return bar.timestamp
+        if hasattr(bar, "dt"):
+            return bar.dt
+        if hasattr(bar, "timestamp"):
+            return bar.timestamp
         if isinstance(bar, dict):
-            if "timestamp" in bar: return bar["timestamp"]
-            if "dt" in bar: return bar["dt"]
+            if "timestamp" in bar:
+                return bar["timestamp"]
+            if "dt" in bar:
+                return bar["dt"]
         return None
 
     def _build_market_state(self, market_data: Optional[dict]):
@@ -257,9 +288,14 @@ class BacktestEngineAdapter:
 
         if market_data is None:
             return MarketState(
-                symbol="BTCUSDT", last_price=50000.0, bid_price=49999.0,
-                ask_price=50001.0, spread_bps=4.0, adv_24h=1e9,
-                realized_vol_20d=0.02, current_vol_regime="NORMAL",
+                symbol="BTCUSDT",
+                last_price=50000.0,
+                bid_price=49999.0,
+                ask_price=50001.0,
+                spread_bps=4.0,
+                adv_24h=1e9,
+                realized_vol_20d=0.02,
+                current_vol_regime="NORMAL",
             )
         return MarketState(
             symbol=market_data.get("symbol", "BTCUSDT"),
@@ -281,5 +317,7 @@ class BacktestEngineAdapter:
             qty=getattr(trade, "size", 0.0),
             price=getattr(trade, "entry_price", 0.0),
             order_type="MARKET",
-            slippage_bp_estimate=market_data.get("slippage_bp", 5.0) if market_data else 5.0,
+            slippage_bp_estimate=market_data.get("slippage_bp", 5.0)
+            if market_data
+            else 5.0,
         )

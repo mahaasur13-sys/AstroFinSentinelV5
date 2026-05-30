@@ -11,6 +11,7 @@ Pipeline:
   6. Save to models/residual_model.joblib
   7. Report accuracy (RMSE in arcmin)
 """
+
 from __future__ import annotations
 
 import math
@@ -54,7 +55,6 @@ def generate_training_data(
         if body_enc < 0:
             continue
 
-        
         for jd in jd_samples:
             # Kepler (heliocentric)
             k_result = propagate_kepler(body, jd)
@@ -80,7 +80,9 @@ def generate_training_data(
             cos_orb = math.cos(math.radians(mean_lon))
             is_saturn = 1.0 if body.lower() == "saturn" else 0.0
 
-            features_list.append([jd_norm, float(body_enc), sin_orb, cos_orb, is_saturn])
+            features_list.append(
+                [jd_norm, float(body_enc), sin_orb, cos_orb, is_saturn]
+            )
             residuals_list.append(residual_arcmin)
 
     return np.array(features_list), np.array(residuals_list)
@@ -103,11 +105,13 @@ def train_residual_model(X, y) -> object:
     model.fit(X, y)
 
     # Cross-validation RMSE
-    cv_scores = cross_val_score(model, X, y, cv=5, scoring="neg_root_mean_squared_error")
+    cv_scores = cross_val_score(
+        model, X, y, cv=5, scoring="neg_root_mean_squared_error"
+    )
     cv_rmse = -cv_scores.mean()
 
     print(f"\n  CV RMSE: {cv_rmse:.2f} arcmin")
-    print(f"  CV RMSE: {cv_rmse/60:.4f} degrees")
+    print(f"  CV RMSE: {cv_rmse / 60:.4f} degrees")
 
     return model
 
@@ -121,8 +125,10 @@ def main():
     print("\n[1/4] Generating training data...")
     X, y = generate_training_data(n_samples=500)
     print(f"  Generated {len(X)} samples")
-    print(f"  Residual stats (arcmin): mean={y.mean():.2f}, std={y.std():.2f}, "
-          f"min={y.min():.2f}, max={y.max():.2f}")
+    print(
+        f"  Residual stats (arcmin): mean={y.mean():.2f}, std={y.std():.2f}, "
+        f"min={y.min():.2f}, max={y.max():.2f}"
+    )
 
     # Train model
     print("\n[2/4] Training RandomForestRegressor...")
@@ -144,13 +150,14 @@ def main():
     # Test on held-out points
     print("\n--- Test: Jupiter at J2000 ---")
     from core.kepler_hybrid import hybrid_propagate
+
     h = hybrid_propagate(2451545.0, "jupiter", use_ml=True)
     swiss = eph.calculate_planet("jupiter", 2451545.0)
     delta_raw = (h.kepler_lon - swiss.longitude + 180) % 360 - 180
     delta_corr = (h.corrected_lon - swiss.longitude + 180) % 360 - 180
-    print(f"  Kepler residual:  {delta_raw*60:.2f} arcmin ({delta_raw:.4f}°)")
+    print(f"  Kepler residual:  {delta_raw * 60:.2f} arcmin ({delta_raw:.4f}°)")
     print(f"  ML predicted:     {h.residual_predicted_arcmin:.2f} arcmin")
-    print(f"  Corrected residual: {delta_corr*60:.2f} arcmin ({delta_corr:.4f}°)")
+    print(f"  Corrected residual: {delta_corr * 60:.2f} arcmin ({delta_corr:.4f}°)")
     print(f"  Confidence:       {h.confidence:.2f}")
 
     print("\n--- Test: Saturn at J2000 ---")
@@ -158,18 +165,18 @@ def main():
     swiss = eph.calculate_planet("saturn", 2451545.0)
     delta_raw = (h.kepler_lon - swiss.longitude + 180) % 360 - 180
     delta_corr = (h.corrected_lon - swiss.longitude + 180) % 360 - 180
-    print(f"  Kepler residual:  {delta_raw*60:.2f} arcmin ({delta_raw:.4f}°)")
+    print(f"  Kepler residual:  {delta_raw * 60:.2f} arcmin ({delta_raw:.4f}°)")
     print(f"  ML predicted:     {h.residual_predicted_arcmin:.2f} arcmin")
-    print(f"  Corrected residual: {delta_corr*60:.2f} arcmin ({delta_corr:.4f}°)")
+    print(f"  Corrected residual: {delta_corr * 60:.2f} arcmin ({delta_corr:.4f}°)")
     print(f"  Confidence:       {h.confidence:.2f}")
 
     # Final message
     final_rmse = abs(y.std())  # naive baseline
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("✅ Training complete!")
     print(f"   Baseline (naive mean): {final_rmse:.2f} arcmin RMSE")
     print(f"   Model file: {model_path}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

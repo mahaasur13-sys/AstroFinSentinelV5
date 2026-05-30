@@ -1,4 +1,5 @@
 """meta_rl/replay.py — ATOM-META-RL-009: Cross-session Replay Engine"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,12 +19,14 @@ DRIFT_SCORE_SEVERE = 0.50
 def load_session_records(session_id: str) -> List[Dict[str, Any]]:
     """Load all decision records from a persisted session."""
     from meta_rl.persistence import get_persistence
+
     return get_persistence().load_scored_strategies(session_id)
 
 
 def load_all_records() -> List[Dict[str, Any]]:
     """Load decision records from all sessions."""
     from meta_rl.persistence import get_persistence
+
     persist = get_persistence()
     sessions = persist.list_sessions()
     all_records = []
@@ -61,6 +64,7 @@ def replay_session(
 @dataclass
 class OAPDriftReport:
     """Results of OAP drift analysis."""
+
     session_id: str
     total_records: int
     generations: List[int]
@@ -74,7 +78,9 @@ class OAPDriftReport:
     recommendations: List[str]
 
 
-def analyze_oap_drift(records: List[Dict[str, Any]], session_id: str = "") -> OAPDriftReport:
+def analyze_oap_drift(
+    records: List[Dict[str, Any]], session_id: str = ""
+) -> OAPDriftReport:
     """Analyze OAP drift from historical decision records.
 
     Computes:
@@ -87,11 +93,17 @@ def analyze_oap_drift(records: List[Dict[str, Any]], session_id: str = "") -> OA
     """
     if not records:
         return OAPDriftReport(
-            session_id=session_id, total_records=0,
-            generations=[], mean_qstar=0.0, std_qstar=0.0,
-            drift_score=0.0, drift_severity="none",
-            generation_qstar_trend=[], is_overfitting=False,
-            overfitting_evidence=[], recommendations=[],
+            session_id=session_id,
+            total_records=0,
+            generations=[],
+            mean_qstar=0.0,
+            std_qstar=0.0,
+            drift_score=0.0,
+            drift_severity="none",
+            generation_qstar_trend=[],
+            is_overfitting=False,
+            overfitting_evidence=[],
+            recommendations=[],
         )
 
     rewards = [float(r.get("reward", 0.0)) for r in records]
@@ -126,8 +138,8 @@ def analyze_oap_drift(records: List[Dict[str, Any]], session_id: str = "") -> OA
     is_overfitting = False
 
     if len(gen_means) >= 2:
-        early = np.mean(gen_means[:max(1, len(gen_means) // 3)])
-        late = np.mean(gen_means[-max(1, len(gen_means) // 3):])
+        early = np.mean(gen_means[: max(1, len(gen_means) // 3)])
+        late = np.mean(gen_means[-max(1, len(gen_means) // 3) :])
         if late > early and std_q > DRIFT_SCORE_MODERATE:
             is_overfitting = True
             overfitting_evidence.append(
@@ -135,7 +147,9 @@ def analyze_oap_drift(records: List[Dict[str, Any]], session_id: str = "") -> OA
                 f"with high variance (std={std_q:.3f})"
             )
         if len(gen_means) >= 3:
-            recent_deltas = [gen_means[i] - gen_means[i-1] for i in range(1, len(gen_means))]
+            recent_deltas = [
+                gen_means[i] - gen_means[i - 1] for i in range(1, len(gen_means))
+            ]
             if all(d > 0 for d in recent_deltas[-2:]) and std_q > DRIFT_SCORE_MILD:
                 overfitting_evidence.append(
                     "Consecutive generation reward increases — possible memorization"

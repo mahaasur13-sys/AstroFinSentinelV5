@@ -1,4 +1,5 @@
 """Типы данных для meta_rl."""
+
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -6,6 +7,7 @@ from typing import Any, Optional
 @dataclass
 class EvaluationResult:
     """Результат оценки стратегии."""
+
     win_rate: float = 0.0
     sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
@@ -19,6 +21,7 @@ class EvaluationResult:
 @dataclass
 class BasketMetrics:
     """Метрики корзины стратегий."""
+
     win_rate: float = 0.0
     sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
@@ -31,6 +34,7 @@ class BasketMetrics:
 @dataclass
 class ScoredStrategy:
     """Стратегия с оценкой (используется в эволюции и пулах)."""
+
     strategy_id: str = ""
     agent_name: str = ""
     fitness: float = 0.0

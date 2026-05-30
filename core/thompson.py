@@ -3,8 +3,8 @@ AstroFin Sentinel v5 — Thompson Sampling Agent Selector
 FIXED: thread-safe singleton, guaranteed minimum agents, structured logging
 """
 
-import random
 import logging
+import random
 import threading
 from dataclasses import dataclass
 from typing import Optional
@@ -19,9 +19,11 @@ from core.belief import BeliefState, BeliefTracker, get_belief_tracker
 # Agent Pools
 # ═════════════════════════════════════════════════
 
+
 @dataclass
 class AgentPool:
     """Defines which agents participate in Thompson sampling."""
+
     name: str
     agents: list
     min_select: int = 1
@@ -30,33 +32,54 @@ class AgentPool:
     k: Optional[int] = None
     description: str = ""
 
+
 TECHNICAL_POOL = AgentPool(
     name="technical",
     agents=["MarketAnalyst", "BullResearcher", "BearResearcher", "TechnicalAgent"],
-    min_select=2, max_select=4, min_usefulness=0.25,
+    min_select=2,
+    max_select=4,
+    min_usefulness=0.25,
     description="Technical analysis team",
 )
 
 MACRO_POOL = AgentPool(
     name="macro",
-    agents=["FundamentalAgent", "MacroAgent", "QuantAgent",
-            "OptionsFlowAgent", "SentimentAgent"],
-    min_select=2, max_select=4, min_usefulness=0.30,
+    agents=[
+        "FundamentalAgent",
+        "MacroAgent",
+        "QuantAgent",
+        "OptionsFlowAgent",
+        "SentimentAgent",
+    ],
+    min_select=2,
+    max_select=4,
+    min_usefulness=0.30,
     description="Fundamental, macro, and sentiment analysis",
 )
 
 ASTRO_POOL = AgentPool(
     name="astro",
-    agents=["GannAgent", "BradleyAgent", "ElliotAgent",
-            "CycleAgent", "TimeWindowAgent", "MuhurtaAgent", "ElectionAgent"],
-    min_select=4, max_select=7, min_usefulness=0.25,
+    agents=[
+        "GannAgent",
+        "BradleyAgent",
+        "ElliotAgent",
+        "CycleAgent",
+        "TimeWindowAgent",
+        "MuhurtaAgent",
+        "ElectionAgent",
+    ],
+    min_select=4,
+    max_select=7,
+    min_usefulness=0.25,
     description="Astrological timing pool",
 )
 
 ELECTORAL_POOL = AgentPool(
     name="electoral",
     agents=["ElectionAgent", "MuhurtaAgent"],
-    min_select=1, max_select=2, min_usefulness=0.20,
+    min_select=1,
+    max_select=2,
+    min_usefulness=0.20,
     description="Electional timing",
 )
 
@@ -66,6 +89,7 @@ ALL_POOLS = [TECHNICAL_POOL, MACRO_POOL, ELECTORAL_POOL, ASTRO_POOL]
 # Thompson Sampler
 # ═════════════════════════════════════════════════
 
+
 class ThompsonSampler:
     """Thompson sampling selector using Beta distribution per agent."""
 
@@ -73,8 +97,14 @@ class ThompsonSampler:
     DEFAULT_PRIOR_ALPHA = 1.0
     DEFAULT_PRIOR_BETA = 1.0
 
-    def __init__(self, belief_tracker=None, default_k=4,
-                 random_seed=None, min_usefulness=0.30, exploration_bonus=0.0):
+    def __init__(
+        self,
+        belief_tracker=None,
+        default_k=4,
+        random_seed=None,
+        min_usefulness=0.30,
+        exploration_bonus=0.0,
+    ):
         self.belief = belief_tracker or get_belief_tracker()
         self.default_k = default_k
         self.min_usefulness = min_usefulness
@@ -150,16 +180,24 @@ class ThompsonSampler:
             selected = [(fallback_agent, fallback_sample)]
 
         names = [name for name, _, _ in selected]
-        logger.info(f"[Thompson] '{pool.name}': {len(selected)}/{len(pool.agents)} → {names}")
+        logger.info(
+            f"[Thompson] '{pool.name}': {len(selected)}/{len(pool.agents)} → {names}"
+        )
         return [(name, score) for name, score, _ in selected]
 
-    def select_with_exclusions(self, pool, excluded, k=None, oap_adjustments=None) -> list:
+    def select_with_exclusions(
+        self, pool, excluded, k=None, oap_adjustments=None
+    ) -> list:
         candidates = [a for a in pool.agents if a not in excluded]
         if not candidates:
             return []
-        tmp_pool = AgentPool(name=pool.name, agents=candidates,
-                             min_select=pool.min_select, max_select=pool.max_select,
-                             min_usefulness=pool.min_usefulness)
+        tmp_pool = AgentPool(
+            name=pool.name,
+            agents=candidates,
+            min_select=pool.min_select,
+            max_select=pool.max_select,
+            min_usefulness=pool.min_usefulness,
+        )
         return self.select(tmp_pool, k=k, oap_adjustments=oap_adjustments)
 
     def scores(self, pool: AgentPool) -> list:
@@ -179,12 +217,14 @@ class ThompsonSampler:
         result.sort(key=lambda x: x[1], reverse=True)
         return result
 
+
 # ═════════════════════════════════════════════════
 # THREAD-SAFE singleton ✅
 # ═════════════════════════════════════════════════
 
 _sampler = None
 _sampler_lock = threading.Lock()
+
 
 def get_thompson_sampler() -> ThompsonSampler:
     """Get or create Thompson sampler — THREAD-SAFE."""
@@ -194,6 +234,7 @@ def get_thompson_sampler() -> ThompsonSampler:
             if _sampler is None:
                 _sampler = ThompsonSampler()
     return _sampler
+
 
 def thompson_select(pool, k=None) -> list:
     return get_thompson_sampler().select(pool, k=k)

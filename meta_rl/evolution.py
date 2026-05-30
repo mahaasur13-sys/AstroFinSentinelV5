@@ -1,4 +1,5 @@
 """meta_rl/evolution.py -- ATOM-META-RL-002/011"""
+
 from __future__ import annotations
 
 import logging
@@ -19,6 +20,7 @@ from meta_rl.strategy_pool import ScoredStrategy
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class EvolutionStats:
     generation: int
@@ -33,13 +35,19 @@ class EvolutionStats:
     karl_updated: bool = False
 
     def to_dict(self) -> dict:
-        return {"generation": self.generation, "mean_reward": round(self.mean_reward, 4),
-                "max_reward": round(self.max_reward, 4), "min_reward": round(self.min_reward, 4),
-                "std_reward": round(self.std_reward, 4), "pool_size": self.pool_size,
-                "improvement": round(self.improvement_over_prev, 4),
-                "top_strategy_id": self.top_strategy_id,
-                "elapsed_seconds": round(self.elapsed_seconds, 2),
-                "karl_updated": self.karl_updated}
+        return {
+            "generation": self.generation,
+            "mean_reward": round(self.mean_reward, 4),
+            "max_reward": round(self.max_reward, 4),
+            "min_reward": round(self.min_reward, 4),
+            "std_reward": round(self.std_reward, 4),
+            "pool_size": self.pool_size,
+            "improvement": round(self.improvement_over_prev, 4),
+            "top_strategy_id": self.top_strategy_id,
+            "elapsed_seconds": round(self.elapsed_seconds, 2),
+            "karl_updated": self.karl_updated,
+        }
+
 
 class EvolutionEngine:
     def __init__(
@@ -107,11 +115,16 @@ class EvolutionEngine:
             try:
                 elites = self.agent.select(population)
                 if self._should_stop(elites):
-                    logger.info(f"[META-RL-INTEGRATION] Early stopping at gen {gen_idx}")
+                    logger.info(
+                        f"[META-RL-INTEGRATION] Early stopping at gen {gen_idx}"
+                    )
                     break
 
                 karl_updated = False
-                if KARL_META_UPDATE_ENABLED and gen_idx % self.agent.config.karl_update_interval == 0:
+                if (
+                    KARL_META_UPDATE_ENABLED
+                    and gen_idx % self.agent.config.karl_update_interval == 0
+                ):
                     karl_state = self.agent.update_karl(elites)
                     self._karl_state_history.append(karl_state)
                     karl_updated = True
@@ -160,30 +173,54 @@ class EvolutionEngine:
             train_start = max(0, train_end - self.train_window)
             test_start = min(train_end, len(ohlcv) - self.test_window)
             test_end = min(test_start + self.test_window, len(ohlcv))
-            train_data = ohlcv[train_start:train_end] if train_start < train_end else ohlcv[:self.train_window]
+            train_data = (
+                ohlcv[train_start:train_end]
+                if train_start < train_end
+                else ohlcv[: self.train_window]
+            )
             wf = dict(self.market_data)
             wf["ohlcv"] = train_data
-            wf["test_ohlcv"] = ohlcv[test_start:test_end] if test_start < test_end else ohlcv[-self.test_window:]
+            wf["test_ohlcv"] = (
+                ohlcv[test_start:test_end]
+                if test_start < test_end
+                else ohlcv[-self.test_window :]
+            )
             return wf
         except Exception as e:
             logger.warning(f"[META-RL-INTEGRATION] Walk-forward failed: {e}")
             return self.market_data
 
-    def _compute_stats(self, population: List[ScoredStrategy], karl_updated: bool = False) -> EvolutionStats:
+    def _compute_stats(
+        self, population: List[ScoredStrategy], karl_updated: bool = False
+    ) -> EvolutionStats:
         if not population:
             return EvolutionStats(
                 generation=self.agent.generation,
-                mean_reward=0.0, max_reward=0.0, min_reward=0.0, std_reward=0.0,
-                pool_size=0, improvement_over_prev=0.0, karl_updated=karl_updated,
+                mean_reward=0.0,
+                max_reward=0.0,
+                min_reward=0.0,
+                std_reward=0.0,
+                pool_size=0,
+                improvement_over_prev=0.0,
+                karl_updated=karl_updated,
             )
-        rewards = [s.reward_history[-1] if s.reward_history else s.reward for s in population]
+        rewards = [
+            s.reward_history[-1] if s.reward_history else s.reward for s in population
+        ]
         improvement = 0.0
         if self._history:
             prev_best = self._history[-1].max_reward
             improvement = max(rewards) - prev_best
-        best_s = max(population, key=lambda s: s.reward_history[-1] if s.reward_history else s.reward)
+        best_s = max(
+            population,
+            key=lambda s: s.reward_history[-1] if s.reward_history else s.reward,
+        )
         mean_r = sum(rewards) / len(rewards)
-        std_r = (sum((r - mean_r) ** 2 for r in rewards) / len(rewards)) ** 0.5 if len(rewards) > 1 else 0.0
+        std_r = (
+            (sum((r - mean_r) ** 2 for r in rewards) / len(rewards)) ** 0.5
+            if len(rewards) > 1
+            else 0.0
+        )
         return EvolutionStats(
             generation=self.agent.generation,
             mean_reward=float(mean_r),
@@ -234,7 +271,11 @@ class EvolutionEngine:
             return None
 
         recent = [s.max_reward for s in self._history[-window:]]
-        baseline = self._history[-window - 1].max_reward if len(self._history) > window else recent[0]
+        baseline = (
+            self._history[-window - 1].max_reward
+            if len(self._history) > window
+            else recent[0]
+        )
 
         # Check: is reward in a continuous downward trend?
         if not all(recent[i] <= recent[i - 1] for i in range(1, len(recent))):
@@ -279,6 +320,7 @@ class EvolutionEngine:
 
             # Inject random strategies to restore diversity
             from strategies.generator import GeneratedStrategy, random_chromosome
+
             inject_count = max(
                 MIN_DIVERSITY_POPULATION,
                 self.agent.config.population_size // 4,
@@ -298,9 +340,9 @@ class EvolutionEngine:
                 self.agent.pool.add(scored)
 
             self.agent._generations_no_improve = 0
-            self.agent._best_reward = max(
-                s.reward for s in self.agent.pool
-            ) if self.agent.pool else 0.0
+            self.agent._best_reward = (
+                max(s.reward for s in self.agent.pool) if self.agent.pool else 0.0
+            )
 
             logger.warning(
                 f"[META-RL-ALPHA-DECAY] Force-reset complete: "
@@ -320,17 +362,22 @@ class EvolutionEngine:
 
     def get_best_strategy(self) -> Optional[ScoredStrategy]:
         """Return best from final_elites, not full pool (avoids stale gen-1 false positives)."""
-        final = getattr(self, '_final_elites', None)
+        final = getattr(self, "_final_elites", None)
         if final:
             if not final:
                 return None
-            return max(final, key=lambda s: s.reward_history[-1] if s.reward_history else s.reward)
+            return max(
+                final,
+                key=lambda s: s.reward_history[-1] if s.reward_history else s.reward,
+            )
         if not self._history:
             return None
         all_s = list(self.agent.pool)
         if not all_s:
             return None
-        return max(all_s, key=lambda s: s.reward_history[-1] if s.reward_history else s.reward)
+        return max(
+            all_s, key=lambda s: s.reward_history[-1] if s.reward_history else s.reward
+        )
 
     def convergence_report(self) -> dict:
         if len(self._history) < 2:
@@ -345,7 +392,8 @@ class EvolutionEngine:
             "total_generations": len(self._history),
             "best_overall": max(max_rewards),
             "final_mean": mean_rewards[-1],
-            "improvement_rate": (max_rewards[-1] - max_rewards[0]) / max(len(max_rewards) - 1, 1),
+            "improvement_rate": (max_rewards[-1] - max_rewards[0])
+            / max(len(max_rewards) - 1, 1),
             "karl_updates": sum(1 for s in self._history if s.karl_updated),
             "first_half_avg": round(first, 4),
             "second_half_avg": round(second, 4),
@@ -361,12 +409,19 @@ class EvolutionEngine:
             best = max(elites, key=lambda s: s.reward) if elites else None
             br = best.reward if best else 0.0
             bg = best.generation if best else self.agent.generation
-            symbol = self.market_data.get("symbol", "BTCUSDT") if self.market_data else "BTCUSDT"
+            symbol = (
+                self.market_data.get("symbol", "BTCUSDT")
+                if self.market_data
+                else "BTCUSDT"
+            )
             gs = [s.to_dict() for s in self._history]
             persist.save_evolution_session(
-                session_id=sid, symbol=symbol,
-                cg=bg, br=br,
-                ks=self.agent.get_karl_state(), gs=gs,
+                session_id=sid,
+                symbol=symbol,
+                cg=bg,
+                br=br,
+                ks=self.agent.get_karl_state(),
+                gs=gs,
             )
             persist.save_elite_chromosomes(elites, sid)
         except Exception as e:
@@ -393,9 +448,11 @@ class EvolutionEngine:
     def _generate_visualizations(self, elites: List[ScoredStrategy]) -> None:
         try:
             from meta_rl.visualization import VISUALIZATION_ENABLED, generate_all_charts
+
             if not VISUALIZATION_ENABLED:
                 return
             from meta_rl.types import BasketMetrics
+
             bm = BasketMetrics(symbols=["BTCUSDT"])
             charts = generate_all_charts(
                 history=self._history,

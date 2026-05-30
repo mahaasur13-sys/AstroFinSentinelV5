@@ -1,6 +1,7 @@
 """db/karl_replay.py — PostgresReplayBuffer (ATOM-019)
 Stores KARL trajectories in PostgreSQL + TimescaleDB.
 """
+
 import json
 from typing import Any, Dict, List, Optional
 
@@ -12,8 +13,13 @@ class PostgresReplayBuffer:
     def __init__(self, max_size: int = 10000):
         self.max_size = max_size
 
-    def add(self, trajectory: Dict[str, Any], metrics: Dict[str, Any],
-            outcome: float, market_context: Dict[str, Any]) -> None:
+    def add(
+        self,
+        trajectory: Dict[str, Any],
+        metrics: Dict[str, Any],
+        outcome: float,
+        market_context: Dict[str, Any],
+    ) -> None:
         with pg_session() as s:
             traj = KARLTrajectory(
                 trajectory_id=trajectory.get("id", "unknown"),
@@ -34,28 +40,40 @@ class PostgresReplayBuffer:
 
     def get_all(self, limit: int = 1000) -> List[Dict]:
         with pg_session() as s:
-            rows = s.query(KARLTrajectory).order_by(
-                KARLTrajectory.created_at.desc()
-            ).limit(limit).all()
+            rows = (
+                s.query(KARLTrajectory)
+                .order_by(KARLTrajectory.created_at.desc())
+                .limit(limit)
+                .all()
+            )
             return [self._row_to_dict(r) for r in rows]
 
     def get_by_symbol(self, symbol: str, limit: int = 100) -> List[Dict]:
         with pg_session() as s:
-            rows = s.query(KARLTrajectory).filter(
-                KARLTrajectory.symbol == symbol
-            ).order_by(KARLTrajectory.created_at.desc()).limit(limit).all()
+            rows = (
+                s.query(KARLTrajectory)
+                .filter(KARLTrajectory.symbol == symbol)
+                .order_by(KARLTrajectory.created_at.desc())
+                .limit(limit)
+                .all()
+            )
             return [self._row_to_dict(r) for r in rows]
 
     def get_similar(self, regime: str, action: str, limit: int = 10) -> List[Dict]:
         with pg_session() as s:
-            rows = s.query(KARLTrajectory).filter(
-                KARLTrajectory.regime == regime
-            ).order_by(KARLTrajectory.outcome.desc()).limit(limit).all()
+            rows = (
+                s.query(KARLTrajectory)
+                .filter(KARLTrajectory.regime == regime)
+                .order_by(KARLTrajectory.outcome.desc())
+                .limit(limit)
+                .all()
+            )
             return [self._row_to_dict(r) for r in rows]
 
     def size(self) -> int:
         with pg_session() as s:
             from sqlalchemy import func
+
             return s.query(func.count(KARLTrajectory.id)).scalar() or 0
 
     def _row_to_dict(self, row) -> dict:
@@ -77,7 +95,9 @@ class PostgresReplayBuffer:
             "created_at": row.created_at.isoformat() if row.created_at else None,
         }
 
+
 _PG_BUFFER: Optional[PostgresReplayBuffer] = None
+
 
 def get_default_pg_buffer() -> PostgresReplayBuffer:
     global _PG_BUFFER

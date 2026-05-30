@@ -17,56 +17,58 @@ from core.ephemeris import PlanetPosition
 
 # ── Aspect types ──────────────────────────────────────────────────────────────
 
+
 class AspectType(Enum):
-    CONJUNCTION       = "conjunction"        # 0°
-    SEXTILE           = "sextile"            # 60°
-    SQUARE            = "square"             # 90°
-    TRINE             = "trine"              # 120°
-    OPPOSITION        = "opposition"         # 180°
-    SEMISQUARE        = "semisquare"         # 45°
-    SESQUIQUADRATE    = "sesquiquadrate"     # 135°
-    QUINCUNX          = "quincunx"           # 150°
-    SEMISEXTILE       = "semisextile"        # 30°
+    CONJUNCTION = "conjunction"  # 0°
+    SEXTILE = "sextile"  # 60°
+    SQUARE = "square"  # 90°
+    TRINE = "trine"  # 120°
+    OPPOSITION = "opposition"  # 180°
+    SEMISQUARE = "semisquare"  # 45°
+    SESQUIQUADRATE = "sesquiquadrate"  # 135°
+    QUINCUNX = "quincunx"  # 150°
+    SEMISEXTILE = "semisextile"  # 30°
 
 
 # Exact angles per aspect type (degrees)
 _ASPECT_ANGLES: dict[AspectType, float] = {
-    AspectType.CONJUNCTION:        0,
-    AspectType.SEXTILE:           60,
-    AspectType.SQUARE:            90,
-    AspectType.TRINE:            120,
-    AspectType.OPPOSITION:       180,
-    AspectType.SEMISQUARE:        45,
-    AspectType.SESQUIQUADRATE:   135,
-    AspectType.QUINCUNX:         150,
-    AspectType.SEMISEXTILE:       30,
+    AspectType.CONJUNCTION: 0,
+    AspectType.SEXTILE: 60,
+    AspectType.SQUARE: 90,
+    AspectType.TRINE: 120,
+    AspectType.OPPOSITION: 180,
+    AspectType.SEMISQUARE: 45,
+    AspectType.SESQUIQUADRATE: 135,
+    AspectType.QUINCUNX: 150,
+    AspectType.SEMISEXTILE: 30,
 }
 
 # Default allowed orbs (degrees) — aligned with Swiss Ephemeris conventions
 _DEFAULT_ORBS: dict[AspectType, float] = {
-    AspectType.CONJUNCTION:       8.0,
-    AspectType.SEXTILE:           6.0,
-    AspectType.SQUARE:            7.0,
-    AspectType.TRINE:             7.0,
-    AspectType.OPPOSITION:        8.0,
-    AspectType.SEMISQUARE:        4.0,
-    AspectType.SESQUIQUADRATE:    4.0,
-    AspectType.QUINCUNX:          5.0,
-    AspectType.SEMISEXTILE:       4.0,
+    AspectType.CONJUNCTION: 8.0,
+    AspectType.SEXTILE: 6.0,
+    AspectType.SQUARE: 7.0,
+    AspectType.TRINE: 7.0,
+    AspectType.OPPOSITION: 8.0,
+    AspectType.SEMISQUARE: 4.0,
+    AspectType.SESQUIQUADRATE: 4.0,
+    AspectType.QUINCUNX: 5.0,
+    AspectType.SEMISEXTILE: 4.0,
 }
 
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Aspect:
-    aspect_type:   AspectType
-    planet1:        str
-    planet2:        str
-    orb:            float        # deviation from exact angle (degrees)
-    exact_angle:    float        # ideal angle for this aspect type
-    applies:        bool         # True if within orb (applying aspect)
-    signature:      str          # e.g. "Sun ☌ Venus" or "Mars △ Jupiter"
+    aspect_type: AspectType
+    planet1: str
+    planet2: str
+    orb: float  # deviation from exact angle (degrees)
+    exact_angle: float  # ideal angle for this aspect type
+    applies: bool  # True if within orb (applying aspect)
+    signature: str  # e.g. "Sun ☌ Venus" or "Mars △ Jupiter"
 
 
 @dataclass
@@ -85,13 +87,13 @@ class AspectReport:
 
     def has(self, aspect_type: AspectType, p1: str, p2: str) -> bool:
         return any(
-            a.aspect_type == aspect_type
-            and {a.planet1, a.planet2} == {p1, p2}
+            a.aspect_type == aspect_type and {a.planet1, a.planet2} == {p1, p2}
             for a in self.aspects
         )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _normalize_angle(a: float) -> float:
     return a % 360
@@ -109,8 +111,18 @@ def _sign_index(d: float) -> int:
 
 
 _ZODIAC_NAMES = [
-    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+    "Aries",
+    "Taurus",
+    "Gemini",
+    "Cancer",
+    "Leo",
+    "Virgo",
+    "Libra",
+    "Scorpio",
+    "Sagittarius",
+    "Capricorn",
+    "Aquarius",
+    "Pisces",
 ]
 
 
@@ -121,27 +133,27 @@ def _sign_name(d: float) -> str:
 # ── Aspect symbols ─────────────────────────────────────────────────────────────
 
 _ASPECT_SYMBOLS: dict[AspectType, str] = {
-    AspectType.CONJUNCTION:       "☌",
-    AspectType.SEXTILE:           "⚹",
-    AspectType.SQUARE:            "□",
-    AspectType.TRINE:             "△",
-    AspectType.OPPOSITION:        "☍",
-    AspectType.SEMISQUARE:        "⚻",
-    AspectType.SESQUIQUADRATE:    "⚻",
-    AspectType.QUINCUNX:          "⚻",
-    AspectType.SEMISEXTILE:       "⚺",
+    AspectType.CONJUNCTION: "☌",
+    AspectType.SEXTILE: "⚹",
+    AspectType.SQUARE: "□",
+    AspectType.TRINE: "△",
+    AspectType.OPPOSITION: "☍",
+    AspectType.SEMISQUARE: "⚻",
+    AspectType.SESQUIQUADRATE: "⚻",
+    AspectType.QUINCUNX: "⚻",
+    AspectType.SEMISEXTILE: "⚺",
 }
 
 _ASPECT_NAMES: dict[AspectType, str] = {
-    AspectType.CONJUNCTION:       "Conjunction",
-    AspectType.SEXTILE:           "Sextile",
-    AspectType.SQUARE:            "Square",
-    AspectType.TRINE:             "Trine",
-    AspectType.OPPOSITION:        "Opposition",
-    AspectType.SEMISQUARE:        "Semisquare",
-    AspectType.SESQUIQUADRATE:    "Sesquiquadrate",
-    AspectType.QUINCUNX:          "Quincunx",
-    AspectType.SEMISEXTILE:       "Semisextile",
+    AspectType.CONJUNCTION: "Conjunction",
+    AspectType.SEXTILE: "Sextile",
+    AspectType.SQUARE: "Square",
+    AspectType.TRINE: "Trine",
+    AspectType.OPPOSITION: "Opposition",
+    AspectType.SEMISQUARE: "Semisquare",
+    AspectType.SESQUIQUADRATE: "Sesquiquadrate",
+    AspectType.QUINCUNX: "Quincunx",
+    AspectType.SEMISEXTILE: "Semisextile",
 }
 
 
@@ -149,35 +161,35 @@ _ASPECT_NAMES: dict[AspectType, str] = {
 
 # rulership: +5 per sign listed (first = domicile, second = detrient when -5)
 _DIGNITIES_RULER: dict[str, dict[str, int]] = {
-    "sun":     {"leo": 5,  "aquarius": -5},
-    "moon":    {"cancer": 5, "capricorn": -5},
-    "mercury":{"gemini": 5, "virgo": 5, "sagittarius": -5, "pisces": -5},
-    "venus":   {"taurus": 5, "libra": 5, "aries": -5, "scorpio": -5},
-    "mars":    {"aries": 5, "scorpio": 5, "libra": -5, "cancer": -5},
+    "sun": {"leo": 5, "aquarius": -5},
+    "moon": {"cancer": 5, "capricorn": -5},
+    "mercury": {"gemini": 5, "virgo": 5, "sagittarius": -5, "pisces": -5},
+    "venus": {"taurus": 5, "libra": 5, "aries": -5, "scorpio": -5},
+    "mars": {"aries": 5, "scorpio": 5, "libra": -5, "cancer": -5},
     "jupiter": {"sagittarius": 5, "pisces": 5, "gemini": -5, "virgo": -5},
-    "saturn":  {"capricorn": 5, "aquarius": 5, "aries": -5, "cancer": -5},
-    "uranus":  {"aquarius": 5},
+    "saturn": {"capricorn": 5, "aquarius": 5, "aries": -5, "cancer": -5},
+    "uranus": {"aquarius": 5},
     "neptune": {"pisces": 5},
-    "pluto":   {"scorpio": 5},
+    "pluto": {"scorpio": 5},
 }
 
 _EXALTATION: dict[str, str] = {
-    "sun":     "aries",
-    "moon":    "taurus",
+    "sun": "aries",
+    "moon": "taurus",
     "jupiter": "cancer",
-    "venus":   "pisces",
-    "mars":    "capricorn",
-    "saturn":  "libra",
+    "venus": "pisces",
+    "mars": "capricorn",
+    "saturn": "libra",
     "mercury": "virgo",
 }
 
 _FALL: dict[str, str] = {
-    "sun":     "libra",
-    "moon":    "scorpio",
+    "sun": "libra",
+    "moon": "scorpio",
     "jupiter": "capricorn",
-    "venus":   "virgo",
-    "mars":    "cancer",
-    "saturn":  "aries",
+    "venus": "virgo",
+    "mars": "cancer",
+    "saturn": "aries",
 }
 
 
@@ -207,6 +219,7 @@ def essential_dignity(planet: str, longitude: float) -> int:
 
 # ── AspectEngine ───────────────────────────────────────────────────────────────
 
+
 class AspectsEngine:
     """
     Computes aspects between planets using ecliptic coordinates from Swiss
@@ -229,13 +242,16 @@ class AspectsEngine:
         self.orbs = orbs or _DEFAULT_ORBS.copy()
         self.include_minor = include_minor
         self._aspect_types: list[AspectType] = [
-            a for a in _ASPECT_ANGLES
-            if a not in (
+            a
+            for a in _ASPECT_ANGLES
+            if a
+            not in (
                 AspectType.SEMISQUARE,
                 AspectType.SESQUIQUADRATE,
                 AspectType.QUINCUNX,
                 AspectType.SEMISEXTILE,
-            ) or include_minor
+            )
+            or include_minor
         ]
 
     def compute(
@@ -272,7 +288,7 @@ class AspectsEngine:
                 continue
             pos1 = positions[p1]
 
-            for p2 in planets[i + 1:]:
+            for p2 in planets[i + 1 :]:
                 if p2 not in positions:
                     continue
                 if (p1, p2) in seen or (p2, p1) in seen:
@@ -300,15 +316,17 @@ class AspectsEngine:
                     symbol = _ASPECT_SYMBOLS.get(best_aspect, "⚬")
                     sig = f"{p1.capitalize()} {symbol} {p2.capitalize()}"
 
-                    aspects.append(Aspect(
-                        aspect_type=best_aspect,
-                        planet1=p1,
-                        planet2=p2,
-                        orb=round(best_delta, 2),
-                        exact_angle=_ASPECT_ANGLES[best_aspect],
-                        applies=applies,
-                        signature=sig,
-                    ))
+                    aspects.append(
+                        Aspect(
+                            aspect_type=best_aspect,
+                            planet1=p1,
+                            planet2=p2,
+                            orb=round(best_delta, 2),
+                            exact_angle=_ASPECT_ANGLES[best_aspect],
+                            applies=applies,
+                            signature=sig,
+                        )
+                    )
                     seen.add((p1, p2))
 
         summary = self._summarize(aspects)
@@ -321,14 +339,15 @@ class AspectsEngine:
             by_type[name] = by_type.get(name, 0) + 1
 
         return {
-            "total":    len(aspects),
-            "by_type":  by_type,
+            "total": len(aspects),
+            "by_type": by_type,
             "applying": sum(1 for a in aspects if a.applying),
             "orbs_sum": round(sum(a.orb for a in aspects), 2),
         }
 
 
 # ── Convenience function ───────────────────────────────────────────────────────
+
 
 def calculate_aspects(
     positions: dict[str, PlanetPosition],

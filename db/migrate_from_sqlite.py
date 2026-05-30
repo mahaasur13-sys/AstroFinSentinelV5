@@ -12,6 +12,7 @@ Prerequisites:
     2. DB_BACKEND=postgresql
     3. All tables created via init_db_if_needed()
 """
+
 import logging
 import sys
 from datetime import datetime
@@ -114,18 +115,23 @@ def main():
 
     # Set backend to PostgreSQL
     import os
+
     os.environ["DB_BACKEND"] = "postgresql"
 
     # Check PostgreSQL availability
     from db.session import is_postgres_available
+
     if not is_postgres_available():
-        logger.error("PostgreSQL not available. Start it with: docker-compose up -d postgres")
+        logger.error(
+            "PostgreSQL not available. Start it with: docker-compose up -d postgres"
+        )
         sys.exit(1)
 
     logger.info("PostgreSQL: AVAILABLE")
 
     # Initialize schema if needed
     from db.init import init_schema_if_needed
+
     if not init_schema_if_needed():
         logger.error("Schema initialization failed")
         sys.exit(1)

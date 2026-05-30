@@ -120,13 +120,13 @@ class GitAgentManifest:
 
 class GitAgentAdapter:
     """Convert GitAgent packages to MASFactory Topology."""
-    
+
     def load_manifest(self, path: Path) -> GitAgentManifest:
         """Load GitAgent manifest.yaml."""
         with open(path / "manifest.yaml") as f:
             data = yaml.safe_load(f)
         return GitAgentManifest(**data)
-    
+
     def to_topology(self, manifest: GitAgentManifest) -> "Topology":
         """Convert GitAgent manifest to MASFactory Topology."""
         # Map agents
@@ -140,7 +140,7 @@ class GitAgentAdapter:
                 output_nodes=[],
             )
             roles.append(role)
-        
+
         # Map topology connections
         connections = []
         for conn in manifest.topology.get("connections", []):
@@ -149,9 +149,9 @@ class GitAgentAdapter:
                 target=conn["to"],
                 connection_type=conn.get("type", "request"),
             ))
-        
+
         return Topology(roles=roles, connections=connections)
-    
+
     def to_gitagent(self, topology: "Topology") -> Dict[str, Any]:
         """Convert MASFactory Topology to GitAgent manifest."""
         return {

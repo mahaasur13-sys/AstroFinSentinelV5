@@ -1,4 +1,5 @@
 """core/council/types.py — AstroCouncil data types"""
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -9,32 +10,35 @@ class Signal(Enum):
     SHORT = "SHORT"
     NEUTRAL = "NEUTRAL"
 
+
 @dataclass
 class CouncilMember:
     name: str
-    domain: str          # fundamental | quant | macro | technical | sentiment | astro
+    domain: str  # fundamental | quant | macro | technical | sentiment | astro
     vote: Signal
-    confidence: float     # 0-100
+    confidence: float  # 0-100
     reasoning: str
-    weight: float        # policy weight (sum to 1.0)
-    aligned: bool = False # astro-aligned indicator
+    weight: float  # policy weight (sum to 1.0)
+    aligned: bool = False  # astro-aligned indicator
 
     @property
     def signal(self) -> Signal:
         return self.vote  # alias
 
+
 @dataclass
 class CouncilResult:
     timestamp: datetime
     symbol: str
-    weighted_signal: float   # -1.0 to +1.0
+    weighted_signal: float  # -1.0 to +1.0
     final_signal: Signal
-    confidence: float        # 0-100
-    consensus: float         # 0.0-1.0 (agreement fraction)
+    confidence: float  # 0-100
+    consensus: float  # 0.0-1.0 (agreement fraction)
     members: list[CouncilMember]
-    deliberation: str       # council reasoning log
+    deliberation: str  # council reasoning log
     conflict_resolved: bool
-    dissent: list[dict]      # dissenting opinions
+    dissent: list[dict]  # dissenting opinions
+
 
 # ── Agent registry ──────────────────────────────────────────────────────────
 AGENT_WEIGHTS = {

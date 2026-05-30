@@ -13,6 +13,7 @@ Feature flags:
     CCXT_SANDBOX_MODE (default: true)
     CCXT_RATE_LIMIT (default: 50ms)
 """
+
 from __future__ import annotations
 
 import logging
@@ -71,12 +72,14 @@ def _get_exchange():
         exchange_class = getattr(ccxt, CCXT_EXCHANGE, None)
         if exchange_class is None:
             raise ValueError(f"Unknown exchange: {CCXT_EXCHANGE}")
-        ex = exchange_class({
-            "apiKey": CCXT_API_KEY,
-            "secret": CCXT_API_SECRET,
-            "enableRateLimit": CCXT_ENABLE_RATE_LIMIT,
-            "options": {"defaultType": "spot"},
-        })
+        ex = exchange_class(
+            {
+                "apiKey": CCXT_API_KEY,
+                "secret": CCXT_API_SECRET,
+                "enableRateLimit": CCXT_ENABLE_RATE_LIMIT,
+                "options": {"defaultType": "spot"},
+            }
+        )
         logger.info(f"[LIVE-DATA] {CCXT_EXCHANGE} production mode — authenticated")
 
     _EXCHANGES[key] = ex
@@ -99,19 +102,19 @@ class LiveDataProvider:
         "ETH/USDT": "ETH/USDT",
         "SOL/USDT": "SOL/USDT",
         "BNB/USDT": "BNB/USDT",
-        "BTCUSDT": "BTC/USDT",   # legacy alias
-        "ETHUSDT": "ETH/USDT",   # legacy alias
+        "BTCUSDT": "BTC/USDT",  # legacy alias
+        "ETHUSDT": "ETH/USDT",  # legacy alias
     }
 
     # Timeframe → ccxt interval string
     TIMEFRAMES = {
-        "1m":  "1m",
-        "5m":  "5m",
+        "1m": "1m",
+        "5m": "5m",
         "15m": "15m",
-        "1h":  "1h",
-        "4h":  "4h",
-        "1d":  "1d",
-        "1w":  "1w",
+        "1h": "1h",
+        "4h": "4h",
+        "1d": "1d",
+        "1w": "1w",
     }
 
     def __init__(
@@ -174,14 +177,16 @@ class LiveDataProvider:
             result = []
             for bar in raw:
                 ts, o, h, l, c, v = bar
-                result.append({
-                    "timestamp": ts,
-                    "open": float(o),
-                    "high": float(h),
-                    "low": float(l),
-                    "close": float(c),
-                    "volume": float(v),
-                })
+                result.append(
+                    {
+                        "timestamp": ts,
+                        "open": float(o),
+                        "high": float(h),
+                        "low": float(l),
+                        "close": float(c),
+                        "volume": float(v),
+                    }
+                )
 
             logger.info(
                 f"[LIVE-DATA] Fetched {len(result)} bars {sym} {interval} "
@@ -190,7 +195,9 @@ class LiveDataProvider:
             return result
 
         except Exception as e:
-            logger.warning(f"[LIVE-DATA] Fetch failed for {sym}: {e} — using sandbox fallback")
+            logger.warning(
+                f"[LIVE-DATA] Fetch failed for {sym}: {e} — using sandbox fallback"
+            )
             return self._sandbox_ohlcv(sym, interval, limit)
 
     def fetch_ticker(self, symbol: Optional[str] = None) -> dict:
@@ -278,7 +285,7 @@ class LiveDataProvider:
         # Regime detection (simple)
         recent_ret = float(np.mean(returns[-20:]))
         recent_vol = float(np.std(returns[-20:]))
-        vol_median = float(np.median(np.abs(returns[max(0, -100):])))
+        vol_median = float(np.median(np.abs(returns[max(0, -100) :])))
         if recent_vol > vol_median * 2:
             regime = "VOLATILE"
         elif recent_ret > 0.0005:
@@ -320,8 +327,13 @@ class LiveDataProvider:
         """
         now = datetime.now(timezone.utc)
         interval_seconds = {
-            "1m": 60, "5m": 300, "15m": 900,
-            "1h": 3600, "4h": 14400, "1d": 86400, "1w": 604800,
+            "1m": 60,
+            "5m": 300,
+            "15m": 900,
+            "1h": 3600,
+            "4h": 14400,
+            "1d": 86400,
+            "1w": 604800,
         }
         dt_seconds = interval_seconds.get(interval, 3600)
 
@@ -331,8 +343,13 @@ class LiveDataProvider:
 
         # Volatility per interval
         vol_map = {
-            "1m": 0.001, "5m": 0.003, "15m": 0.005,
-            "1h": 0.008, "4h": 0.015, "1d": 0.025, "1w": 0.05,
+            "1m": 0.001,
+            "5m": 0.003,
+            "15m": 0.005,
+            "1h": 0.008,
+            "4h": 0.015,
+            "1d": 0.025,
+            "1w": 0.05,
         }
         vol = vol_map.get(interval, 0.008)
 
@@ -355,14 +372,16 @@ class LiveDataProvider:
             l = min(o, c) * (1 - abs(ret) * np.random.uniform(0.1, 0.5))
             v = np.random.uniform(500, 5000) * (1 + abs(ret) / vol)
 
-            ohlcv.append({
-                "timestamp": ts,
-                "open": round(o, 4),
-                "high": round(h, 4),
-                "low": round(l, 4),
-                "close": round(c, 4),
-                "volume": round(v, 2),
-            })
+            ohlcv.append(
+                {
+                    "timestamp": ts,
+                    "open": round(o, 4),
+                    "high": round(h, 4),
+                    "low": round(l, 4),
+                    "close": round(c, 4),
+                    "volume": round(v, 2),
+                }
+            )
             price = c
 
         logger.debug(
@@ -415,6 +434,7 @@ class LiveDataProvider:
             dict with {status, mode, exchange, last_price, ohlcv_bars, latency_ms, error}
         """
         import time
+
         start = time.time()
         status = "OK"
         error = None
@@ -448,7 +468,9 @@ class LiveDataProvider:
 
 
 # Convenience factory
-def create_live_provider(symbol: str = "BTC/USDT", sandbox: bool = None) -> LiveDataProvider:
+def create_live_provider(
+    symbol: str = "BTC/USDT", sandbox: bool = None
+) -> LiveDataProvider:
     """Factory for LiveDataProvider with sensible defaults."""
     return LiveDataProvider(
         sandbox=sandbox if sandbox is not None else CCXT_SANDBOX_MODE,

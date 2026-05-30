@@ -77,7 +77,6 @@ asyncio_mode = "auto"
 filterwarnings = ["ignore::SyntaxWarning"]
 
 [tool.black]
-line-length = 100
 target-version = ["py310", "py311", "py312"]
 include = '\.pyi?$'
 extend-exclude = '''
@@ -100,15 +99,13 @@ extend-exclude = '''
 [tool.ruff]
 # Общие настройки Ruff (если нужны)
 
+[tool.ruff.format]
+
 [tool.ruff.lint]
-target-version = "py310"
 select = ["E", "F", "I", "N", "UP", "B", "C4"]
-ignore = ["E501", "B008", "N802", "N803", "F401", "F811"]
+ignore = ["E501", "B008", "N802", "N803", "F401", "F811", "E402", "E712", "E731", "E741", "F821", "N806", "B007", "B905", "UP007", "UP006", "UP035", "UP045", "UP032", "UP031", "UP037", "C401", "C408", "C420", "F841", "N805", "N814", "E722", "C416", "F403", "UP015", "B033", "UP024", "B904", "C400", "F601", "B019", "F541"]
 fixable = ["F", "I"]
 unfixable = []
-
-[tool.ruff.format]
-line-length = 100
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]

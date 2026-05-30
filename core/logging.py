@@ -1,5 +1,6 @@
 import logging
 import sys
+
 import structlog
 from opentelemetry import trace as otel_trace
 
@@ -37,6 +38,7 @@ def setup_logging():
     # Уменьшаем шум от библиотек
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("opentelemetry").setLevel(logging.WARNING)
+
 
 def get_logger(name=None):
     """Возвращает логгер structlog."""

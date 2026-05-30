@@ -1,5 +1,6 @@
 """trading/monitoring.py — ATOM-PRODUCTION: Monitoring System
 ============================================================"""
+
 from __future__ import annotations
 
 import math
@@ -81,7 +82,11 @@ class Monitoring:
         self._cumulative_pnl += trade.realized_pnl
         if trade.slippage_bps > 0:
             self._slippage_ts.append(trade.slippage_bps)
-        comm_bps = (trade.commission / trade.price / trade.qty * 10_000) if trade.price > 0 else 0.0
+        comm_bps = (
+            (trade.commission / trade.price / trade.qty * 10_000)
+            if trade.price > 0
+            else 0.0
+        )
         self._cost_ts.append(comm_bps)
 
     def record_reward(self, reward):
@@ -90,7 +95,11 @@ class Monitoring:
             self._reward_ts.append(reward)
 
     def get_snapshot(self, regime="NORMAL", mode="BACKTEST"):
-        equity = self._equity_ts[-1] if self._equity_ts else self._initial_equity or 100_000.0
+        equity = (
+            self._equity_ts[-1]
+            if self._equity_ts
+            else self._initial_equity or 100_000.0
+        )
         drawdown = self._compute_drawdown(equity)
         pnl_total = self._cumulative_pnl + self._compute_unrealized_pnl()
         pnl_unrealized = self._compute_unrealized_pnl()
@@ -102,13 +111,21 @@ class Monitoring:
         slippage_max = max(self._slippage_ts) if self._slippage_ts else 0.0
         cost_bps = self._mean(self._cost_ts)
         return MonitoringSnapshot(
-            timestamp=time.time(), equity=equity, drawdown=drawdown,
-            pnl_total=pnl_total, pnl_unrealized=pnl_unrealized,
-            sharpe_ratio=sharpe, sortino_ratio=sortino,
-            slippage_bps_avg=slippage_avg, slippage_bps_max=slippage_max,
-            execution_cost_bps=cost_bps, trade_count=len(self._trades),
-            win_rate=win_rate, rl_reward_cumulative=self._cumulative_reward,
-            regime=regime, mode=mode,
+            timestamp=time.time(),
+            equity=equity,
+            drawdown=drawdown,
+            pnl_total=pnl_total,
+            pnl_unrealized=pnl_unrealized,
+            sharpe_ratio=sharpe,
+            sortino_ratio=sortino,
+            slippage_bps_avg=slippage_avg,
+            slippage_bps_max=slippage_max,
+            execution_cost_bps=cost_bps,
+            trade_count=len(self._trades),
+            win_rate=win_rate,
+            rl_reward_cumulative=self._cumulative_reward,
+            regime=regime,
+            mode=mode,
         )
 
     def get_metrics_dict(self, regime="NORMAL", mode="BACKTEST"):
@@ -126,8 +143,11 @@ class Monitoring:
             "trade_count": s.trade_count,
             "win_rate": round(s.win_rate, 4),
             "rl_reward": round(s.rl_reward_cumulative, 4),
-            "regime": s.regime, "mode": s.mode,
-            "timestamp": datetime.fromtimestamp(s.timestamp).strftime("%Y-%m-%d %H:%M:%S"),
+            "regime": s.regime,
+            "mode": s.mode,
+            "timestamp": datetime.fromtimestamp(s.timestamp).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
         }
 
     def print_metrics(self, regime="NORMAL", mode="BACKTEST"):
@@ -147,6 +167,7 @@ class Monitoring:
             return 0.0
         try:
             import numpy as np
+
             mean_ret = float(np.mean(returns))
             std_ret = float(np.std(returns, ddof=0))
             if std_ret == 0 or math.isnan(std_ret):
@@ -161,6 +182,7 @@ class Monitoring:
             return 0.0
         try:
             import numpy as np
+
             rets = np.array(returns)
             mean_ret = float(np.mean(rets))
             downside = rets[rets < self.target_return]
@@ -200,7 +222,18 @@ if __name__ == "__main__":
         equity *= 1 + 0.001 if i % 2 == 0 else -0.0003
         mon.update_equity(equity)
     for i in range(10):
-        mon.record_trade(TradeRecord(time.time(), "BTC", "BUY", 0.1, 50_000, 5.0, 5.0 + i * 0.5, 100.0 if i % 3 == 0 else -30.0))
+        mon.record_trade(
+            TradeRecord(
+                time.time(),
+                "BTC",
+                "BUY",
+                0.1,
+                50_000,
+                5.0,
+                5.0 + i * 0.5,
+                100.0 if i % 3 == 0 else -30.0,
+            )
+        )
     for r in [0.1, -0.05, 0.2, 0.15, -0.1, 0.3]:
         mon.record_reward(r)
     m = mon.get_metrics_dict()

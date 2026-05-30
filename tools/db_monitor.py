@@ -8,8 +8,8 @@ from pathlib import Path
 
 BASE = Path(__file__).parent.parent
 DBs = {
-    "sessions (history)":  BASE / "core" / "history.db",
-    "backtest_runs":      BASE / "backtest" / "metrics_history.db",
+    "sessions (history)": BASE / "core" / "history.db",
+    "backtest_runs": BASE / "backtest" / "metrics_history.db",
 }
 
 SNAPSHOT_TBL = BASE / "backtest" / "metrics_history.db"
@@ -33,13 +33,15 @@ def get_counts():
             # sample signal distribution
             if "sessions" in name:
                 cur.execute("""
-                    SELECT final_signal, COUNT(*) 
-                    FROM sessions 
+                    SELECT final_signal, COUNT(*)
+                    FROM sessions
                     GROUP BY final_signal
                 """)
                 dist = dict(cur.fetchall())
             else:
-                cur.execute("SELECT symbol, COUNT(*) FROM backtest_runs GROUP BY symbol")
+                cur.execute(
+                    "SELECT symbol, COUNT(*) FROM backtest_runs GROUP BY symbol"
+                )
                 dist = dict(cur.fetchall())
             con.close()
             rows.append((name, count, dist))
@@ -66,9 +68,10 @@ def save_snapshot(rows):
         """)
         for name, count, dist in rows:
             import json
+
             cur.execute(
                 "INSERT INTO _row_count_snapshots (source, count, distribution) VALUES (?, ?, ?)",
-                (name, count if isinstance(count, int) else -1, json.dumps(dist))
+                (name, count if isinstance(count, int) else -1, json.dumps(dist)),
             )
         con.commit()
         con.close()
@@ -79,7 +82,7 @@ def save_snapshot(rows):
 def main():
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
     print(f"\n=== DB Monitor {now} ===\n")
-    
+
     rows = get_counts()
     for name, count, dist in rows:
         emoji = "✅" if isinstance(count, int) else "❌"
@@ -87,16 +90,16 @@ def main():
         if dist:
             for k, v in sorted(dist.items(), key=lambda x: -x[1]):
                 print(f"       ├─ {k}: {v}")
-    
+
     save_snapshot(rows)
-    
+
     # Trend from snapshots
     if SNAPSHOT_TBL.exists():
         try:
             con = sqlite3.connect(SNAPSHOT_TBL)
             cur = con.cursor()
             cur.execute("""
-                SELECT source, 
+                SELECT source,
                        MIN(count) as min_c,
                        MAX(count) as max_c,
                        COUNT(*) as snaps
@@ -112,7 +115,7 @@ def main():
             con.close()
         except Exception as e:
             print(f"  [monitor] trend query failed: {e}")
-    
+
     print()
     return 0 if all(isinstance(c, int) for _, c, _ in rows) else 1
 

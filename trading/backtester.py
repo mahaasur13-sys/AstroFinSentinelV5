@@ -1,4 +1,5 @@
 """trading/backtester.py — ATOM-STEP-8: Backtesting Engine"""
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
@@ -50,7 +51,9 @@ class BacktestResult:
         print(f"  Total Return:    {s['total_return_pct']:+.2f}%")
         print(f"  Max Drawdown:    {s['max_drawdown_pct']:.2f}%")
         print(f"  Sharpe Ratio:    {s['sharpe_ratio']:.2f}")
-        print(f"  Win Rate:        {s['win_rate_pct']:.1f}% ({s['win_count']}/{s['total_trades']})")
+        print(
+            f"  Win Rate:        {s['win_rate_pct']:.1f}% ({s['win_count']}/{s['total_trades']})"
+        )
         print(f"  Total Trades:    {s['total_trades']}")
         total_comm = sum(t.commission for t in trades)
         print(f"  Commission Paid: ${total_comm:.2f}")
@@ -60,7 +63,10 @@ class BacktestResult:
 class Backtester:
     def __init__(self, config: Optional[BacktestConfig] = None):
         self.config = config or BacktestConfig()
-        self.portfolio = Portfolio(initial_capital=self.config.initial_capital, cash=self.config.initial_capital)
+        self.portfolio = Portfolio(
+            initial_capital=self.config.initial_capital,
+            cash=self.config.initial_capital,
+        )
         self.trades = []
         self.equity_curve = []
         self.signals_log = []
@@ -82,22 +88,36 @@ class Backtester:
             self.signals_log.append(sig)
             pos = self.portfolio.positions.get(symbol)
             in_position = pos and pos.side != PositionSide.FLAT
-            if signal == "LONG" and not in_position and len(self.portfolio.positions) < self.config.max_positions:
+            if (
+                signal == "LONG"
+                and not in_position
+                and len(self.portfolio.positions) < self.config.max_positions
+            ):
                 size = self._position_size(confidence)
                 sl = current_price * (1 - self.config.stop_loss_pct / 100)
                 tp = current_price * (1 + self.config.take_profit_pct / 100)
-                self.portfolio.open_position(symbol, PositionSide.LONG, current_price, size, sl, tp)
-            elif signal == "SHORT" and not in_position and len(self.portfolio.positions) < self.config.max_positions:
+                self.portfolio.open_position(
+                    symbol, PositionSide.LONG, current_price, size, sl, tp
+                )
+            elif (
+                signal == "SHORT"
+                and not in_position
+                and len(self.portfolio.positions) < self.config.max_positions
+            ):
                 size = self._position_size(confidence)
                 sl = current_price * (1 + self.config.stop_loss_pct / 100)
                 tp = current_price * (1 - self.config.take_profit_pct / 100)
-                self.portfolio.open_position(symbol, PositionSide.SHORT, current_price, size, sl, tp)
+                self.portfolio.open_position(
+                    symbol, PositionSide.SHORT, current_price, size, sl, tp
+                )
             elif signal == "NEUTRAL" and in_position:
                 self._close_trade(symbol, current_price, ts)
             if in_position:
                 self._check_stops(pos, current_price, ts)
             self.portfolio.record_equity({symbol: current_price})
-            self.equity_curve.append((ts, self.portfolio.equity({symbol: current_price})))
+            self.equity_curve.append(
+                (ts, self.portfolio.equity({symbol: current_price}))
+            )
         for symbol, pos in list(self.portfolio.positions.items()):
             if pos.side != PositionSide.FLAT:
                 ps = prices.get(symbol, [])
@@ -117,7 +137,7 @@ class Backtester:
         size = base_risk * conf_mult
         # Cap at max_position_pct of portfolio equity to prevent compounding blow-up
         equity = self.portfolio.equity({})
-        max_pos = equity * (getattr(self.config, 'max_position_pct', 20.0) / 100.0)
+        max_pos = equity * (getattr(self.config, "max_position_pct", 20.0) / 100.0)
         return min(size, max_pos)
 
     def _check_stops(self, pos, current_price, ts):
@@ -147,18 +167,20 @@ class Backtester:
         pnl_pct = (exit_price - entry_price) * pos.side.value / entry_price * 100
         commission = size * self.config.commission_pct / 100
         pnl_abs = size * pnl_pct / 100 - commission
-        self.trades.append(BacktestTrade(
-            entry_time=pos.entry_time,
-            exit_time=exit_time,
-            symbol=symbol,
-            side=pos.side.name,
-            entry_price=entry_price,
-            exit_price=exit_price,
-            size=size,
-            pnl_pct=pnl_pct,
-            pnl_abs=pnl_abs,
-            commission=commission,
-        ))
+        self.trades.append(
+            BacktestTrade(
+                entry_time=pos.entry_time,
+                exit_time=exit_time,
+                symbol=symbol,
+                side=pos.side.name,
+                entry_price=entry_price,
+                exit_price=exit_price,
+                size=size,
+                pnl_pct=pnl_pct,
+                pnl_abs=pnl_abs,
+                commission=commission,
+            )
+        )
         self.portfolio.close_position(symbol, exit_price)
 
     def _build_result(self):

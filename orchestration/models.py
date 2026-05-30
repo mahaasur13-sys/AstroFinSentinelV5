@@ -5,14 +5,18 @@ FIXED (audit 15.05.2026): Validates all inputs BEFORE they reach the orchestrato
 
 from enum import Enum
 from typing import Optional
+
 from pydantic import BaseModel, Field, validator
+
 
 class Timeframe(str, Enum):
     """Allowed timeframes for the Sentinel V5 orchestrator."""
+
     INTRADAY = "INTRADAY"
     SWING = "SWING"
     POSITION = "POSITION"
     LONG_TERM = "LONG_TERM"
+
 
 class SentinelV5Request(BaseModel):
     """
@@ -21,11 +25,9 @@ class SentinelV5Request(BaseModel):
     If Pydantic validation fails, the orchestrator never runs —
     this prevents IndexError and TypeError from invalid inputs.
     """
+
     user_query: str = Field(..., min_length=1, max_length=1000)
-    symbol: str = Field(
-        default="BTCUSDT",
-        pattern=r"^[A-Z]{1,10}(USDT|USDC|BUSD)$"
-    )
+    symbol: str = Field(default="BTCUSDT", pattern=r"^[A-Z]{1,10}(USDT|USDC|BUSD)$")
     timeframe: Timeframe = Timeframe.SWING
     current_price: float = Field(default=0.0, ge=0.0)
     birth_data: Optional[dict] = None
@@ -37,14 +39,14 @@ class SentinelV5Request(BaseModel):
     persist: bool = True
     thompson_k: int = Field(default=4, ge=1, le=10)
 
-    @validator('user_query')
+    @validator("user_query")
     def validate_query(cls, v):
         """Query must not be empty or whitespace-only."""
         if not v or not v.strip():
             raise ValueError("Query cannot be empty")
         return v.strip()
 
-    @validator('symbol')
+    @validator("symbol")
     def validate_symbol(cls, v):
         """Symbol must be uppercase and non-empty."""
         v = v.upper()

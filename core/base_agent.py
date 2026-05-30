@@ -23,9 +23,10 @@ class SignalDirection(str, Enum):
 @dataclass
 class AgentResponse:
     """Стандартный ответ каждого агента."""
+
     agent_name: str
     signal: SignalDirection
-    confidence: int            # 0 — 100
+    confidence: int  # 0 — 100
     reasoning: str
     sources: list[str] = field(default_factory=list)  # RAG chunk IDs
     metadata: dict = field(default_factory=dict)
@@ -34,13 +35,13 @@ class AgentResponse:
 
     def __post_init__(self):
         if not (0 <= self.confidence <= 100):
-            raise ValueError(
-                f"confidence must be 0-100, got {self.confidence}"
-            )
+            raise ValueError(f"confidence must be 0-100, got {self.confidence}")
 
     def to_dict(self) -> dict:
         # Handle both string signals (new) and enum signals (old)
-        signal_value = self.signal.value if hasattr(self.signal, 'value') else self.signal
+        signal_value = (
+            self.signal.value if hasattr(self.signal, "value") else self.signal
+        )
         return {
             "agent_name": self.agent_name,
             "signal": signal_value,
@@ -59,13 +60,13 @@ T = TypeVar("T", bound=AgentResponse)
 class BaseAgent(ABC, Generic[T]):
     """
     Базовый класс для всех агентов v5.
-    
+
     Каждый агент:
     1. Имеет instructions.md (загружается при инициализации)
     2. Может запрашивать RAG через self.retrieve()
     3. Возвращает AgentResponse
     """
-    
+
     def __init__(
         self,
         name: str,
@@ -78,14 +79,14 @@ class BaseAgent(ABC, Generic[T]):
         self.domain = domain
         self.instructions_md = ""
         self._rag = RAGRetriever()
-        
+
         if instructions_path:
             try:
                 with open(instructions_path, "r", encoding="utf-8") as f:
                     self.instructions_md = f.read()
             except FileNotFoundError:
                 self.instructions_md = f"# {name}\n\nInstructions not found."
-    
+
     def retrieve(
         self,
         query: str,
@@ -94,7 +95,7 @@ class BaseAgent(ABC, Generic[T]):
     ) -> list[dict]:
         """
         Запрос к RAG базе знаний.
-        
+
         Использовать когда:
         - Вопрос выходит за рамки instructions.md
         - Нужен факт из авторитетного источника
@@ -105,12 +106,12 @@ class BaseAgent(ABC, Generic[T]):
             domain=domain or self.domain,
             top_k=top_k,
         )
-    
+
     def format_retrieval(self, chunks: list[dict]) -> str:
         """Форматировать результаты RAG для включения в ответ."""
         if not chunks:
             return "• RAG: нет релевантных источников"
-        
+
         lines = ["• RAG источники:"]
         for i, chunk in enumerate(chunks, 1):
             lines.append(
@@ -119,24 +120,24 @@ class BaseAgent(ABC, Generic[T]):
             )
             # Add first 100 chars of content as preview
             lines.append(f"      → {chunk['title']}")
-            preview = chunk['content'][:100].replace('\n', ' ')
+            preview = chunk["content"][:100].replace("\n", " ")
             lines.append(f"      → {preview}...")
-        
+
         return "\n".join(lines)
-    
+
     @abstractmethod
     async def run(self, state: dict) -> AgentResponse:
         """
         Главный метод агента.
-        
+
         Args:
             state: SentinelState из оркестратора
-            
+
         Returns:
             AgentResponse с голосом агента
         """
         pass
-    
+
     def _build_prompt(
         self,
         user_task: str,

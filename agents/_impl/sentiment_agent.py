@@ -4,6 +4,7 @@ Sentiment Agent — fear/greed and market sentiment analysis.
 
 import json
 import logging
+
 import requests
 
 from agents._impl.ephemeris_decorator import require_ephemeris
@@ -40,9 +41,9 @@ class SentimentAgent(BaseAgent[AgentResponse]):
 
         # Combine sentiment
         sentiment_score = (
-            fear_greed["score"] * 0.40 +
-            funding_rate["score"] * 0.30 +
-            price_momentum["score"] * 0.30
+            fear_greed["score"] * 0.40
+            + funding_rate["score"] * 0.30
+            + price_momentum["score"] * 0.30
         )
 
         if sentiment_score >= 0.65:
@@ -104,59 +105,69 @@ class SentimentAgent(BaseAgent[AgentResponse]):
         except Exception as e:
             logger.warning(f"[SentimentAgent] Failed to fetch Fear & Greed: {e}")
 
-        return {"score": 0.5, "summary": "Fear & Greed data unavailable", "raw_value": 50}
+        return {
+            "score": 0.5,
+            "summary": "Fear & Greed data unavailable",
+            "raw_value": 50,
+        }
 
     async def _fetch_funding_rate(self, symbol: str = "BTCUSDT") -> dict:
         """
         Fetch funding rate from Binance with robust error handling.
         """
         url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
-        
+
         try:
             print(f"[DEBUG] Fetching funding rate: {url}")
-            
+
             resp = requests.get(url, timeout=10)
-            
+
             print(f"[DEBUG] Status: {resp.status_code} | Len: {len(resp.text)}")
-            
+
             if resp.status_code != 200:
                 print(f"[ERROR] Binance HTTP {resp.status_code}: {resp.text[:200]}")
-                return {"score": 0.5, "summary": f"HTTP {resp.status_code}", "raw_rate": 0.0}
-            
+                return {
+                    "score": 0.5,
+                    "summary": f"HTTP {resp.status_code}",
+                    "raw_rate": 0.0,
+                }
+
             if not resp.text.strip():
-                print(f"[WARNING] Empty response from Binance")
+                print("[WARNING] Empty response from Binance")
                 return {"score": 0.5, "summary": "Empty response", "raw_rate": 0.0}
-            
+
             data = resp.json()
-            
-            funding_rate = float(data.get("result", {}).get("list", [{}])[0].get("fundingRate", 0.0))
-            
+
+            funding_rate = float(
+                data.get("result", {}).get("list", [{}])[0].get("fundingRate", 0.0)
+            )
+
             # Score logic
             if funding_rate > 0:
                 score = 0.65
-                summary = f"Positive funding ({funding_rate*100:.3f}%) — bullish"
+                summary = f"Positive funding ({funding_rate * 100:.3f}%) — bullish"
             elif funding_rate > 0:
                 score = 0.57
-                summary = f"Slight positive funding ({funding_rate*100:.3f}%)"
+                summary = f"Slight positive funding ({funding_rate * 100:.3f}%)"
             elif funding_rate < -0.0005:
                 score = 0.35
-                summary = f"Negative funding ({funding_rate*100:.3f}%) — bearish"
+                summary = f"Negative funding ({funding_rate * 100:.3f}%) — bearish"
             elif funding_rate < 0:
                 score = 0.43
-                summary = f"Slight negative funding ({funding_rate*100:.3f}%)"
+                summary = f"Slight negative funding ({funding_rate * 100:.3f}%)"
             else:
                 score = 0.50
-                summary = f"Neutral funding rate ({funding_rate*100:.4f}%)"
-            
-            print(f"[OK] Funding rate {symbol}: {funding_rate*100:.3f}%")
-            
+                summary = f"Neutral funding rate ({funding_rate * 100:.4f}%)"
+
+            print(f"[OK] Funding rate {symbol}: {funding_rate * 100:.3f}%")
+
             return {"score": score, "summary": summary, "raw_rate": funding_rate}
 
         except Exception as e:
             print(f"[ERROR] Failed to fetch funding rate for {symbol}: {e}")
-            if 'resp' in locals():
+            if "resp" in locals():
                 print(f"[DEBUG] Raw: {resp.text[:300]}")
-        
+
         return {"score": 0.5, "summary": "Funding rate unavailable", "raw_rate": 0.0}
 
     def _analyze_price_momentum(self, state: dict) -> dict:
@@ -179,19 +190,19 @@ class SentimentAgent(BaseAgent[AgentResponse]):
 
         if avg_momentum > 0.05:
             score = 0.70
-            summary = f"Strong positive momentum ({avg_momentum*100:.1f}% avg)"
+            summary = f"Strong positive momentum ({avg_momentum * 100:.1f}% avg)"
         elif avg_momentum > 0.02:
             score = 0.58
-            summary = f"Mild positive momentum ({avg_momentum*100:.1f}% avg)"
+            summary = f"Mild positive momentum ({avg_momentum * 100:.1f}% avg)"
         elif avg_momentum < -0.05:
             score = 0.30
-            summary = f"Strong negative momentum ({avg_momentum*100:.1f}% avg)"
+            summary = f"Strong negative momentum ({avg_momentum * 100:.1f}% avg)"
         elif avg_momentum < -0.02:
             score = 0.42
-            summary = f"Mild negative momentum ({avg_momentum*100:.1f}% avg)"
+            summary = f"Mild negative momentum ({avg_momentum * 100:.1f}% avg)"
         else:
             score = 0.50
-            summary = f"Neutral momentum ({avg_momentum*100:.1f}% avg)"
+            summary = f"Neutral momentum ({avg_momentum * 100:.1f}% avg)"
 
         return {"score": score, "summary": summary, "momentum": avg_momentum}
 

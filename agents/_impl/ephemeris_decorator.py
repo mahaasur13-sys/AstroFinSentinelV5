@@ -11,6 +11,7 @@ T = TypeVar("T")
 # Swiss Ephemeris availability check
 try:
     import swisseph as swe
+
     HAS_SWISS_EPHEMERIS = True
 except ImportError:
     HAS_SWISS_EPHEMERIS = False
@@ -29,6 +30,7 @@ def require_ephemeris(func: Callable[P, T]) -> Callable[P, T]:
     Raises:
         EphemerisUnavailableError: If Swiss Ephemeris is not installed.
     """
+
     @functools.wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if not HAS_SWISS_EPHEMERIS:
@@ -37,11 +39,13 @@ def require_ephemeris(func: Callable[P, T]) -> Callable[P, T]:
                 f"Install with: pip install pyswisseph"
             )
         return await func(*args, **kwargs)
+
     return wrapper
 
 
 class EphemerisUnavailableError(Exception):
     """Raised when agent requires Swiss Ephemeris but it's not available."""
+
     pass
 
 

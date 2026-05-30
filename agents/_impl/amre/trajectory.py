@@ -1,4 +1,5 @@
 """amre/trajectory.py — Market state + Trajectory + TrajectoryStep"""
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -12,10 +13,12 @@ class TrajectoryStep:
     confidence: int
     position: Optional[str] = None
 
-@dataclass  
+
+@dataclass
 class Trajectory:
     steps: List[TrajectoryStep] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class TrajectoryMetrics:
@@ -26,6 +29,7 @@ class TrajectoryMetrics:
     trade_count: int
     avg_confidence: float
     regime_stability: float
+
 
 @dataclass
 class MarketState:
@@ -45,10 +49,13 @@ class MarketState:
     is_contrarian: Optional[bool] = None
     volatility_score: Optional[float] = None
 
+
 def market_state_hash(ms: MarketState) -> str:
     import hashlib
+
     data = f"{ms.symbol}:{ms.price}:{ms.timeframe}:{ms.n_signals}:{ms.regime}"
     return hashlib.md5(data.encode()).hexdigest()[:12]
+
 
 def trajectory_from_state(ms: MarketState) -> Trajectory:
     step = TrajectoryStep(
@@ -57,9 +64,10 @@ def trajectory_from_state(ms: MarketState) -> Trajectory:
         regime=ms.regime,
         signals={},
         confidence=ms.confidence or 50,
-        position=None
+        position=None,
     )
     return Trajectory(steps=[step])
+
 
 def compute_trajectory_metrics(traj: Trajectory) -> TrajectoryMetrics:
     if not traj.steps:
@@ -74,22 +82,29 @@ def compute_trajectory_metrics(traj: Trajectory) -> TrajectoryMetrics:
         peak = max(peak, r)
         dd = max(dd, (peak - r) / peak if peak > 0 else 0)
     variance = sum((r - avg) ** 2 for r in rewards) / len(rewards) if rewards else 0
-    sharpe = (avg / (variance ** 0.5)) if variance > 0 else 0
+    sharpe = (avg / (variance**0.5)) if variance > 0 else 0
     return TrajectoryMetrics(
         total_reward=round(total, 4),
         sharpe_ratio=round(sharpe, 4),
         max_drawdown=round(dd, 4),
         win_rate=round(win_rate, 4),
         trade_count=len(traj.steps),
-        avg_confidence=round(sum(s.confidence for s in traj.steps) / len(traj.steps), 1),
-        regime_stability=round(1.0 - dd, 4)
+        avg_confidence=round(
+            sum(s.confidence for s in traj.steps) / len(traj.steps), 1
+        ),
+        regime_stability=round(1.0 - dd, 4),
     )
+
 
 def trajectory_to_dict(traj: Trajectory) -> dict:
     return {
-        "steps": [{"timestamp": s.timestamp, "price": s.price, "regime": s.regime} for s in traj.steps],
-        "metadata": traj.metadata
+        "steps": [
+            {"timestamp": s.timestamp, "price": s.price, "regime": s.regime}
+            for s in traj.steps
+        ],
+        "metadata": traj.metadata,
     }
+
 
 def trajectory_from_dict(data: dict) -> Trajectory:
     steps = [TrajectoryStep(**s) for s in data.get("steps", [])]

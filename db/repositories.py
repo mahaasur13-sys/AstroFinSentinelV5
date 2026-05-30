@@ -3,6 +3,7 @@
 All repositories work with PostgreSQL when available,
 fall back gracefully to SQLite when not.
 """
+
 import json
 import logging
 import os
@@ -20,6 +21,7 @@ else:
     def _get_sqlite_conn():
         import sqlite3
         from pathlib import Path
+
         root = Path(__file__).parent.parent
         db_path = root / "core" / "history.db"
         db_path.parent.mkdir(exist_ok=True)
@@ -27,6 +29,7 @@ else:
 
 
 # ─── JSON helpers ───────────────────────────────────────────────────────────────
+
 
 def _d(obj) -> str:
     """Serialize to JSON string."""
@@ -81,7 +84,9 @@ if _BACKEND == "postgresql":
                     uncertainty_total=record.get("uncertainty_total", 0.5),
                     confidence_raw=record.get("confidence_raw", 50),
                     confidence_final=record.get("confidence_final", 50),
-                    confidence_adjustments_json=_d(record.get("confidence_adjustments", [])),
+                    confidence_adjustments_json=_d(
+                        record.get("confidence_adjustments", [])
+                    ),
                     final_action=record.get("final_action", "NEUTRAL"),
                     position_pct=record.get("position_pct", 0),
                     kpi_snapshot_json=_d(record.get("kpi_snapshot", {})),
@@ -93,27 +98,39 @@ if _BACKEND == "postgresql":
         @staticmethod
         def get_recent(limit: int = 10) -> List[Dict]:
             with pg_session() as s:
-                rows = s.query(KARLDecisionRecord).order_by(
-                    KARLDecisionRecord.created_at.desc()
-                ).limit(limit).all()
+                rows = (
+                    s.query(KARLDecisionRecord)
+                    .order_by(KARLDecisionRecord.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
                 return [_row_to_karl(r) for r in rows]
 
         @staticmethod
         def get_by_symbol(symbol: str, limit: int = 100) -> List[Dict]:
             with pg_session() as s:
-                rows = s.query(KARLDecisionRecord).filter(
-                    KARLDecisionRecord.symbol == symbol
-                ).order_by(KARLDecisionRecord.created_at.desc()).limit(limit).all()
+                rows = (
+                    s.query(KARLDecisionRecord)
+                    .filter(KARLDecisionRecord.symbol == symbol)
+                    .order_by(KARLDecisionRecord.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
                 return [_row_to_karl(r) for r in rows]
 
         @staticmethod
         def count_by_action() -> Dict[str, int]:
             with pg_session() as s:
                 from sqlalchemy import func
-                rows = s.query(
-                    KARLDecisionRecord.final_action,
-                    func.count(KARLDecisionRecord.decision_id)
-                ).group_by(KARLDecisionRecord.final_action).all()
+
+                rows = (
+                    s.query(
+                        KARLDecisionRecord.final_action,
+                        func.count(KARLDecisionRecord.decision_id),
+                    )
+                    .group_by(KARLDecisionRecord.final_action)
+                    .all()
+                )
                 return {str(r[0]): r[1] for r in rows}
 
         @staticmethod
@@ -138,7 +155,9 @@ if _BACKEND == "postgresql":
                         uncertainty_total=record.get("uncertainty_total", 0.5),
                         confidence_raw=record.get("confidence_raw", 50),
                         confidence_final=record.get("confidence_final", 50),
-                        confidence_adjustments_json=_d(record.get("confidence_adjustments", [])),
+                        confidence_adjustments_json=_d(
+                            record.get("confidence_adjustments", [])
+                        ),
                         final_action=record.get("final_action", "NEUTRAL"),
                         position_pct=record.get("position_pct", 0),
                         kpi_snapshot_json=_d(record.get("kpi_snapshot", {})),
@@ -147,12 +166,16 @@ if _BACKEND == "postgresql":
                     s.add(dr)
                 return len(records)
 
-
     class AgentSignalRepository:
         @staticmethod
-        def save(session_id: str, agent_name: str, signal: str,
-                 confidence: int, reasoning: str,
-                 metadata: Optional[Dict] = None) -> None:
+        def save(
+            session_id: str,
+            agent_name: str,
+            signal: str,
+            confidence: int,
+            reasoning: str,
+            metadata: Optional[Dict] = None,
+        ) -> None:
             with pg_session() as s:
                 ag = AgentSignal(
                     session_id=session_id,
@@ -167,17 +190,26 @@ if _BACKEND == "postgresql":
         @staticmethod
         def get_by_session(session_id: str) -> List[Dict]:
             with pg_session() as s:
-                rows = s.query(AgentSignal).filter(
-                    AgentSignal.session_id == session_id
-                ).order_by(AgentSignal.created_at).all()
+                rows = (
+                    s.query(AgentSignal)
+                    .filter(AgentSignal.session_id == session_id)
+                    .order_by(AgentSignal.created_at)
+                    .all()
+                )
                 return [_row_to_signal(r) for r in rows]
-
 
     class AstroPositionRepository:
         @staticmethod
-        def save(session_id: str, planet: str, longitude: float,
-                 latitude: float, speed: float, nakshatra: str,
-                 rashi: str, metadata: Optional[Dict] = None) -> None:
+        def save(
+            session_id: str,
+            planet: str,
+            longitude: float,
+            latitude: float,
+            speed: float,
+            nakshatra: str,
+            rashi: str,
+            metadata: Optional[Dict] = None,
+        ) -> None:
             with pg_session() as s:
                 ap = AstroPosition(
                     session_id=session_id,
@@ -194,16 +226,21 @@ if _BACKEND == "postgresql":
         @staticmethod
         def get_by_session(session_id: str) -> List[Dict]:
             with pg_session() as s:
-                rows = s.query(AstroPosition).filter(
-                    AstroPosition.session_id == session_id
-                ).all()
+                rows = (
+                    s.query(AstroPosition)
+                    .filter(AstroPosition.session_id == session_id)
+                    .all()
+                )
                 return [_row_to_astro(r) for r in rows]
-
 
     class AuditLogRepository:
         @staticmethod
-        def save(session_id: str, decision_id: str, action: str,
-                 details: Optional[Dict] = None) -> None:
+        def save(
+            session_id: str,
+            decision_id: str,
+            action: str,
+            details: Optional[Dict] = None,
+        ) -> None:
             with pg_session() as s:
                 al = AuditLogRecord(
                     session_id=session_id,
@@ -216,9 +253,12 @@ if _BACKEND == "postgresql":
         @staticmethod
         def get_recent(limit: int = 100) -> List[Dict]:
             with pg_session() as s:
-                rows = s.query(AuditLogRecord).order_by(
-                    AuditLogRecord.created_at.desc()
-                ).limit(limit).all()
+                rows = (
+                    s.query(AuditLogRecord)
+                    .order_by(AuditLogRecord.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
                 return [_row_to_audit(r) for r in rows]
 
 
@@ -266,9 +306,14 @@ else:
 
     class AgentSignalRepository:
         @staticmethod
-        def save(session_id: str, agent_name: str, signal: str,
-                 confidence: int, reasoning: str,
-                 metadata: Optional[Dict] = None) -> None:
+        def save(
+            session_id: str,
+            agent_name: str,
+            signal: str,
+            confidence: int,
+            reasoning: str,
+            metadata: Optional[Dict] = None,
+        ) -> None:
             pass  # SQLite: signals stored inside session JSON
 
         @staticmethod
@@ -277,9 +322,16 @@ else:
 
     class AstroPositionRepository:
         @staticmethod
-        def save(session_id: str, planet: str, longitude: float,
-                 latitude: float, speed: float, nakshatra: str,
-                 rashi: str, metadata: Optional[Dict] = None) -> None:
+        def save(
+            session_id: str,
+            planet: str,
+            longitude: float,
+            latitude: float,
+            speed: float,
+            nakshatra: str,
+            rashi: str,
+            metadata: Optional[Dict] = None,
+        ) -> None:
             pass
 
         @staticmethod
@@ -288,8 +340,12 @@ else:
 
     class AuditLogRepository:
         @staticmethod
-        def save(session_id: str, decision_id: str, action: str,
-                 details: Optional[Dict] = None) -> None:
+        def save(
+            session_id: str,
+            decision_id: str,
+            action: str,
+            details: Optional[Dict] = None,
+        ) -> None:
             pass
 
         @staticmethod
@@ -298,6 +354,7 @@ else:
 
 
 # ─── Row-to-dict helpers (PostgreSQL only) ─────────────────────────────────────
+
 
 def _row_to_karl(r) -> dict:
     return {
@@ -313,9 +370,15 @@ def _row_to_karl(r) -> dict:
         "q_values": _l(r.q_values_json),
         "q_star": float(r.q_star) if r.q_star else None,
         "advantage": float(r.advantage) if r.advantage else None,
-        "uncertainty_aleatoric": float(r.uncertainty_aleatoric) if r.uncertainty_aleatoric else None,
-        "uncertainty_epistemic": float(r.uncertainty_epistemic) if r.uncertainty_epistemic else None,
-        "uncertainty_total": float(r.uncertainty_total) if r.uncertainty_total else None,
+        "uncertainty_aleatoric": float(r.uncertainty_aleatoric)
+        if r.uncertainty_aleatoric
+        else None,
+        "uncertainty_epistemic": float(r.uncertainty_epistemic)
+        if r.uncertainty_epistemic
+        else None,
+        "uncertainty_total": float(r.uncertainty_total)
+        if r.uncertainty_total
+        else None,
         "confidence_raw": r.confidence_raw,
         "confidence_final": r.confidence_final,
         "confidence_adjustments": _l(r.confidence_adjustments_json),
@@ -368,11 +431,13 @@ def _row_to_audit(r) -> dict:
 
 # ─── Stats ─────────────────────────────────────────────────────────────────────
 
+
 def is_postgres_available() -> bool:
     if _BACKEND == "sqlite":
         return False
     try:
         from db.session import is_postgres_available as _check
+
         return _check()
     except Exception:
         return False

@@ -74,7 +74,7 @@ class InsiderAgent(BaseAgent[AgentResponse]):
         else:
             direction = SignalDirection.NEUTRAL
 
-        confidence=int(sum(scores)/len(scores) * 100)
+        confidence = int(sum(scores) / len(scores) * 100)
 
         reasoning = (
             f"Insider: {insider_analysis['summary']}. "

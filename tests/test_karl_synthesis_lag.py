@@ -11,11 +11,13 @@ Tests:
 Запуск:
     pytest tests/test_karl_synthesis_lag.py -v
 """
+
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
 # ─── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_karl_dependencies():
@@ -31,7 +33,9 @@ def mock_karl_dependencies():
         get_karl_diagnostics=MagicMock(),
         build_decision_record=MagicMock(),
         estimate_uncertainty=MagicMock(return_value={"total": 0.5}),
-        validate_with_grounding=MagicMock(return_value={"passed": True, "confidence_adjustment": 0}),
+        validate_with_grounding=MagicMock(
+            return_value={"passed": True, "confidence_adjustment": 0}
+        ),
         compute_trajectory_reward=MagicMock(return_value=0.6),
         create_backtest_runner=MagicMock(),
         SelfQuestioningEngine=MagicMock(),
@@ -136,17 +140,19 @@ class TestApplyLagSmoothing:
         agent = KARLSynthesisAgent(enable_self_question=False, enable_backtest=False)
         agent.lag_enabled = True
         agent.lag_window = Mock()
-        agent.lag_window.add = Mock(return_value={
-            "final_confidence": 50,
-            "raw_confidence": 50,
-            "ema": 50.0,
-            "lag_adj": 0.0,
-            "position_lag": 0.0,
-            "window_size": 50,
-            "alpha": 0.0392,
-            "blend": 0.30,  # warmup blend
-            "count": 5,  # immature
-        })
+        agent.lag_window.add = Mock(
+            return_value={
+                "final_confidence": 50,
+                "raw_confidence": 50,
+                "ema": 50.0,
+                "lag_adj": 0.0,
+                "position_lag": 0.0,
+                "window_size": 50,
+                "alpha": 0.0392,
+                "blend": 0.30,  # warmup blend
+                "count": 5,  # immature
+            }
+        )
 
         _, _, meta = agent._apply_lag_smoothing(50, 0.05)
 
@@ -194,17 +200,19 @@ class TestRiskControlIntegration:
 
         # Мокаем lag_window с mature count
         agent.lag_window = Mock()
-        agent.lag_window.add = Mock(return_value={
-            "final_confidence": 72,
-            "raw_confidence": 90,
-            "ema": 68.4,
-            "lag_adj": -0.24,
-            "position_lag": 0.15,  # < 0.3 threshold → no risk change
-            "window_size": 50,
-            "alpha": 0.0392,
-            "blend": 0.15,
-            "count": 25,
-        })
+        agent.lag_window.add = Mock(
+            return_value={
+                "final_confidence": 72,
+                "raw_confidence": 90,
+                "ema": 68.4,
+                "lag_adj": -0.24,
+                "position_lag": 0.15,  # < 0.3 threshold → no risk change
+                "window_size": 50,
+                "alpha": 0.0392,
+                "blend": 0.15,
+                "count": 25,
+            }
+        )
 
         # Мокаем risk_control чтобы проверить вызов
         with patch("agents.karl_synthesis.apply_position_lag_risk") as mock_risk:
@@ -226,17 +234,19 @@ class TestRiskControlIntegration:
         agent = KARLSynthesisAgent(enable_self_question=False, enable_backtest=False)
         agent.lag_enabled = True
         agent.lag_window = Mock()
-        agent.lag_window.add = Mock(return_value={
-            "final_confidence": 72,
-            "raw_confidence": 90,
-            "ema": 68.4,
-            "lag_adj": -0.24,
-            "position_lag": 0.5,  # > 0.3 threshold → increase
-            "window_size": 50,
-            "alpha": 0.0392,
-            "blend": 0.15,
-            "count": 25,
-        })
+        agent.lag_window.add = Mock(
+            return_value={
+                "final_confidence": 72,
+                "raw_confidence": 90,
+                "ema": 68.4,
+                "lag_adj": -0.24,
+                "position_lag": 0.5,  # > 0.3 threshold → increase
+                "window_size": 50,
+                "alpha": 0.0392,
+                "blend": 0.15,
+                "count": 25,
+            }
+        )
 
         # В run() position_pct корректируется через apply_position_lag_risk
         # Проверяем что position_lag > threshold приведёт к увеличению
@@ -266,17 +276,19 @@ class TestRunWithLagWindow:
         agent = KARLSynthesisAgent(enable_self_question=False, enable_backtest=False)
         agent.lag_enabled = True
         agent.lag_window = Mock()
-        agent.lag_window.add = Mock(return_value={
-            "final_confidence": 72,
-            "raw_confidence": 90,
-            "ema": 68.4,
-            "lag_adj": -0.24,
-            "position_lag": 0.0,
-            "window_size": 50,
-            "alpha": 0.0392,
-            "blend": 0.15,
-            "count": 25,
-        })
+        agent.lag_window.add = Mock(
+            return_value={
+                "final_confidence": 72,
+                "raw_confidence": 90,
+                "ema": 68.4,
+                "lag_adj": -0.24,
+                "position_lag": 0.0,
+                "window_size": 50,
+                "alpha": 0.0392,
+                "blend": 0.15,
+                "count": 25,
+            }
+        )
 
         # Мокаем base_agent как AsyncMock — подменяем на уровне экземпляра
         mock_response = AgentResponse(
@@ -339,17 +351,19 @@ class TestRunWithLagWindow:
         agent = KARLSynthesisAgent(enable_self_question=False, enable_backtest=False)
         agent.lag_enabled = True
         agent.lag_window = Mock()
-        agent.lag_window.add = Mock(return_value={
-            "final_confidence": 72,  # уже в пределах
-            "raw_confidence": 90,
-            "ema": 68.4,
-            "lag_adj": -0.24,
-            "position_lag": 0.0,
-            "window_size": 50,
-            "alpha": 0.0392,
-            "blend": 0.15,
-            "count": 25,
-        })
+        agent.lag_window.add = Mock(
+            return_value={
+                "final_confidence": 72,  # уже в пределах
+                "raw_confidence": 90,
+                "ema": 68.4,
+                "lag_adj": -0.24,
+                "position_lag": 0.0,
+                "window_size": 50,
+                "alpha": 0.0392,
+                "blend": 0.15,
+                "count": 25,
+            }
+        )
 
         conf, _, meta = agent._apply_lag_smoothing(90, 0.05)
         assert 0 <= conf <= 100

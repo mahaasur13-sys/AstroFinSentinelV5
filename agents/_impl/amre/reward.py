@@ -3,6 +3,7 @@
 - Bayesian calibration (Platt scaling)
 - Regime-aware reward with drawdown penalty
 """
+
 import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -15,6 +16,7 @@ EMA_ALPHA = 0.3
 
 class RewardState:
     """EMA state for reward smoothing — ATOM-KARL-015 Phase 3."""
+
     __slots__ = ("ema_reward", "raw_reward", "count")
 
     def __init__(self):
@@ -23,7 +25,9 @@ class RewardState:
         self.count: int = 0
 
 
-def update_reward_ema(previous: float, current: float, alpha: float = EMA_ALPHA) -> float:
+def update_reward_ema(
+    previous: float, current: float, alpha: float = EMA_ALPHA
+) -> float:
     """
     EMA smoothing: new = alpha * current + (1 - alpha) * previous.
     α = 0.3 → responsive but not noisy.
@@ -33,13 +37,15 @@ def update_reward_ema(previous: float, current: float, alpha: float = EMA_ALPHA)
 
 # ─── Calibrated Reward ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class CalibrationMetrics:
     """Tracks calibration quality of reward predictions."""
-    predictions: List[float]   # predicted rewards
-    actuals: List[float]       # actual outcomes
+
+    predictions: List[float]  # predicted rewards
+    actuals: List[float]  # actual outcomes
     n_samples: int
-    calibration_error: float   # ECE (Expected Calibration Error)
+    calibration_error: float  # ECE (Expected Calibration Error)
     reliability_diagram: List[Tuple[float, float]]  # (bin_center, accuracy)
 
 
@@ -53,8 +59,11 @@ class RewardCalibrator:
     def __init__(self, n_bins: int = 10):
         self.n_bins = n_bins
         self.metrics = CalibrationMetrics(
-            predictions=[], actuals=[], n_samples=0,
-            calibration_error=0.0, reliability_diagram=[]
+            predictions=[],
+            actuals=[],
+            n_samples=0,
+            calibration_error=0.0,
+            reliability_diagram=[],
         )
         # Platt scaling params (initialized to identity)
         self.slope = 1.0
@@ -138,16 +147,19 @@ class RewardCalibrator:
             "intercept": round(self.intercept, 4),
             "reliability_diagram": [
                 {"bin": round(c, 3), "accuracy": round(a, 3)}
-                for c, a in self.metrics.reliability_diagram if c > 0
+                for c, a in self.metrics.reliability_diagram
+                if c > 0
             ],
         }
 
 
 # ─── False Correlation Detector ────────────────────────────────────────────────
 
+
 @dataclass
 class CorrelationPenalty:
     """Penalty applied when reward is likely from false correlation."""
+
     raw_reward: float
     penalty: float
     reason: str
@@ -157,7 +169,7 @@ class CorrelationPenalty:
 class FalseCorrelationDetector:
     """
     Detects when reward is likely from spurious correlation (overfitting to noise).
-    
+
     Signs of spurious correlation:
     - Very high reward on very few samples (lucky streak)
     - Reward doesn't generalize across regimes
@@ -168,7 +180,9 @@ class FalseCorrelationDetector:
         self.min_samples = min_samples_for_trust
         self.sample_history: List[Tuple[int, float]] = []  # (n_samples, reward)
 
-    def assess(self, n_samples: int, raw_reward: float, regime: str) -> CorrelationPenalty:
+    def assess(
+        self, n_samples: int, raw_reward: float, regime: str
+    ) -> CorrelationPenalty:
         """Assess whether reward is spurious and apply penalty."""
         self.sample_history.append((n_samples, raw_reward))
 
@@ -179,7 +193,9 @@ class FalseCorrelationDetector:
         if n_samples < self.min_samples and raw_reward > 0.7:
             lucky_factor = raw_reward * (1 - n_samples / self.min_samples)
             penalty += lucky_factor * 0.4
-            reasons.append(f"lucky_streak: n={n_samples}<{self.min_samples}, reward={raw_reward:.3f}")
+            reasons.append(
+                f"lucky_streak: n={n_samples}<{self.min_samples}, reward={raw_reward:.3f}"
+            )
 
         # Rule 2: Regime instability — reward swings wildly across recent samples
         if len(self.sample_history) >= 5:
@@ -202,7 +218,9 @@ class FalseCorrelationDetector:
                 # If more data → lower reward, suspicious
                 if late_avg < early_avg - 0.1 and raw_reward > 0.5:
                     penalty += 0.25
-                    reasons.append(f"sample_inverse: early={early_avg:.3f} > late={late_avg:.3f}")
+                    reasons.append(
+                        f"sample_inverse: early={early_avg:.3f} > late={late_avg:.3f}"
+                    )
 
         is_spurious = penalty > 0.3
         adjusted = max(0.0, raw_reward - penalty)
@@ -211,11 +229,12 @@ class FalseCorrelationDetector:
             raw_reward=raw_reward,
             penalty=round(penalty, 4),
             reason="; ".join(reasons) if reasons else "clean",
-            is_spurious=is_spurious
+            is_spurious=is_spurious,
         )
 
 
 # ─── Drawdown Penalty ──────────────────────────────────────────────────────────
+
 
 @dataclass
 class DrawdownState:
@@ -245,7 +264,7 @@ class DrawdownTracker:
             peak=round(self.peak, 4),
             current=round(self.current, 4),
             drawdown=round(dd, 4),
-            in_drawdown=in_dd
+            in_drawdown=in_dd,
         )
 
     def apply_penalty(self, reward: float) -> Tuple[float, Optional[str]]:
@@ -311,15 +330,22 @@ def compute_trajectory_reward(
 
     # Base signal score
     signal_score = sum(
-        (1.0 if _get(s, "signal", "NEUTRAL") in ("LONG", "BUY") else -0.5 if _get(s, "signal") in ("SHORT", "SELL") else 0)
-        * _get(s, "confidence", 50) / 100
+        (
+            1.0
+            if _get(s, "signal", "NEUTRAL") in ("LONG", "BUY")
+            else -0.5
+            if _get(s, "signal") in ("SHORT", "SELL")
+            else 0
+        )
+        * _get(s, "confidence", 50)
+        / 100
         for s in signals
     ) / len(signals)
 
     # Regime multiplier
-    regime_multiplier = {
-        "LOW": 1.2, "NORMAL": 1.0, "HIGH": 0.7, "EXTREME": 0.3
-    }.get(getattr(state, "regime", "NORMAL"), 1.0)
+    regime_multiplier = {"LOW": 1.2, "NORMAL": 1.0, "HIGH": 0.7, "EXTREME": 0.3}.get(
+        getattr(state, "regime", "NORMAL"), 1.0
+    )
 
     raw_reward = signal_score * regime_multiplier
 
@@ -329,7 +355,7 @@ def compute_trajectory_reward(
     corr_result = corr_detector.assess(
         n_samples=n_samples,
         raw_reward=raw_reward,
-        regime=getattr(state, "regime", "NORMAL")
+        regime=getattr(state, "regime", "NORMAL"),
     )
 
     if corr_result.is_spurious:
@@ -390,14 +416,18 @@ def get_reward_diagnostics() -> Dict[str, Any]:
 
 # ─── Backward Compatibility ─────────────────────────────────────────────────────
 
+
 def get_default_buffer() -> List[Trajectory]:
     return []
 
+
 _DEFAULT_BUFFER: Optional[List[Trajectory]] = None
+
 
 def get_global_buffer() -> Optional[List[Trajectory]]:
     global _DEFAULT_BUFFER
     return _DEFAULT_BUFFER
+
 
 def set_global_buffer(buffer: Optional[List[Trajectory]]):
     global _DEFAULT_BUFFER

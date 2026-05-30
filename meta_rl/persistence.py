@@ -1,4 +1,5 @@
 """meta_rl/persistence.py — ATOM-META-RL-007/009/012/013: Full Persistence"""
+
 from __future__ import annotations
 
 import json
@@ -70,25 +71,31 @@ class MetaRLPersistence:
                 }
             )
 
-            records.append({
-                "id": getattr(scored, "id", ""),
-                "session_id": session_id,
-                "generation": getattr(scored, "generation", 1),
-                "parent_ids": list(getattr(scored, "parent_ids", [])),
-                "reward": float(getattr(scored, "reward", 0.0)),
-                "reward_history": list(getattr(scored, "reward_history", [])),
-                "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0) if ev else 0.0,
-                "sharpe": getattr(ev, "sharpe", 0.0) if ev else 0.0,
-                "max_drawdown": getattr(ev, "max_drawdown", 1.0) if ev else 1.0,
-                "trades": getattr(ev, "trades", 0) if ev else 0,
-                "win_rate": getattr(ev, "win_rate", 0.0) if ev else 0.0,
-                "chromosome": strat_dict.get("chromosome", {}),
-                "metadata": getattr(scored, "metadata", {}),
-                "saved_at": datetime.utcnow().isoformat(),
-            })
+            records.append(
+                {
+                    "id": getattr(scored, "id", ""),
+                    "session_id": session_id,
+                    "generation": getattr(scored, "generation", 1),
+                    "parent_ids": list(getattr(scored, "parent_ids", [])),
+                    "reward": float(getattr(scored, "reward", 0.0)),
+                    "reward_history": list(getattr(scored, "reward_history", [])),
+                    "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0)
+                    if ev
+                    else 0.0,
+                    "sharpe": getattr(ev, "sharpe", 0.0) if ev else 0.0,
+                    "max_drawdown": getattr(ev, "max_drawdown", 1.0) if ev else 1.0,
+                    "trades": getattr(ev, "trades", 0) if ev else 0,
+                    "win_rate": getattr(ev, "win_rate", 0.0) if ev else 0.0,
+                    "chromosome": strat_dict.get("chromosome", {}),
+                    "metadata": getattr(scored, "metadata", {}),
+                    "saved_at": datetime.utcnow().isoformat(),
+                }
+            )
 
             path.write_text(dj(records), encoding="utf-8")
-            logger.debug(f"[META-RL-PERSIST] Saved strategy {scored.id[:8]} → {path.name}")
+            logger.debug(
+                f"[META-RL-PERSIST] Saved strategy {scored.id[:8]} → {path.name}"
+            )
             return True
         except Exception as e:
             logger.warning(f"[META-RL-PERSIST] save_scored_strategy failed: {e}")
@@ -102,7 +109,9 @@ class MetaRLPersistence:
         try:
             return dl(path.read_text())
         except Exception as e:
-            logger.warning(f"[META-RL-PERSIST] load_scored_strategies({session_id}) failed: {e}")
+            logger.warning(
+                f"[META-RL-PERSIST] load_scored_strategies({session_id}) failed: {e}"
+            )
             return []
 
     def save_session_metadata(self, session_id: str, metadata: Dict[str, Any]) -> bool:
@@ -138,7 +147,9 @@ class MetaRLPersistence:
         try:
             for f in SESSIONS.iterdir():
                 if f.name.endswith("_strategies.json") or f.name.endswith("_meta.json"):
-                    sid = f.name.replace("_strategies.json", "").replace("_meta.json", "")
+                    sid = f.name.replace("_strategies.json", "").replace(
+                        "_meta.json", ""
+                    )
                     session_ids.add(sid)
         except Exception as e:
             logger.warning(f"[META-RL-PERSIST] list_sessions scan failed: {e}")
@@ -146,6 +157,7 @@ class MetaRLPersistence:
         # sentinel sessions from core/history_db
         try:
             from core.history_db import list_sessions as db_list_sessions
+
             for row in db_list_sessions(limit=1000):
                 sid = str(row.get("session_id", ""))
                 if sid:
@@ -161,7 +173,9 @@ class MetaRLPersistence:
         """Save elite chromosomes (batch of save_scored_strategy)."""
         if not scored_strategies:
             return 0
-        count = sum(1 for s in scored_strategies if self.save_scored_strategy(s, session_id))
+        count = sum(
+            1 for s in scored_strategies if self.save_scored_strategy(s, session_id)
+        )
         logger.info(f"[META-RL-PERSIST] Saved {count} elite chromosomes → {session_id}")
         return count
 
@@ -229,20 +243,27 @@ class MetaRLPersistence:
             strat_dict = (
                 strat.to_dict()
                 if hasattr(strat, "to_dict")
-                else {"chromosome": getattr(strat, "chromosome", {}),
-                      "generation": getattr(s, "generation", 0),
-                      "parent_fitness": 0.0, "config": {}}
+                else {
+                    "chromosome": getattr(strat, "chromosome", {}),
+                    "generation": getattr(s, "generation", 0),
+                    "parent_fitness": 0.0,
+                    "config": {},
+                }
             )
-            records.append({
-                "id": getattr(s, "id", ""),
-                "generation": getattr(s, "generation", 0),
-                "reward": getattr(s, "reward", 0.0),
-                "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0) if ev else 0.0,
-                "sharpe": getattr(ev, "sharpe", 0.0) if ev else 0.0,
-                "max_drawdown": getattr(ev, "max_drawdown", 1.0) if ev else 1.0,
-                "trades": getattr(ev, "trades", 0) if ev else 0,
-                "chromosome": strat_dict.get("chromosome", {}),
-            })
+            records.append(
+                {
+                    "id": getattr(s, "id", ""),
+                    "generation": getattr(s, "generation", 0),
+                    "reward": getattr(s, "reward", 0.0),
+                    "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0)
+                    if ev
+                    else 0.0,
+                    "sharpe": getattr(ev, "sharpe", 0.0) if ev else 0.0,
+                    "max_drawdown": getattr(ev, "max_drawdown", 1.0) if ev else 1.0,
+                    "trades": getattr(ev, "trades", 0) if ev else 0,
+                    "chromosome": strat_dict.get("chromosome", {}),
+                }
+            )
 
         (ver_dir / "strategies.json").write_text(dj(records), encoding="utf-8")
 
@@ -291,14 +312,18 @@ class MetaRLPersistence:
             return {"error": "version not found", "a": va, "b": vb}
         try:
             import numpy as np
+
             ra = [float(x.get("reward", 0.0)) for x in da]
             rb = [float(x.get("reward", 0.0)) for x in db]
             ma = float(np.mean(ra)) if ra else 0.0
             mb = float(np.mean(rb)) if rb else 0.0
             return {
-                "a": va, "b": vb,
-                "a_mean": round(ma, 4), "b_mean": round(mb, 4),
-                "a_count": len(ra), "b_count": len(rb),
+                "a": va,
+                "b": vb,
+                "a_mean": round(ma, 4),
+                "b_mean": round(mb, 4),
+                "a_count": len(ra),
+                "b_count": len(rb),
                 "winner": va if ma > mb else vb,
             }
         except Exception as exc:
@@ -323,6 +348,7 @@ class MetaRLPersistence:
                     gen_counts[gen] = gen_counts.get(gen, 0) + 1
 
             import numpy as np
+
             mean_r = float(np.mean(all_rewards)) if all_rewards else 0.0
             max_r = float(np.max(all_rewards)) if all_rewards else 0.0
 
@@ -337,9 +363,12 @@ class MetaRLPersistence:
         except Exception as e:
             logger.warning(f"[META-RL-PERSIST] get_sessions_summary failed: {e}")
             return {
-                "total_sessions": 0, "total_strategies": 0,
-                "mean_reward": 0.0, "max_reward": 0.0,
-                "generations_distribution": {}, "versions": [],
+                "total_sessions": 0,
+                "total_strategies": 0,
+                "mean_reward": 0.0,
+                "max_reward": 0.0,
+                "generations_distribution": {},
+                "versions": [],
             }
 
 

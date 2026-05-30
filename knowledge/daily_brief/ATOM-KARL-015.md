@@ -75,16 +75,16 @@ def _select_for_flow(pool, weights=None, excluded=None, k=None):
     """Thompson sampling с весами"""
     weights = weights or {a.name: 1.0 for a in pool}
     excluded = excluded or set()
-    
+
     valid = [a for a in pool if a.name not in excluded]
     if not valid:
         valid = pool  # fallback
-    
+
     # Weighted sampling
     probs = np.array([weights.get(a.name, 1.0) for a in valid])
     probs = probs / probs.sum()
-    
-    indices = np.random.choice(len(valid), size=min(k or len(valid), len(valid)), 
+
+    indices = np.random.choice(len(valid), size=min(k or len(valid), len(valid)),
                               replace=False, p=probs)
     return [valid[i] for i in indices]
 ```
@@ -182,7 +182,7 @@ if critical_issues:
 if KARL_FLAGS["grounding_gate"]:
     if critical_issues:
         confidence = min(confidence, 35)  # Degrade, not kill
-    
+
     if confidence < 35:
         signal = "NEUTRAL"
         grounding_blocked = True
@@ -229,28 +229,28 @@ DecisionRecord = {
     "date": "2026-03-29",
     "signal": "BULL",
     "confidence": 72,
-    
+
     # Phase 1: OAP Weighting
     "selected_agents": ["TrendAgent", "MomentumAgent"],
     "excluded_agents": [],
     "agent_weights": {"TrendAgent": 1.2, "MomentumAgent": 0.8},
-    
+
     # Phase 2: Reward Sizing
     "position_size": 0.85,  # было бы 1.0 без smoothing
     "reward": 0.3,
     "reward_smoothed": 0.15,
-    
+
     # Phase 3: SelfQ
     "selfq_triggered": False,
     "contradiction_score": 0.4,
-    
+
     # Phase 4: Grounding
     "grounding_blocked": False,
     "confidence_degraded": False,
-    
+
     # Phase 5: Lag Control
     "window_used": 50,
-    
+
     # KPIs
     "kpi_sharpe_before": 0.71,
     "kpi_sharpe_after": None,  # заполняется позже
@@ -293,7 +293,7 @@ if KARL_FLAGS["auto_rollback"]:
 
 ```
 KARL-015 Phase 1 (OAP weighting)     ← день 1-2
-KARL-015 Phase 2 (reward sizing)     ← день 3-4  
+KARL-015 Phase 2 (reward sizing)     ← день 3-4
 KARL-015 Phase 3 (SelfQ)             ← день 5-6
 KARL-015 Phase 4 (grounding)         ← день 7-8
 KARL-015 Phase 5 (lag control)      ← день 9-10

@@ -1,4 +1,5 @@
 """core/council/runner.py — AstroCouncil Runner"""
+
 from datetime import datetime
 from typing import Optional
 
@@ -34,13 +35,33 @@ def run_council(
 ) -> CouncilResult:
     council = AstroCouncil()
     members = [
-        AGENT_FACTORIES["fundamental"](price=price, fair_value=fair_value, catalyst=catalyst),
-        AGENT_FACTORIES["quant"](predicted_return=predicted_return, uncertainty=uncertainty),
+        AGENT_FACTORIES["fundamental"](
+            price=price, fair_value=fair_value, catalyst=catalyst
+        ),
+        AGENT_FACTORIES["quant"](
+            predicted_return=predicted_return, uncertainty=uncertainty
+        ),
         AGENT_FACTORIES["macro"](vix=vix, dxy=dxy, geopolitical=geopolitical),
         AGENT_FACTORIES["technical"](rsi=rsi, macd_bullish=macd_bullish, price=price),
-        AGENT_FACTORIES["sentiment"](vix=vix, fear_greed=fear_greed, news_score=news_score),
-        AGENT_FACTORIES["optionsflow"](predicted_return=predicted_return, ul_trailing=ul_trailing, gamma_exp=gamma_exp, unusual=unusual),
-        AGENT_FACTORIES["astro"](price=price, predicted_return=predicted_return, moon_long=moon_long, jupiter_long=jupiter_long, saturn_long=saturn_long, nakshatra=nakshatra, choghadiya=choghadiya, retrograde=retrograde or []),
+        AGENT_FACTORIES["sentiment"](
+            vix=vix, fear_greed=fear_greed, news_score=news_score
+        ),
+        AGENT_FACTORIES["optionsflow"](
+            predicted_return=predicted_return,
+            ul_trailing=ul_trailing,
+            gamma_exp=gamma_exp,
+            unusual=unusual,
+        ),
+        AGENT_FACTORIES["astro"](
+            price=price,
+            predicted_return=predicted_return,
+            moon_long=moon_long,
+            jupiter_long=jupiter_long,
+            saturn_long=saturn_long,
+            nakshatra=nakshatra,
+            choghadiya=choghadiya,
+            retrograde=retrograde or [],
+        ),
     ]
     for m in members:
         council.add_member(m)

@@ -14,6 +14,7 @@ Signals:
 
 All clamped to [-1, 1].
 """
+
 from typing import List
 
 
@@ -90,15 +91,23 @@ def compute_astro_reward(
     # ── Planetary aspects ───────────────────────────────────────────────────
     # Positive aspects
     positive_aspects = {
-        "sun_trine_moon", "sun_trine_venus", "sun_trine_jupiter",
-        "venus_trine_jupiter", "moon_trine_venus", "moon_trine_jupiter",
-        "jupiter_trine_saturn", "venus_conjunct_jupiter",
+        "sun_trine_moon",
+        "sun_trine_venus",
+        "sun_trine_jupiter",
+        "venus_trine_jupiter",
+        "moon_trine_venus",
+        "moon_trine_jupiter",
+        "jupiter_trine_saturn",
+        "venus_conjunct_jupiter",
     }
     # Challenging aspects
     challenging_aspects = {
-        "mars_square_saturn", "mars_conjunct_saturn",
-        "sun_square_saturn", "moon_square_saturn",
-        "venus_square_saturn", "mercury_square_neptune",
+        "mars_square_saturn",
+        "mars_conjunct_saturn",
+        "sun_square_saturn",
+        "moon_square_saturn",
+        "venus_square_saturn",
+        "mercury_square_neptune",
     }
 
     for aspect in aspects:

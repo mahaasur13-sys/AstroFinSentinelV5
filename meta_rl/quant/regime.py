@@ -1,8 +1,12 @@
 """meta_rl/quant/regime.py -- ATOM-META-RL-024: Market regime detection"""
+
 from __future__ import annotations
+
 from enum import Enum
 from typing import Optional
+
 import numpy as np
+
 
 class Regime(Enum):
     BULL = "BULL"
@@ -10,6 +14,7 @@ class Regime(Enum):
     VOLATILE = "VOLATILE"
     CRISIS = "CRISIS"
     SIDEWAYS = "SIDEWAYS"
+
 
 class RegimeDetector:
     def __init__(self, volatility_window: int = 20, trend_window: int = 50):
@@ -19,7 +24,7 @@ class RegimeDetector:
     def detect(self, prices: list[float]) -> Regime:
         if len(prices) < self.trend_window:
             return Regime.SIDEWAYS
-        arr = np.array(prices[-self.trend_window:])
+        arr = np.array(prices[-self.trend_window :])
         returns = np.diff(arr) / arr[:-1]
         vol = np.std(returns) * np.sqrt(252)
         trend = (arr[-1] - arr[0]) / arr[0]

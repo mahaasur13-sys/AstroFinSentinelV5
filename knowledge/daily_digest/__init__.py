@@ -44,7 +44,7 @@ from .daily_digest_log import DigestEntry, DigestLog, DigestStatus
 
 __all__ = [
     "DigestAnalyzer",
-    "Category", 
+    "Category",
     "RelevanceScore",
     "Finding",
     "DigestAnalysis",

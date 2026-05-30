@@ -1,6 +1,8 @@
 """backtest/engine.py — G-01/G-03 Backtesting Engine (with real agent support + metrics)"""
+
 import asyncio
 import math
+import random
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
@@ -8,17 +10,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
-import random
 
-from agents._impl.technical_agent import TechnicalAgent
-from agents._impl.macro_agent import MacroAgent
 from agents._impl.astro_council.agent import AstroCouncilAgent
-from agents._impl.sentiment_agent import SentimentAgent
-from agents._impl.options_flow_agent import OptionsFlowAgent
 from agents._impl.elliot_agent import ElliotAgent
+from agents._impl.macro_agent import MacroAgent
 from agents._impl.ml_predictor_agent import MLPredictorAgent
-from core.thompson import get_thompson_sampler, TECHNICAL_POOL, MACRO_POOL, ASTRO_POOL
+from agents._impl.options_flow_agent import OptionsFlowAgent
+from agents._impl.sentiment_agent import SentimentAgent
 from agents._impl.synthesis_agent import SynthesisAgent
+from agents._impl.technical_agent import TechnicalAgent
+from core.thompson import ASTRO_POOL, MACRO_POOL, TECHNICAL_POOL, get_thompson_sampler
 from tools.metrics_server import BACKTEST_REAL_RUNS, BACKTEST_SYNTHETIC_RUNS
 
 BINANCE_BASE = "https://api.binance.com/api/v3"
@@ -155,9 +156,7 @@ def fetch_ohlcv(
             else datetime.now(timezone.utc)
         )
         et = (
-            datetime.fromtimestamp(end_time / 1000, tz=timezone.utc)
-            if end_time
-            else st
+            datetime.fromtimestamp(end_time / 1000, tz=timezone.utc) if end_time else st
         )
         return _synthetic_ohlcv(st, et, interval_hours=1, base_price=50000.0)
 
@@ -259,11 +258,19 @@ class BacktestEngine:
                     "close": c.close,
                     "volume": c.volume,
                 }
-                for c in candles[max(0, bar_index - 50):bar_index + 1]
+                for c in candles[max(0, bar_index - 50) : bar_index + 1]
             ],
         }
 
-    async def run(self, start_date, end_date, use_real_agents=False, use_thompson=False, use_synthesis=False, session_id=None):
+    async def run(
+        self,
+        start_date,
+        end_date,
+        use_real_agents=False,
+        use_thompson=False,
+        use_synthesis=False,
+        session_id=None,
+    ):
         session_id = session_id or str(uuid.uuid4())[:8]
         candles = fetch_range(
             self.symbol,
@@ -283,7 +290,9 @@ class BacktestEngine:
                 tech_selected = sampler.select(TECHNICAL_POOL, k=2)
                 macro_selected = sampler.select(MACRO_POOL, k=2)
                 astro_selected = sampler.select(ASTRO_POOL, k=2)
-                selected_names = [name for name, _ in tech_selected + macro_selected + astro_selected]
+                selected_names = [
+                    name for name, _ in tech_selected + macro_selected + astro_selected
+                ]
                 agents = []
                 if "TechnicalAgent" in selected_names:
                     agents.append(TechnicalAgent())
@@ -294,12 +303,21 @@ class BacktestEngine:
                 if not agents:
                     agents = [TechnicalAgent()]
             else:
-                agents = [TechnicalAgent(), MacroAgent(), AstroCouncilAgent(), SentimentAgent(), OptionsFlowAgent(), ElliotAgent(), MLPredictorAgent()]
+                agents = [
+                    TechnicalAgent(),
+                    MacroAgent(),
+                    AstroCouncilAgent(),
+                    SentimentAgent(),
+                    OptionsFlowAgent(),
+                    ElliotAgent(),
+                    MLPredictorAgent(),
+                ]
 
             for i in range(len(candles)):
                 curr = candles[i]
                 signals_for_bar = []
                 for agent in agents:
+
                     async def mock_fetch(symbol, interval, limit, idx=i):
                         start = max(0, idx - limit + 1)
                         return candles[start : idx + 1]
@@ -310,15 +328,19 @@ class BacktestEngine:
                         raw_resp = await agent.run(state)
                         if isinstance(raw_resp, dict):
                             signal_data = raw_resp.get("astro_council_signal", raw_resp)
-                            resp = type('AgentResponse', (), signal_data)()
+                            resp = type("AgentResponse", (), signal_data)()
                         else:
                             resp = raw_resp
                     except Exception as e:
-                        resp = type('AgentResponse', (), {
-                            'signal': 'NEUTRAL',
-                            'confidence': 30,
-                            'reasoning': f'Agent error: {str(e)[:100]}',
-                        })()
+                        resp = type(
+                            "AgentResponse",
+                            (),
+                            {
+                                "signal": "NEUTRAL",
+                                "confidence": 30,
+                                "reasoning": f"Agent error: {str(e)[:100]}",
+                            },
+                        )()
                     signals_for_bar.append(resp)
 
                 chosen = None
@@ -329,13 +351,15 @@ class BacktestEngine:
                 if chosen is None:
                     chosen = signals_for_bar[0]
 
-                signals.append({
-                    "time": curr.dt,
-                    "price": curr.close,
-                    "signal": chosen.signal,
-                    "confidence": chosen.confidence,
-                    "reasoning": chosen.reasoning,
-                })
+                signals.append(
+                    {
+                        "time": curr.dt,
+                        "price": curr.close,
+                        "signal": chosen.signal,
+                        "confidence": chosen.confidence,
+                        "reasoning": chosen.reasoning,
+                    }
+                )
 
             if use_synthesis:
                 synthesis_agent = SynthesisAgent()
@@ -347,16 +371,32 @@ class BacktestEngine:
                         "current_price": candles[-1].close if candles else 0,
                     }
                     synth_result = await synthesis_agent.run(state_for_synth)
-                    final_signal = synth_result.signal if hasattr(synth_result, 'signal') else "NEUTRAL"
-                    final_confidence = synth_result.confidence if hasattr(synth_result, 'confidence') else 50
-                    final_reasoning = synth_result.reasoning if hasattr(synth_result, 'reasoning') else "Synthesis complete"
-                    signals = [{
-                        "time": candles[-1].dt if candles else datetime.now(timezone.utc),
-                        "price": candles[-1].close if candles else 0,
-                        "signal": final_signal,
-                        "confidence": final_confidence,
-                        "reasoning": final_reasoning,
-                    }]
+                    final_signal = (
+                        synth_result.signal
+                        if hasattr(synth_result, "signal")
+                        else "NEUTRAL"
+                    )
+                    final_confidence = (
+                        synth_result.confidence
+                        if hasattr(synth_result, "confidence")
+                        else 50
+                    )
+                    final_reasoning = (
+                        synth_result.reasoning
+                        if hasattr(synth_result, "reasoning")
+                        else "Synthesis complete"
+                    )
+                    signals = [
+                        {
+                            "time": candles[-1].dt
+                            if candles
+                            else datetime.now(timezone.utc),
+                            "price": candles[-1].close if candles else 0,
+                            "signal": final_signal,
+                            "confidence": final_confidence,
+                            "reasoning": final_reasoning,
+                        }
+                    ]
                 except Exception:
                     pass
         else:
@@ -428,7 +468,9 @@ class BacktestEngine:
                     exit_p = e - tp * e
                 if exit_r:
                     trades.append(
-                        self._make_trade(pos, signals[i + 1], exit_p, pnl * 100, exit_r, sid)
+                        self._make_trade(
+                            pos, signals[i + 1], exit_p, pnl * 100, exit_r, sid
+                        )
                     )
                     pos = None
                     continue
@@ -507,10 +549,14 @@ class BacktestEngine:
             win_rate=round(wins / total * 100, 2) if total else 0.0,
             avg_win_pct=round(sum(wl) / len(wl), 4) if wl else 0.0,
             avg_loss_pct=round(sum(ll) / len(ll), 4) if ll else 0.0,
-            total_return_pct=round((eq - self.initial_capital) / self.initial_capital * 100, 2),
+            total_return_pct=round(
+                (eq - self.initial_capital) / self.initial_capital * 100, 2
+            ),
             max_drawdown_pct=round(mdd, 2),
             sharpe_ratio=shr,
-            avg_confidence=round(sum(t.confidence for t in trades) / total, 1) if total else 0,
+            avg_confidence=round(sum(t.confidence for t in trades) / total, 1)
+            if total
+            else 0,
         )
 
     def _save(self, r):
@@ -540,7 +586,9 @@ class BacktestEngine:
             conn.commit()
 
 
-async def run_backtest(symbol="BTCUSDT", start_date="2025-01-01", end_date="2025-03-25"):
+async def run_backtest(
+    symbol="BTCUSDT", start_date="2025-01-01", end_date="2025-03-25"
+):
     return await BacktestEngine(symbol=symbol).run(start_date, end_date)
 
 

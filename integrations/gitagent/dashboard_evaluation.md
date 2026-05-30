@@ -1,7 +1,7 @@
 # Dashboard Evaluation: LangGraph vs n8n
 
-**Проект:** AstroFinSentinelV5 — MASFactory Topology & KARL Metrics Visualization  
-**Дата:** 2026-03-29  
+**Проект:** AstroFinSentinelV5 — MASFactory Topology & KARL Metrics Visualization
+**Дата:** 2026-03-29
 **Автор:** ATOM-GITAGENT-003
 
 ---
@@ -45,13 +45,13 @@ from mas_factory.topology import Topology
 
 def masfactory_to_langgraph(topology: Topology) -> StateGraph:
     graph = StateGraph(MASState)
-    
+
     for role in topology.roles:
         graph.add_node(role.name, masfactory_role_executor(role))
-    
+
     for conn in topology.connections:
         graph.add_edge(conn.from_node, conn.to_node)
-    
+
     return graph.compile()
 ```
 
@@ -62,13 +62,13 @@ def masfactory_to_langgraph(topology: Topology) -> StateGraph:
 def visualize_karl_metrics(checkpoint: Checkpoint):
     """Визуализация KARL decision chain."""
     graph = get_graph()
-    
+
     # Highlight nodes by uncertainty
     for node in graph.nodes:
         kpi = get_karl_kpi(node.state)
         color = uncertainty_to_color(kpi.uncertainty_total)
         node.style = {"fill": color}
-    
+
     return graph.draw_mermaid()
 ```
 
@@ -136,13 +136,13 @@ import json
 
 def export_topology_for_dashboard(topology: Topology):
     """Экспорт MASFactory topology в формат для dashboard."""
-    
+
     # 1. LangGraph
     graph = masfactory_to_langgraph(topology)
-    
+
     # 2. Mermaid diagram
     mermaid = graph.get_graph().draw_mermaid()
-    
+
     # 3. Interactive D3.js visualization
     nodes = []
     edges = []
@@ -158,7 +158,7 @@ def export_topology_for_dashboard(topology: Topology):
             "source": conn.from_node,
             "target": conn.to_node,
         })
-    
+
     return {
         "mermaid": mermaid,
         "d3": {"nodes": nodes, "edges": edges},
@@ -176,22 +176,22 @@ def export_topology_for_dashboard(topology: Topology):
 # KARL metrics → Grafana/Prometheus
 def export_karl_metrics(karl_state: KPIControlState) -> Dict:
     """Экспорт KARL KPIs в Prometheus format."""
-    
+
     metrics = {
         # OAP metrics
         f"karl_oap_ttc_depth": karl_state.current_ttc_depth,
         f"karl_oap_exploration": karl_state.current_exploration_rate,
         f"karl_oap_grounding": karl_state.current_grounding_strength,
-        
+
         # Regime stability
         f"karl_uncertainty_total": karl_state.uncertainty_avg,
         f"karl_entropy": karl_state.entropy_avg,
         f"karl_oos_fail_rate": karl_state.oos_fail_rate,
-        
+
         # Rewards
         f"karl_reward_ema": karl_state.reward_state.ema_reward,
     }
-    
+
     return metrics  # Push to Prometheus/Grafana
 ```
 

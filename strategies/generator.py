@@ -1,4 +1,5 @@
 """strategies/generator.py — ATOM-STEP-11: Strategy Generator (Genetic Programming)"""
+
 import random
 from dataclasses import dataclass, field
 from typing import Optional
@@ -8,6 +9,7 @@ import numpy as np
 from strategies.base import BaseStrategy, Regime, Signal, StrategyConfig, StrategyResult
 
 # ── Gene definitions ──────────────────────────────────────────────────────
+
 
 @dataclass
 class Gene:
@@ -19,18 +21,31 @@ class Gene:
     options: list = field(default_factory=list)
     mutation_scale: float = 0.2
 
+
 GENES = {
-    "confidence_threshold": Gene("confidence_threshold", "float", 60.0, 40.0, 85.0, mutation_scale=5.0),
-    "position_size_pct": Gene("position_size_pct", "float", 15.0, 5.0, 30.0, mutation_scale=3.0),
-    "regime_filter": Gene("regime_filter", "choice", "ALL", options=["ALL", "BULL_ONLY", "BEAR_ONLY"]),
+    "confidence_threshold": Gene(
+        "confidence_threshold", "float", 60.0, 40.0, 85.0, mutation_scale=5.0
+    ),
+    "position_size_pct": Gene(
+        "position_size_pct", "float", 15.0, 5.0, 30.0, mutation_scale=3.0
+    ),
+    "regime_filter": Gene(
+        "regime_filter", "choice", "ALL", options=["ALL", "BULL_ONLY", "BEAR_ONLY"]
+    ),
     "signal_weights_bull": Gene("signal_weights_bull", "float", 0.7, 0.0, 1.0),
     "signal_weights_bear": Gene("signal_weights_bear", "float", 0.5, 0.0, 1.0),
-    "atr_multiplier": Gene("atr_multiplier", "float", 2.0, 1.0, 4.0, mutation_scale=0.3),
+    "atr_multiplier": Gene(
+        "atr_multiplier", "float", 2.0, 1.0, 4.0, mutation_scale=0.3
+    ),
     "use_momentum": Gene("use_momentum", "choice", True, options=[True, False]),
-    "use_mean_reversion": Gene("use_mean_reversion", "choice", False, options=[True, False]),
+    "use_mean_reversion": Gene(
+        "use_mean_reversion", "choice", False, options=[True, False]
+    ),
     "lookback_fast": Gene("lookback_fast", "int", 10, 3, 30),
     "lookback_slow": Gene("lookback_slow", "int", 50, 20, 200),
-    "entry_confirmation_required": Gene("entry_confirmation_required", "choice", True, options=[True, False]),
+    "entry_confirmation_required": Gene(
+        "entry_confirmation_required", "choice", True, options=[True, False]
+    ),
 }
 
 CHROMOSOME_KEYS = list(GENES.keys())
@@ -62,10 +77,14 @@ def mutate(chromosome: dict, rate: float = 0.15) -> dict:
             gene = GENES[k]
             if gene.type == "float":
                 delta = random.uniform(-1, 1) * gene.mutation_scale
-                chromosome[k] = float(np.clip(chromosome[k] + delta, gene.range_min, gene.range_max))
+                chromosome[k] = float(
+                    np.clip(chromosome[k] + delta, gene.range_min, gene.range_max)
+                )
             elif gene.type == "int":
                 delta = random.choice([-1, 1]) * random.randint(1, 3)
-                chromosome[k] = int(np.clip(chromosome[k] + delta, gene.range_min, gene.range_max))
+                chromosome[k] = int(
+                    np.clip(chromosome[k] + delta, gene.range_min, gene.range_max)
+                )
             elif gene.type == "choice":
                 chromosome[k] = random.choice(gene.options)
     return chromosome
@@ -73,8 +92,11 @@ def mutate(chromosome: dict, rate: float = 0.15) -> dict:
 
 # ── Strategy from chromosome ──────────────────────────────────────────────
 
+
 class GeneratedStrategy(BaseStrategy):
-    def __init__(self, chromosome: dict, generation: int = 1, parent_fitness: float = 0.0):
+    def __init__(
+        self, chromosome: dict, generation: int = 1, parent_fitness: float = 0.0
+    ):
         cfg = StrategyConfig(
             name=f"gen_{generation}",
             description=self._build_description(chromosome),
@@ -106,9 +128,13 @@ class GeneratedStrategy(BaseStrategy):
         # Regime filter
         rf = c["regime_filter"]
         if rf == "BULL_ONLY" and regime != Regime.BULL:
-            return StrategyResult(Signal.NEUTRAL, 0, "Regime filter: not bull market", regime)
+            return StrategyResult(
+                Signal.NEUTRAL, 0, "Regime filter: not bull market", regime
+            )
         if rf == "BEAR_ONLY" and regime != Regime.BEAR:
-            return StrategyResult(Signal.NEUTRAL, 0, "Regime filter: not bear market", regime)
+            return StrategyResult(
+                Signal.NEUTRAL, 0, "Regime filter: not bear market", regime
+            )
 
         # Signal computation
         long_thresh = 100 - c["confidence_threshold"]
@@ -145,9 +171,11 @@ class GeneratedStrategy(BaseStrategy):
         )
 
         return StrategyResult(
-            signal=signal, confidence=conf,
-            reasoning=reasoning, regime=regime,
-            metadata={"chromosome": c, "score": score}
+            signal=signal,
+            confidence=conf,
+            reasoning=reasoning,
+            regime=regime,
+            metadata={"chromosome": c, "score": score},
         )
 
     @property
@@ -209,7 +237,11 @@ class GeneratedStrategy(BaseStrategy):
                 params=cfg_dict.get("params", {}),
             )
 
-            strategy = cls(chromosome=chromosome, generation=generation, parent_fitness=parent_fitness)
+            strategy = cls(
+                chromosome=chromosome,
+                generation=generation,
+                parent_fitness=parent_fitness,
+            )
             # Reconstruct config manually (override what __init__ set)
             strategy.config = cfg
             strategy._enabled = cfg.enabled
@@ -217,12 +249,16 @@ class GeneratedStrategy(BaseStrategy):
 
         except Exception:
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.warning(f"[META-RL-SERIAL] Failed to deserialize strategy, generating random: {d.get('generation', '?')}")
+            logger.warning(
+                f"[META-RL-SERIAL] Failed to deserialize strategy, generating random: {d.get('generation', '?')}"
+            )
             return cls(chromosome=random_chromosome(), generation=1, parent_fitness=0.0)
 
 
 # ── Genetic Algorithm ──────────────────────────────────────────────────────
+
 
 @dataclass
 class GAPopulation:
@@ -267,7 +303,12 @@ def evolve(
 
     for gen in range(1, n_generations + 1):
         # Elitism
-        sorted_strategies = [s for s, f in sorted(zip(pop.strategies, pop.fitnesses), key=lambda x: x[1], reverse=True)]
+        sorted_strategies = [
+            s
+            for s, f in sorted(
+                zip(pop.strategies, pop.fitnesses), key=lambda x: x[1], reverse=True
+            )
+        ]
         new_pop = list(sorted_strategies[:elite_size])
         current_gen = sorted_strategies[0].generation
 
@@ -276,7 +317,9 @@ def evolve(
             b = select_parents(pop)
             child_chromosome = crossover(a.chromosome, b.chromosome)
             child_chromosome = mutate(child_chromosome, rate=mutation_rate)
-            child = GeneratedStrategy(child_chromosome, generation=current_gen + 1, parent_fitness=a.fitness)
+            child = GeneratedStrategy(
+                child_chromosome, generation=current_gen + 1, parent_fitness=a.fitness
+            )
             new_pop.append(child)
 
         pop = GAPopulation(strategies=new_pop, fitnesses=[0.0] * len(new_pop))
@@ -290,11 +333,18 @@ def evolve(
         history.append(best_ever[1])
 
         if gen % 5 == 0 or gen == n_generations or pop.avg_fitness == pop.best[1]:
-            print(f"  Gen {gen:3d}: avg={pop.avg_fitness:8.2f}  best={pop.best[1]:8.2f}  "
-                  f"spread={max(pop.fitnesses)-min(pop.fitnesses):8.2f}")
+            print(
+                f"  Gen {gen:3d}: avg={pop.avg_fitness:8.2f}  best={pop.best[1]:8.2f}  "
+                f"spread={max(pop.fitnesses) - min(pop.fitnesses):8.2f}"
+            )
 
     print(f"\n  Best strategy fitness: {best_ever[1]:.2f}")
-    return [s for s, f in sorted(zip(pop.strategies, pop.fitnesses), key=lambda x: x[1], reverse=True)]
+    return [
+        s
+        for s, f in sorted(
+            zip(pop.strategies, pop.fitnesses), key=lambda x: x[1], reverse=True
+        )
+    ]
 
 
 def fitness_from_backtest(strategy: GeneratedStrategy, market_history: list) -> float:
@@ -349,7 +399,9 @@ def fitness_from_backtest(strategy: GeneratedStrategy, market_history: list) -> 
 
     total_return = (equity - 100_000.0) / 100_000.0
     win_rate = wins / max(1, total)
-    sharpe = total_return / max(0.01, max_dd + 0.001) if total_return > 0 else -max_dd * 5
+    sharpe = (
+        total_return / max(0.01, max_dd + 0.001) if total_return > 0 else -max_dd * 5
+    )
 
     fitness = sharpe * win_rate * 100 - max_dd * 50
     return max(-500.0, fitness)
@@ -365,14 +417,22 @@ def generate_synthetic_history(n_days: int = 252) -> list:
         regimes = [Regime.BULL, Regime.BEAR, Regime.NEUTRAL_R, Regime.VOLATILE]
         regime = random.choice(regimes)
 
-        drift = {"BULL": 0.001, "BEAR": -0.0008, "NEUTRAL": 0.0001, "VOLATILE": 0.0002}[regime.value]
-        vol = {"BULL": 0.015, "BEAR": 0.018, "NEUTRAL": 0.010, "VOLATILE": 0.030}[regime.value]
+        drift = {"BULL": 0.001, "BEAR": -0.0008, "NEUTRAL": 0.0001, "VOLATILE": 0.0002}[
+            regime.value
+        ]
+        vol = {"BULL": 0.015, "BEAR": 0.018, "NEUTRAL": 0.010, "VOLATILE": 0.030}[
+            regime.value
+        ]
 
         ret = np.random.normal(drift, vol)
         open_price = price
         close_price = price * (1 + ret)
-        high_price = max(open_price, close_price) * (1 + abs(np.random.normal(0, vol / 2)))
-        low_price = min(open_price, close_price) * (1 - abs(np.random.normal(0, vol / 2)))
+        high_price = max(open_price, close_price) * (
+            1 + abs(np.random.normal(0, vol / 2))
+        )
+        low_price = min(open_price, close_price) * (
+            1 - abs(np.random.normal(0, vol / 2))
+        )
         volume = np.random.uniform(1000, 5000)
 
         price = close_price
@@ -380,32 +440,47 @@ def generate_synthetic_history(n_days: int = 252) -> list:
         mom = np.random.uniform(-0.1, 0.1) + (0.05 if regime == Regime.BULL else -0.05)
         mr = np.random.uniform(-0.05, 0.05)
 
-        signal_base = 50.0 + (25.0 if regime == Regime.BULL else -20.0 if regime == Regime.BEAR else 0.0)
-        history.append({
-            "open": open_price,
-            "high": high_price,
-            "low": low_price,
-            "close": close_price,
-            "volume": volume,
-            "regime": regime,  # Regime enum (not string) — required by GeneratedStrategy.evaluate()
-            "signal_strength": signal_base + np.random.uniform(-15, 15),
-            "momentum": mom + (0.08 if regime == Regime.BULL else -0.06 if regime == Regime.BEAR else 0),
-            "mean_reversion_signal": mr,
-            "atr": close_price * 0.02,
-            "timestamp": i,  # bar index for _get_timestamp
-        })
+        signal_base = 50.0 + (
+            25.0 if regime == Regime.BULL else -20.0 if regime == Regime.BEAR else 0.0
+        )
+        history.append(
+            {
+                "open": open_price,
+                "high": high_price,
+                "low": low_price,
+                "close": close_price,
+                "volume": volume,
+                "regime": regime,  # Regime enum (not string) — required by GeneratedStrategy.evaluate()
+                "signal_strength": signal_base + np.random.uniform(-15, 15),
+                "momentum": mom
+                + (
+                    0.08
+                    if regime == Regime.BULL
+                    else -0.06
+                    if regime == Regime.BEAR
+                    else 0
+                ),
+                "mean_reversion_signal": mr,
+                "atr": close_price * 0.02,
+                "timestamp": i,  # bar index for _get_timestamp
+            }
+        )
 
     return history
 
 
-def run_meta_rl(n_generations: int = 25, population_size: int = 20) -> list[GeneratedStrategy]:
+def run_meta_rl(
+    n_generations: int = 25, population_size: int = 20
+) -> list[GeneratedStrategy]:
     """Run the full Meta-RL pipeline."""
     print("=" * 60)
     print("ATOM-STEP-11: META-RL AUTO-STRATEGY")
     print("=" * 60)
     print(f"  Population: {population_size}  Generations: {n_generations}")
 
-    population = [GeneratedStrategy(random_chromosome()) for _ in range(population_size)]
+    population = [
+        GeneratedStrategy(random_chromosome()) for _ in range(population_size)
+    ]
     history = generate_synthetic_history(252)
 
     def fitness_fn(s):
@@ -417,10 +492,12 @@ def run_meta_rl(n_generations: int = 25, population_size: int = 20) -> list[Gene
     print("\n  Top 3 strategies:")
     for i, s in enumerate(best_strategies[:3], 1):
         c = s.chromosome
-        print(f"    {i}. Fitness={s.fitness:.2f} | "
-              f"conf={c['confidence_threshold']:.0f} pos={c['position_size_pct']:.0f}% "
-              f"regime={c['regime_filter']} atr={c['atr_multiplier']:.1f} "
-              f"mom={'Y' if c['use_momentum'] else 'N'}")
+        print(
+            f"    {i}. Fitness={s.fitness:.2f} | "
+            f"conf={c['confidence_threshold']:.0f} pos={c['position_size_pct']:.0f}% "
+            f"regime={c['regime_filter']} atr={c['atr_multiplier']:.1f} "
+            f"mom={'Y' if c['use_momentum'] else 'N'}"
+        )
 
     return best_strategies
 

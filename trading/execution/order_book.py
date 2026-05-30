@@ -1,4 +1,5 @@
 """trading/execution/order_book.py — ATOM-STEP-10: Order Book & Market Impact Model"""
+
 from __future__ import annotations
 
 import math
@@ -16,6 +17,7 @@ class OrderBookLevel:
 @dataclass
 class OrderBookSnapshot:
     """Full order book state."""
+
     bids: list[OrderBookLevel]  # sorted descending by price
     asks: list[OrderBookLevel]  # sorted ascending by price
     spread: float = field(init=False)
@@ -35,14 +37,15 @@ class OrderBookSnapshot:
 @dataclass
 class MarketImpactResult:
     """Estimated market impact of a trade."""
-    base_price: float          # mid-price before trade
-    slippage_bps: float        # slippage in basis points
-    slippage_cost: float        # absolute slippage cost
-    market_impact_cost: float   # market impact cost
-    total_cost: float           # total execution cost
-    price_after_trade: float    # expected price after trade
-    filled_qty: float           # actual filled quantity
-    participation_rate: float   # order size relative to ADV
+
+    base_price: float  # mid-price before trade
+    slippage_bps: float  # slippage in basis points
+    slippage_cost: float  # absolute slippage cost
+    market_impact_cost: float  # market impact cost
+    total_cost: float  # total execution cost
+    price_after_trade: float  # expected price after trade
+    filled_qty: float  # actual filled quantity
+    participation_rate: float  # order size relative to ADV
 
 
 class OrderBookSimulator:
@@ -91,7 +94,7 @@ class OrderBookSimulator:
 
     def estimate_market_impact(
         self,
-        side: str,           # "buy" or "sell"
+        side: str,  # "buy" or "sell"
         qty: float,
         num_slices: int = 10,
         base_price: Optional[float] = None,
@@ -135,7 +138,9 @@ class OrderBookSimulator:
 
         # ── Total ───────────────────────────────────────────────────────────
         total_bps = abs(temp_impact_bps) + abs(perm_impact_bps) + spread_cost_bps
-        total_cost = (total_bps / 10000) * price * slice_qty * num_slices / qty if qty else 0
+        total_cost = (
+            (total_bps / 10000) * price * slice_qty * num_slices / qty if qty else 0
+        )
         slippage_bps = abs(temp_impact_bps) + spread_cost_bps
 
         # ── Price after trade ───────────────────────────────────────────────
@@ -148,7 +153,10 @@ class OrderBookSimulator:
             base_price=price,
             slippage_bps=slippage_bps,
             slippage_cost=slippage_bps / 10000 * price * qty,
-            market_impact_cost=(abs(temp_impact_bps) + abs(perm_impact_bps)) / 10000 * price * qty,
+            market_impact_cost=(abs(temp_impact_bps) + abs(perm_impact_bps))
+            / 10000
+            * price
+            * qty,
             total_cost=total_cost if qty else 0,
             price_after_trade=round(price_after, 4),
             filled_qty=qty,
@@ -160,7 +168,7 @@ class OrderBookSimulator:
         side: str,
         qty: float,
         base_price: Optional[float] = None,
-       流动性_factor: float = 1.0,
+        流动性_factor: float = 1.0,
     ) -> tuple[float, float, float]:
         """Simulate executing a single slice against the order book.
 
@@ -212,7 +220,11 @@ class MarketImpactModel:
         self.volatility_bps = volatility_bps
         self.adv = adv
         self.eta = 0.5 * volatility_bps / 10000
-        self.gamma = self.eta * permanent_frac / (1 - permanent_frac) if permanent_frac < 1 else self.eta
+        self.gamma = (
+            self.eta * permanent_frac / (1 - permanent_frac)
+            if permanent_frac < 1
+            else self.eta
+        )
         self.spread_bps = spread_bps
 
     def estimate(self, side: str, qty: float, price: float) -> dict:
@@ -255,13 +267,17 @@ class MarketImpactModel:
         }
 
     def __repr__(self) -> str:
-        return (f"MarketImpactModel(vol={self.volatility_bps}bps, "
-                f"ADV={self.adv}, eta={self.eta:.4f})")
+        return (
+            f"MarketImpactModel(vol={self.volatility_bps}bps, "
+            f"ADV={self.adv}, eta={self.eta:.4f})"
+        )
 
 
 if __name__ == "__main__":
     print("=== OrderBookSimulator ===")
-    sim = OrderBookSimulator(mid_price=50000, spread_bps=5, depth_per_level=500, adv=10000)
+    sim = OrderBookSimulator(
+        mid_price=50000, spread_bps=5, depth_per_level=500, adv=10000
+    )
     book = sim.build_snapshot()
     print(f"  Mid price: {book.mid_price}, Spread: {book.spread:.2f}")
     print(f"  Top 3 bids: {[round(l.price, 2) for l in book.bids[:3]]}")
@@ -277,5 +293,7 @@ if __name__ == "__main__":
     m = MarketImpactModel(volatility_bps=100, adv=50000)
     for side, qty in [("buy", 100), ("buy", 1000), ("sell", 500)]:
         r = m.estimate(side, qty, 50000)
-        print(f"  {side.upper()} {qty} units: {r['slippage_bps']:.2f}bps, "
-              f"${r['impact_cost']:.2f} cost, participation={r['participation_rate']:.1f}%")
+        print(
+            f"  {side.upper()} {qty} units: {r['slippage_bps']:.2f}bps, "
+            f"${r['impact_cost']:.2f} cost, participation={r['participation_rate']:.1f}%"
+        )

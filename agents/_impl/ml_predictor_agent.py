@@ -61,7 +61,7 @@ class MLPredictorAgent(BaseAgent[AgentResponse]):
             confidence = direction_pred["confidence"]
         else:
             direction = SignalDirection.NEUTRAL
-            confidence=40
+            confidence = 40
 
         reasoning = (
             f"ML Direction: {direction_pred['direction']} ({direction_pred['confidence']:.0%}). "
@@ -89,7 +89,14 @@ class MLPredictorAgent(BaseAgent[AgentResponse]):
         """Fetch price data for ML model."""
         try:
             import requests
-            interval_map = {"1H": "1h", "4H": "4h", "1D": "1d", "1W": "1w", "SWING": "1d"}
+
+            interval_map = {
+                "1H": "1h",
+                "4H": "4h",
+                "1D": "1d",
+                "1W": "1w",
+                "SWING": "1d",
+            }
             interval = interval_map.get(timeframe, "1d")
             url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
             resp = requests.get(url, timeout=10)
@@ -116,19 +123,19 @@ class MLPredictorAgent(BaseAgent[AgentResponse]):
         # Signals from MA crossover
         if ma_short > ma_medium > ma_long:
             direction = "up"
-            confidence=65
+            confidence = 65
         elif ma_short < ma_medium < ma_long:
             direction = "down"
-            confidence=65
+            confidence = 65
         elif ma_short > ma_medium:
             direction = "up"
-            confidence=55
+            confidence = 55
         elif ma_short < ma_medium:
             direction = "down"
-            confidence=55
+            confidence = 55
         else:
             direction = "neutral"
-            confidence=45
+            confidence = 45
 
         # Distance from MAs (overbought/oversold)
         if current > ma_short * 1.05:
@@ -172,7 +179,11 @@ class MLPredictorAgent(BaseAgent[AgentResponse]):
         lower = current_price * np.exp(-z * std)
         upper = current_price * np.exp(z * std)
 
-        return {"lower": lower, "upper": upper, "width_pct": round((upper - lower) / current_price * 100, 1)}
+        return {
+            "lower": lower,
+            "upper": upper,
+            "width_pct": round((upper - lower) / current_price * 100, 1),
+        }
 
 
 async def run_ml_predictor_agent(state: dict) -> dict:

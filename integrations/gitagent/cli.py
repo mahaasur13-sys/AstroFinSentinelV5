@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """GitAgent CLI — export-all + roundtrip + list. ATOM-GITAGENT-005."""
+
 import argparse
 import logging
 import sys

@@ -105,13 +105,19 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             confidence=avg_confidence,
             reasoning=reasoning,
             sources=["technical/rsi_macd.md", "technical/bollinger.md"],
-            metadata={"rsi": rsi, "macd": macd, "bollinger": bb, "volume": volume_profile},
+            metadata={
+                "rsi": rsi,
+                "macd": macd,
+                "bollinger": bb,
+                "volume": volume_profile,
+            },
         )
 
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         """Fetch OHLCV data from Binance."""
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
@@ -126,7 +132,7 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             return 50.0
 
         closes = [d[0] for d in data]
-        deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
 
         gains = [d if d > 0 else 0 for d in deltas[-period:]]
         losses = [-d if d < 0 else 0 for d in deltas[-period:]]
@@ -141,7 +147,9 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         rsi = 100 - (100 / (1 + rs))
         return rsi
 
-    def _calculate_macd(self, data: list, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
+    def _calculate_macd(
+        self, data: list, fast: int = 12, slow: int = 26, signal: int = 9
+    ) -> dict:
         """Calculate MACD."""
         if len(data) < slow + signal:
             return {"macd": 0, "signal": 0, "histogram": 0}
@@ -168,7 +176,9 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             "histogram": macd_line - signal_line,
         }
 
-    def _calculate_bollinger(self, data: list, period: int = 20, std_dev: int = 2) -> dict:
+    def _calculate_bollinger(
+        self, data: list, period: int = 20, std_dev: int = 2
+    ) -> dict:
         """Calculate Bollinger Bands."""
         if len(data) < period:
             return {"upper": 0, "middle": 0, "lower": 0}
@@ -177,7 +187,7 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         middle = sum(closes) / period
 
         variance = sum((c - middle) ** 2 for c in closes) / period
-        std = variance ** 0.5
+        std = variance**0.5
 
         return {
             "upper": middle + std_dev * std,
@@ -204,7 +214,7 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         return {"trend": trend, "recent_avg": recent_vol, "older_avg": older_vol}
 
 
-@track_agent_duration('MarketAnalyst')
+@track_agent_duration("MarketAnalyst")
 async def run_market_analyst(state: dict) -> dict:
     """Runner for orchestrator."""
     agent = MarketAnalystAgent()

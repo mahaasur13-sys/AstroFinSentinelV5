@@ -7,6 +7,7 @@ Features:
 - Graceful fallback to SQLite if PostgreSQL unavailable
 - Idempotent: safe to run multiple times
 """
+
 import logging
 from pathlib import Path
 
@@ -26,10 +27,10 @@ def apply_raw_sql_schema(engine) -> bool:
             return False
 
         sql_text = _SCHEMA_SQL.read_text()
-        
+
         # Split on semicolons, filter empty statements
         statements = [s.strip() for s in sql_text.split(";") if s.strip()]
-        
+
         with engine.connect() as conn:
             for stmt in statements:
                 if stmt.startswith("--") or not stmt:
@@ -41,7 +42,7 @@ def apply_raw_sql_schema(engine) -> bool:
                     if "already exists" not in str(e):
                         logger.debug(f"[DB-INIT] Statement error (non-fatal): {e}")
             conn.commit()
-        
+
         logger.info(f"[DB-INIT] Applied schema from {_SCHEMA_SQL.name}")
         return True
     except Exception as e:
@@ -65,16 +66,20 @@ def init_schema_if_needed() -> bool:
 
         # Check if sessions table exists
         from sqlalchemy import inspect
+
         inspector = inspect(engine)
         existing = inspector.get_table_names()
-        
+
         if existing:
-            logger.info(f"[DB-INIT] PostgreSQL tables already exist ({len(existing)} tables)")
+            logger.info(
+                f"[DB-INIT] PostgreSQL tables already exist ({len(existing)} tables)"
+            )
             return True
 
         # Try SQLAlchemy create_all first
         try:
             from db.models import Base
+
             Base.metadata.create_all(engine)
             logger.info("[DB-INIT] Created tables via SQLAlchemy Base.create_all()")
             return True
@@ -93,6 +98,7 @@ def _init_sqlite_fallback() -> bool:
     """Ensure SQLite history.db exists for fallback mode."""
     try:
         from core.history_db import _db_path
+
         path = _db_path()
         path.parent.mkdir(exist_ok=True)
         if not path.exists():
@@ -153,6 +159,7 @@ def get_db_status() -> dict:
 
     try:
         from db.session import is_postgres_available
+
         status["postgres_available"] = is_postgres_available()
         status["backend"] = "postgresql" if status["postgres_available"] else "sqlite"
     except Exception:

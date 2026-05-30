@@ -11,14 +11,15 @@ from pydantic import BaseModel, Field
 
 class QueryType(Enum):
     """Типы запросов, которые роутер должен распознавать."""
-    TECHNICAL_ONLY = "technical_only"      # Только тех.анализ
-    ASTRO_ONLY = "astro_only"             # Только астрология
-    ELECTIONAL_ONLY = "electional_only"   # Только электоральная
-    FULL_ANALYSIS = "full_analysis"       # Полный анализ (все потоки)
-    SINGLE_SYMBOL = "single_symbol"       # Анализ одного символа
-    MULTI_SYMBOL = "multi_symbol"         # Сравнение нескольких
-    MARKET_SCAN = "market_scan"           # Сканирование рынка
-    MUHURTA_QUERY = "muhurta_query"       # Поиск благоприятного момента
+
+    TECHNICAL_ONLY = "technical_only"  # Только тех.анализ
+    ASTRO_ONLY = "astro_only"  # Только астрология
+    ELECTIONAL_ONLY = "electional_only"  # Только электоральная
+    FULL_ANALYSIS = "full_analysis"  # Полный анализ (все потоки)
+    SINGLE_SYMBOL = "single_symbol"  # Анализ одного символа
+    MULTI_SYMBOL = "multi_symbol"  # Сравнение нескольких
+    MARKET_SCAN = "market_scan"  # Сканирование рынка
+    MUHURTA_QUERY = "muhurta_query"  # Поиск благоприятного момента
 
 
 class RouterOutput(BaseModel):
@@ -35,7 +36,7 @@ class RouterOutput(BaseModel):
 def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput:
     """
     Роутит пользовательский запрос в нужный тип.
-    
+
     Правила:
     - Если спрашивают "когда лучше начать" / "мухурта" / "элекция" → ELECTIONAL_ONLY
     - Если спрашивают "BTC" без астрологии → TECHNICAL_ONLY
@@ -44,20 +45,39 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
     """
     query_lower = user_query.lower()
     context = context or {}
-    
+
     # Определяем тип запроса
     electional_keywords = [
-        "когда начать", "мухурта", "элекция", "благоприятн",
-        "лучшее время", "начать бизнес", "запустить",
-        "when", "election", "muhurta", "choghadiya",
+        "когда начать",
+        "мухурта",
+        "элекция",
+        "благоприятн",
+        "лучшее время",
+        "начать бизнес",
+        "запустить",
+        "when",
+        "election",
+        "muhurta",
+        "choghadiya",
     ]
-    
+
     technical_keywords = [
-        "анализ", "прогноз", "технич", "rsi", "macd",
-        "bollinger", "волны", "эллиотт", "gann",
-        "signal", "buy", "sell", "short", "long",
+        "анализ",
+        "прогноз",
+        "технич",
+        "rsi",
+        "macd",
+        "bollinger",
+        "волны",
+        "эллиотт",
+        "gann",
+        "signal",
+        "buy",
+        "sell",
+        "short",
+        "long",
     ]
-    
+
     # Symbol extraction (common crypto/ stock patterns)
     symbols = []
     if "btc" in query_lower or "bitcoin" in query_lower:
@@ -72,7 +92,7 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
         symbols.append("SPY")
     if "nasdaq" in query_lower or "qqq" in query_lower:
         symbols.append("QQQ")
-    
+
     # Determine query type
     has_electional = any(kw in query_lower for kw in electional_keywords)
     has_technical = any(kw in query_lower for kw in technical_keywords)
@@ -115,7 +135,9 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
             confidence_threshold=context.get("confidence_threshold", 0.5),
         )
     elif has_technical or symbols:
-        query_type = QueryType.SINGLE_SYMBOL if len(symbols) == 1 else QueryType.MULTI_SYMBOL
+        query_type = (
+            QueryType.SINGLE_SYMBOL if len(symbols) == 1 else QueryType.MULTI_SYMBOL
+        )
         include_technical = True
         include_astro = context.get("include_astro", True)
         include_electional = False
@@ -124,7 +146,7 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
         include_technical = True
         include_astro = True
         include_electional = context.get("include_electional", False)
-    
+
     return RouterOutput(
         query_type=query_type,
         symbols=symbols if symbols else ["BTCUSDT"],

@@ -78,7 +78,7 @@ class OptionsFlowAgent(BaseAgent[AgentResponse]):
         else:
             direction = SignalDirection.NEUTRAL
 
-        confidence=int(sum(scores)/len(scores) * 100)
+        confidence = int(sum(scores) / len(scores) * 100)
 
         reasoning = (
             f"GEX: {gex_analysis['summary']}. "
@@ -123,13 +123,13 @@ class OptionsFlowAgent(BaseAgent[AgentResponse]):
 
         if gex > 500_000_000:
             signal = "bullish"
-            summary = f"High +GEX ${gex/1e6:.0f}M (dealers hedging upside)"
+            summary = f"High +GEX ${gex / 1e6:.0f}M (dealers hedging upside)"
         elif gex < -500_000_000:
             signal = "bearish"
-            summary = f"High -GEX ${gex/1e6:.0f}M (dealers hedging downside)"
+            summary = f"High -GEX ${gex / 1e6:.0f}M (dealers hedging downside)"
         else:
             signal = "neutral"
-            summary = f"Low GEX ${gex/1e6:.0f}M (balanced)"
+            summary = f"Low GEX ${gex / 1e6:.0f}M (balanced)"
 
         return {"signal": signal, "gex": gex, "summary": summary}
 

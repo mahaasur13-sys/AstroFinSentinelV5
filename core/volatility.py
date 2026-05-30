@@ -35,56 +35,57 @@ logger = logging.getLogger(__name__)
 
 
 class VolatilityRegime(Enum):
-    LOW     = "LOW"      # σ < 1.5%  — calm market
-    NORMAL  = "NORMAL"   # 1.5% ≤ σ < 3%
-    HIGH    = "HIGH"     # 3% ≤ σ < 5%
+    LOW = "LOW"  # σ < 1.5%  — calm market
+    NORMAL = "NORMAL"  # 1.5% ≤ σ < 3%
+    HIGH = "HIGH"  # 3% ≤ σ < 5%
     EXTREME = "EXTREME"  # σ ≥ 5%   — crisis / black swan
 
 
 # ─── Risk matrix ────────────────────────────────────────────────────────────────
 
 REGIME_RISK_PCT = {
-    VolatilityRegime.LOW:     0.03,   # 3% risk — can size up
-    VolatilityRegime.NORMAL:  0.02,   # 2% risk — baseline
-    VolatilityRegime.HIGH:    0.01,   # 1% risk — halve exposure
+    VolatilityRegime.LOW: 0.03,  # 3% risk — can size up
+    VolatilityRegime.NORMAL: 0.02,  # 2% risk — baseline
+    VolatilityRegime.HIGH: 0.01,  # 1% risk — halve exposure
     VolatilityRegime.EXTREME: 0.005,  # 0.5% risk — near-zero
 }
 
 REGIME_POSITION_KELLY_MULT = {
-    VolatilityRegime.LOW:     1.0,
-    VolatilityRegime.NORMAL:  0.75,
-    VolatilityRegime.HIGH:    0.50,
+    VolatilityRegime.LOW: 1.0,
+    VolatilityRegime.NORMAL: 0.75,
+    VolatilityRegime.HIGH: 0.50,
     VolatilityRegime.EXTREME: 0.20,
 }
 
 REGIME_CONFIDENCE_DROP = {
-    VolatilityRegime.LOW:     0,
-    VolatilityRegime.NORMAL:  0,
-    VolatilityRegime.HIGH:    10,
+    VolatilityRegime.LOW: 0,
+    VolatilityRegime.NORMAL: 0,
+    VolatilityRegime.HIGH: 10,
     VolatilityRegime.EXTREME: 25,
 }
 
 REGIME_STOP_MULTIPLIER = {
     # stop = price * (1 ± regime_stop_mult[regime])
-    VolatilityRegime.LOW:     0.025,   # 2.5% stop distance
-    VolatilityRegime.NORMAL:  0.020,   # 2% stop distance
-    VolatilityRegime.HIGH:    0.030,   # 3% stop distance (wider — false spikes)
-    VolatilityRegime.EXTREME: 0.050,   # 5% stop distance
+    VolatilityRegime.LOW: 0.025,  # 2.5% stop distance
+    VolatilityRegime.NORMAL: 0.020,  # 2% stop distance
+    VolatilityRegime.HIGH: 0.030,  # 3% stop distance (wider — false spikes)
+    VolatilityRegime.EXTREME: 0.050,  # 5% stop distance
 }
 
 
 # ─── Core dataclass ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class VolatilityRisk:
     regime: VolatilityRegime
-    risk_pct: float          # position risk fraction
-    position_size: float     # kelly-based position size
-    atr_pct: float           # ATR as % of price (volatility measure)
+    risk_pct: float  # position risk fraction
+    position_size: float  # kelly-based position size
+    atr_pct: float  # ATR as % of price (volatility measure)
     stop_distance_pct: float
-    confidence_drop: int    # V-06 penalty
-    kelly_raw: float         # pre-dampening Kelly fraction
-    kelly_adjusted: float    # post-dampening
+    confidence_drop: int  # V-06 penalty
+    kelly_raw: float  # pre-dampening Kelly fraction
+    kelly_adjusted: float  # post-dampening
     reasoning: str
 
     def stop_loss_long(self, entry: float) -> float:
@@ -101,6 +102,7 @@ class VolatilityRisk:
 
 
 # ─── Engine ────────────────────────────────────────────────────────────────────
+
 
 class VolatilityEngine:
     """
@@ -181,7 +183,9 @@ class VolatilityEngine:
         elif hasattr(self, "_atr_pct"):
             resolved_atr_pct = self._atr_pct
         else:
-            logger.warning(f"[VolatilityEngine] No ATR data for {symbol}, using NORMAL regime")
+            logger.warning(
+                f"[VolatilityEngine] No ATR data for {symbol}, using NORMAL regime"
+            )
             resolved_atr_pct = 0.020
 
         # Resolve regime
@@ -195,7 +199,9 @@ class VolatilityEngine:
         # Kelly
         kelly_raw = self._kelly(self.win_rate, self.avg_win_pct, self.avg_loss_pct)
         kelly_mult = REGIME_POSITION_KELLY_MULT[resolved_regime]
-        kelly_adjusted = max(self.MIN_KELLY, min(kelly_raw * kelly_mult, self.MAX_KELLY))
+        kelly_adjusted = max(
+            self.MIN_KELLY, min(kelly_raw * kelly_mult, self.MAX_KELLY)
+        )
 
         # Risk pct
         risk_pct = REGIME_RISK_PCT[resolved_regime]
@@ -208,10 +214,10 @@ class VolatilityEngine:
 
         reasoning = (
             f"VolatilityEngine: {resolved_regime.value} regime "
-            f"(ATR={resolved_atr_pct*100:.2f}%), "
+            f"(ATR={resolved_atr_pct * 100:.2f}%), "
             f"Kelly={kelly_raw:.3f}→{kelly_adjusted:.3f}, "
-            f"risk_pct={risk_pct*100:.1f}%, "
-            f"stop_dist={stop_distance_pct*100:.1f}%, "
+            f"risk_pct={risk_pct * 100:.1f}%, "
+            f"stop_dist={stop_distance_pct * 100:.1f}%, "
             f"V-06_drop={confidence_drop}"
         )
 
@@ -279,7 +285,9 @@ def get_volatility_risk(
     if regime:
         engine = VolatilityEngine.from_regime(regime)
 
-    risk = engine.analyze(symbol=symbol, price=price, atr=atr, atr_pct=atr_pct, regime=regime)
+    risk = engine.analyze(
+        symbol=symbol, price=price, atr=atr, atr_pct=atr_pct, regime=regime
+    )
     _volatility_cache[cache_key] = (price, risk)
     return risk
 
@@ -289,6 +297,7 @@ def clear_volatility_cache():
 
 
 # ── ATR utilities (for standalone use) ────────────────────────────────────────
+
 
 def calculate_atr(highs_lows_closes: list[list[float]], period: int = 14) -> float:
     """
@@ -302,8 +311,8 @@ def calculate_atr(highs_lows_closes: list[list[float]], period: int = 14) -> flo
     true_ranges = []
     for i in range(1, len(highs_lows_closes)):
         high = highs_lows_closes[i][0]
-        low  = highs_lows_closes[i][1]
-        prev_close = highs_lows_closes[i-1][2]
+        low = highs_lows_closes[i][1]
+        prev_close = highs_lows_closes[i - 1][2]
         tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
         true_ranges.append(tr)
 
@@ -314,9 +323,12 @@ def atr_from_binance(symbol: str, interval: str = "1d", limit: int = 30) -> floa
     """Fetch Binance klines and compute ATR."""
     try:
         import requests
+
         url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}&interval={interval}&limit={limit}"
         data = requests.get(url, timeout=10).json()
-        klines = [[float(x[2]), float(x[3]), float(x[4])] for x in data]  # high, low, close
+        klines = [
+            [float(x[2]), float(x[3]), float(x[4])] for x in data
+        ]  # high, low, close
         atr = calculate_atr(klines)
         return atr
     except Exception as e:

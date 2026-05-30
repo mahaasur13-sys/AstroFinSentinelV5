@@ -11,6 +11,7 @@ Key concepts:
 - Episodes = optimization iterations
 - Self-improvement loop with convergence detection
 """
+
 from __future__ import annotations
 
 import json
@@ -31,6 +32,7 @@ from core.ephemeris import HAS_SWISS_EPHEMERIS
 from core.kepler import KeplerOrbit, OrbitalElements
 
 # ── Dataclasses ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class CalibrationTarget:
@@ -67,6 +69,7 @@ class CalibrationResult:
 
 # ── Loss function ────────────────────────────────────────────────────────────
 
+
 def _mae_loss(elements: OrbitalElements, body: str, jd_samples: np.ndarray) -> float:
     """Mean Absolute Error between Kepler and SwissEph (geocentric) over JD samples."""
     orbit = KeplerOrbit(elements)
@@ -79,7 +82,9 @@ def _mae_loss(elements: OrbitalElements, body: str, jd_samples: np.ndarray) -> f
         # Keplerian mean longitude (degrees)
         mean_motion = elements.mean_motion  # deg/day
         epoch_jd = elements.epoch_jd
-        mean_lon_kepler = (elements.mean_longitude + mean_motion * (jd - epoch_jd)) % 360.0
+        mean_lon_kepler = (
+            elements.mean_longitude + mean_motion * (jd - epoch_jd)
+        ) % 360.0
 
         # Swiss Ephemeris geocentric longitude
         try:
@@ -125,11 +130,11 @@ def _gradient_free_step(
     # Key dimensions to perturb (normalized sensitivity)
     perturbations = [
         ("semi_major_axis", step_size * elements.semi_major_axis),
-        ("eccentricity",    step_size * 0.05),       # e is small
-        ("mean_longitude",  step_size * 10.0),       # degrees
-        ("arg_perihelion",  step_size * 10.0),
+        ("eccentricity", step_size * 0.05),  # e is small
+        ("mean_longitude", step_size * 10.0),  # degrees
+        ("arg_perihelion", step_size * 10.0),
         ("long_ascending_node", step_size * 10.0),
-        ("inclination",     step_size * 2.0),
+        ("inclination", step_size * 2.0),
     ]
 
     best_loss = current_loss
@@ -183,6 +188,7 @@ def _gradient_free_step(
 
 # ── Calibrator ───────────────────────────────────────────────────────────────
 
+
 class KeplerCalibrator:
     """
     RL-style calibrator for orbital elements.
@@ -193,7 +199,7 @@ class KeplerCalibrator:
 
     DEFAULT_TARGETS = [
         CalibrationTarget("jupiter", (2451545.0, 2460000.0), n_samples=15, weight=1.0),
-        CalibrationTarget("saturn",   (2451545.0, 2460000.0), n_samples=15, weight=0.7),
+        CalibrationTarget("saturn", (2451545.0, 2460000.0), n_samples=15, weight=0.7),
     ]
 
     def __init__(
@@ -243,10 +249,10 @@ class KeplerCalibrator:
         converged = False
         n_episodes = 0
 
-        print(f"\n{'─'*60}")
+        print(f"\n{'─' * 60}")
         print(f"  Body: {body.upper()}")
         print(f"  Initial MAE: {current_mae:.4f}°")
-        print(f"{'─'*60}")
+        print(f"{'─' * 60}")
 
         for ep in range(1, self.max_episodes + 1):
             n_episodes = ep
@@ -279,16 +285,17 @@ class KeplerCalibrator:
                 )
 
             # ── Convergence check ───────────────────────────────────────────
-            if (
-                current_mae < self.convergence_threshold_deg
-                and patience_counter >= 5
-            ):
+            if current_mae < self.convergence_threshold_deg and patience_counter >= 5:
                 converged = True
-                print(f"  ✅ Converged at episode {ep} (MAE < {self.convergence_threshold_deg}°)")
+                print(
+                    f"  ✅ Converged at episode {ep} (MAE < {self.convergence_threshold_deg}°)"
+                )
                 break
 
             if patience_counter >= self.patience:
-                print(f"  ⏹️  Early stop at episode {ep} (no improvement for {self.patience} steps)")
+                print(
+                    f"  ⏹️  Early stop at episode {ep} (no improvement for {self.patience} steps)"
+                )
                 break
 
         improvement_pct = ((original_mae - best_mae) / max(original_mae, 1e-9)) * 100
@@ -355,6 +362,7 @@ class KeplerCalibrator:
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
+
 def main():
     print("=" * 60)
     print("ATOM-STEP-5: RL Calibration — Kepler Orbital Elements")
@@ -379,9 +387,9 @@ def main():
     save_path = Path(__file__).parent.parent / "models" / "calibrated_elements.json"
     calibrator.save(save_path)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("✅ RL CALIBRATION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for body, result in results.items():
         status = "✅" if result.converged else "⚠️ "
         print(
@@ -389,7 +397,7 @@ def main():
             f"MAE: {result.original_mae_deg:7.4f}° → {result.final_mae_deg:7.4f}° "
             f"({result.improvement_pct:+.1f}%)"
         )
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

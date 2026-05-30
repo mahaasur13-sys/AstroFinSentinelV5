@@ -9,6 +9,7 @@ Usage:
     python -m meta_rl.cli --live --symbol BTC/USDT --timeframe 1h  # live CCXT data
     python -m meta_rl.cli --paper --symbol ETH/USDT --gens 10       # paper mode
 """
+
 import argparse
 import logging
 import sys
@@ -48,7 +49,9 @@ def parse_args():
         help="historical=mock, paper=CCXT sandbox, live=CCXT real",
     )
     parser.add_argument("--live", action="store_true", help="Shorthand for --mode=live")
-    parser.add_argument("--paper", action="store_true", help="Shorthand for --mode=paper")
+    parser.add_argument(
+        "--paper", action="store_true", help="Shorthand for --mode=paper"
+    )
     parser.add_argument("--symbol", default=DEFAULT_SYMBOL)
     parser.add_argument("--timeframe", default=DEFAULT_TIMEFRAME)
     parser.add_argument("--limit", type=int, default=500)
@@ -73,8 +76,15 @@ def get_market_data_historical(symbol: str, limit: int) -> dict:
     from meta_rl.live_data import LiveDataProvider
 
     symbol_clean = symbol.replace("/", "").replace("-", "")
-    interval_map = {"1m": "1h", "5m": "1h", "15m": "1h", "1h": "1h",
-                    "4h": "1h", "1d": "1d", "1w": "1d"}
+    interval_map = {
+        "1m": "1h",
+        "5m": "1h",
+        "15m": "1h",
+        "1h": "1h",
+        "4h": "1h",
+        "1d": "1d",
+        "1w": "1d",
+    }
     interval = interval_map.get(symbol, "1h")
 
     adapter = MarketAdapter(source="mock")
@@ -91,7 +101,7 @@ def get_market_data_live(symbol: str, timeframe: str, limit: int, mode: str) -> 
     """ATOM-META-RL-003: Fetch live/paper market data via CCXT."""
     from meta_rl.live_data import LiveDataProvider
 
-    sandbox = (mode != LIVE_MODE)
+    sandbox = mode != LIVE_MODE
     provider = LiveDataProvider(
         exchange_id="binance",
         sandbox=sandbox,
@@ -115,7 +125,9 @@ def run_evolution(args) -> int:
     if mode == HISTORICAL_MODE:
         market_data = get_market_data_historical(args.symbol, args.limit)
     else:
-        market_data = get_market_data_live(args.symbol, args.timeframe, args.limit, mode)
+        market_data = get_market_data_live(
+            args.symbol, args.timeframe, args.limit, mode
+        )
 
     # ── Agent ─────────────────────────────────────────────────────────────
     cfg = EvolutionConfig(
@@ -147,8 +159,14 @@ def run_evolution(args) -> int:
     )
 
     logger.info("=" * 70)
-    logger.info("  meta_rl EVOLUTION  " + f"mode={mode}".ljust(50) + f"gen={args.gens}  pop={args.pop}")
-    logger.info(f"  symbol={args.symbol}  tf={args.timeframe}  walk_forward={not args.no_walk_forward}")
+    logger.info(
+        "  meta_rl EVOLUTION  "
+        + f"mode={mode}".ljust(50)
+        + f"gen={args.gens}  pop={args.pop}"
+    )
+    logger.info(
+        f"  symbol={args.symbol}  tf={args.timeframe}  walk_forward={not args.no_walk_forward}"
+    )
     logger.info(f"  session={session_id}")
     logger.info("=" * 70)
 
@@ -173,9 +191,13 @@ def run_evolution(args) -> int:
         print(f"  Max DD:         {best.evaluation.max_drawdown:.4f}")
         print(f"  Trades:         {best.evaluation.trades}")
         print()
-        print(f"  conf={c['confidence_threshold']:.0f}  pos={c['position_size_pct']:.0f}%")
+        print(
+            f"  conf={c['confidence_threshold']:.0f}  pos={c['position_size_pct']:.0f}%"
+        )
         print(f"  regime={c['regime_filter']}  atr={c['atr_multiplier']:.1f}")
-        print(f"  mom={'Y' if c['use_momentum'] else 'N'}  rev={'Y' if c['use_mean_reversion'] else 'N'}")
+        print(
+            f"  mom={'Y' if c['use_momentum'] else 'N'}  rev={'Y' if c['use_mean_reversion'] else 'N'}"
+        )
     else:
         print("  No elite found")
 
@@ -184,10 +206,13 @@ def run_evolution(args) -> int:
         persist = get_persistence()
         summary = persist.get_sessions_summary()
         print()
-        print(f"  Persistence: {summary['total_sessions']} sessions, {summary['total_strategies']} strategies")
+        print(
+            f"  Persistence: {summary['total_sessions']} sessions, {summary['total_strategies']} strategies"
+        )
         print(f"  Max reward: {summary['max_reward']:+.4f}")
         if args.visualize and not args.no_viz:
             from pathlib import Path
+
             out = Path(__file__).parent / "data" / "meta_rl"
             charts = list(Path(out).glob("*.png"))
             if charts:

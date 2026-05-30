@@ -49,20 +49,17 @@ class BradleyAgent(BaseAgent[AgentResponse]):
         planetary_aspects = await self._check_planetary_aspects(state)
 
         # Bradley score
-        bradley_score = (
-            seasonality["score"] * 0.50 +
-            planetary_aspects["score"] * 0.50
-        )
+        bradley_score = seasonality["score"] * 0.50 + planetary_aspects["score"] * 0.50
 
         if bradley_score >= 0.60:
             signal = SignalDirection.LONG
-            confidence=min(int(bradley_score * 100), 75)
+            confidence = min(int(bradley_score * 100), 75)
         elif bradley_score <= 0.35:
             signal = SignalDirection.SHORT
-            confidence=min(int((1 - bradley_score) * 100), 75)
+            confidence = min(int((1 - bradley_score) * 100), 75)
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=40
+            confidence = 40
 
         reasoning = (
             f"Bradley seasonality: {seasonality['summary']}. "
@@ -89,6 +86,7 @@ class BradleyAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
@@ -111,7 +109,7 @@ class BradleyAgent(BaseAgent[AgentResponse]):
         for i in range(1, len(data)):
             # Approximate day of year
             day = i % 365
-            if data[i][0] > data[i-1][0]:
+            if data[i][0] > data[i - 1][0]:
                 daily_returns[day] = daily_returns.get(day, []) + [1]
             else:
                 daily_returns[day] = daily_returns.get(day, []) + [-1]
@@ -134,13 +132,13 @@ class BradleyAgent(BaseAgent[AgentResponse]):
 
         if avg_return > 0.1:
             score = 0.70
-            summary = f"day {current_day}: historically bullish ({avg_return*100:.1f}% avg return)"
+            summary = f"day {current_day}: historically bullish ({avg_return * 100:.1f}% avg return)"
         elif avg_return < -0.1:
             score = 0.30
-            summary = f"day {current_day}: historically bearish ({avg_return*100:.1f}% avg return)"
+            summary = f"day {current_day}: historically bearish ({avg_return * 100:.1f}% avg return)"
         else:
             score = 0.50
-            summary = f"day {current_day}: historically neutral ({avg_return*100:.1f}% avg return)"
+            summary = f"day {current_day}: historically neutral ({avg_return * 100:.1f}% avg return)"
 
         return {"score": score, "summary": summary, "avg_return": avg_return}
 

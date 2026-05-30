@@ -1,4 +1,5 @@
 """trading/broker/base.py — ATOM-STEP-9: Base broker interface"""
+
 from __future__ import annotations
 
 import time
@@ -92,8 +93,14 @@ class BaseBroker(ABC):
         ...
 
     @abstractmethod
-    def place_order(self, symbol: str, side: OrderSide, order_type: OrderType,
-                    quantity: float, price: Optional[float] = None) -> Order:
+    def place_order(
+        self,
+        symbol: str,
+        side: OrderSide,
+        order_type: OrderType,
+        quantity: float,
+        price: Optional[float] = None,
+    ) -> Order:
         """Place an order."""
         ...
 

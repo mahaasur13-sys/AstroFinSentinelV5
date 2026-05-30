@@ -43,19 +43,15 @@ def list_briefs():
 
 def parse_brief_content(content: str) -> dict:
     """Parse brief markdown into structured sections."""
-    result = {
-        "date": None,
-        "items": [],
-        "raw": content
-    }
+    result = {"date": None, "items": [], "raw": content}
 
     # Extract date from subject or first heading
-    date_match = re.search(r'(\d{4}-\d{2}-\d{2})', content)
+    date_match = re.search(r"(\d{4}-\d{2}-\d{2})", content)
     if date_match:
         result["date"] = date_match.group(1)
 
     # Extract bullet points (## Item, ### Item, or **Item**)
-    item_pattern = re.compile(r'^\s*[-*•]\s*(.+?)(?:\n|$)', re.MULTILINE)
+    item_pattern = re.compile(r"^\s*[-*•]\s*(.+?)(?:\n|$)", re.MULTILINE)
     items = []
     for m in item_pattern.finditer(content):
         text = m.group(1).strip()
@@ -71,39 +67,54 @@ def generate_ideas(brief_content: str) -> list:
     ideas = []
 
     # Detect patterns in brief
-    has_tool_release = any(kw in brief_content.lower() for kw in ['github', 'release', 'tool', 'framework'])
-    has_research = any(kw in brief_content.lower() for kw in ['arxiv', 'paper', 'research', 'study'])
-    has_community = any(kw in brief_content.lower() for kw in ['reddit', 'hacker news', 'discussion', 'forum'])
+    has_tool_release = any(
+        kw in brief_content.lower() for kw in ["github", "release", "tool", "framework"]
+    )
+    has_research = any(
+        kw in brief_content.lower() for kw in ["arxiv", "paper", "research", "study"]
+    )
+    has_community = any(
+        kw in brief_content.lower()
+        for kw in ["reddit", "hacker news", "discussion", "forum"]
+    )
 
     if has_tool_release:
-        ideas.append({
-            "category": "TOOL_ADOPTION",
-            "prompt": "Рассмотреть возможность интеграции нового инструмента из сводки в AstroFinSentinelV5. "
-                      "Проверить: совместимость с существующей архитектурой, необходимость ATOM-карточки."
-        })
+        ideas.append(
+            {
+                "category": "TOOL_ADOPTION",
+                "prompt": "Рассмотреть возможность интеграции нового инструмента из сводки в AstroFinSentinelV5. "
+                "Проверить: совместимость с существующей архитектурой, необходимость ATOM-карточки.",
+            }
+        )
 
     if has_research:
-        ideas.append({
-            "category": "RESEARCH_INTEGRATION",
-            "prompt": "Найдены новые исследования. Оценить применимость для: "
-                      "(1) улучшения reward function, (2) новых фичей в агентах, "
-                      "(3) оптимизации KARL-цикла."
-        })
+        ideas.append(
+            {
+                "category": "RESEARCH_INTEGRATION",
+                "prompt": "Найдены новые исследования. Оценить применимость для: "
+                "(1) улучшения reward function, (2) новых фичей в агентах, "
+                "(3) оптимизации KARL-цикла.",
+            }
+        )
 
     if has_community:
-        ideas.append({
-            "category": "COMMUNITY_SENTIMENT",
-            "prompt": "Обсуждения сообщества указывают на тренды. "
-                      "Проанализировать sentiment: какие проблемы пользователей "
-                      "можно решить через новые ATOM-карточки?"
-        })
+        ideas.append(
+            {
+                "category": "COMMUNITY_SENTIMENT",
+                "prompt": "Обсуждения сообщества указывают на тренды. "
+                "Проанализировать sentiment: какие проблемы пользователей "
+                "можно решить через новые ATOM-карточки?",
+            }
+        )
 
     # Always suggest something
-    ideas.append({
-        "category": "CONTINUOUS_IMPROVEMENT",
-        "prompt": "Использовать данные сводки для обновления ATOM-KARL backlog. "
-                  "Добавить новые ideas в knowledge/ATOM_BACKLOG.md."
-    })
+    ideas.append(
+        {
+            "category": "CONTINUOUS_IMPROVEMENT",
+            "prompt": "Использовать данные сводки для обновления ATOM-KARL backlog. "
+            "Добавить новые ideas в knowledge/ATOM_BACKLOG.md.",
+        }
+    )
 
     return ideas
 
@@ -117,6 +128,7 @@ def ideas_to_tracker(ideas: list, source: str = "daily_brief"):
             load_ideas,
             save_idea,
         )
+
         imported = 0
         skipped = 0
 
@@ -146,9 +158,9 @@ def show_brief(path: Path):
     content = path.read_text()
     parsed = parse_brief_content(content)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  Brief: {path.name}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Show items
     if parsed["items"]:
@@ -182,11 +194,17 @@ def main():
     parser = argparse.ArgumentParser(description="Daily Brief CLI")
     parser.add_argument("--latest", action="store_true", help="Show latest brief")
     parser.add_argument("--list", action="store_true", help="List all briefs")
-    parser.add_argument("--ideas", action="store_true", help="Generate ATOM ideas from latest")
+    parser.add_argument(
+        "--ideas", action="store_true", help="Generate ATOM ideas from latest"
+    )
     parser.add_argument("--parse", type=str, help="Parse specific brief file")
     parser.add_argument("--gc", action="store_true", help="Garbage collect old briefs")
-    parser.add_argument("--save", type=str, help="Save brief content (for webhook/email)")
-    parser.add_argument("--track", action="store_true", help="Import ideas into idea_tracker")
+    parser.add_argument(
+        "--save", type=str, help="Save brief content (for webhook/email)"
+    )
+    parser.add_argument(
+        "--track", action="store_true", help="Import ideas into idea_tracker"
+    )
 
     args = parser.parse_args()
 
@@ -232,7 +250,9 @@ def main():
                     print(f"  [{idea['category']}]")
                     print(f"    → {idea['prompt']}\n")
         else:
-            print("No briefs found. Run with --gc to clean up or wait for next daily email.")
+            print(
+                "No briefs found. Run with --gc to clean up or wait for next daily email."
+            )
         return
 
     if args.list:

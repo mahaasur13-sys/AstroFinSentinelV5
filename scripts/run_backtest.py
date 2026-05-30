@@ -1,4 +1,5 @@
 """scripts/run_backtest.py — ATOM-STEP-8: Backtest Runner"""
+
 import random
 import sys
 from datetime import datetime, timedelta
@@ -43,13 +44,15 @@ def generate_signals(symbol, prices):
         )
         signal = result.final_signal.name
         confidence = int(result.confidence)
-        signals.append({
-            "timestamp": dt,
-            "symbol": symbol,
-            "signal": signal,
-            "confidence": confidence,
-            "reasoning": result.deliberation[:80],
-        })
+        signals.append(
+            {
+                "timestamp": dt,
+                "symbol": symbol,
+                "signal": signal,
+                "confidence": confidence,
+                "reasoning": result.deliberation[:80],
+            }
+        )
     return signals
 
 
@@ -71,15 +74,22 @@ def main():
             sc[s["signal"]] = sc.get(s["signal"], 0) + 1
         print("[%s] %d signals: %s" % (symbol, len(signals), sc))
         prices_dict = {symbol: prices}
-        config = BacktestConfig(initial_capital=10000.0, risk_per_trade_pct=2.0,
-                                stop_loss_pct=2.0, take_profit_pct=4.0)
+        config = BacktestConfig(
+            initial_capital=10000.0,
+            risk_per_trade_pct=2.0,
+            stop_loss_pct=2.0,
+            take_profit_pct=4.0,
+        )
         bt = Backtester(config)
         result = bt.run(signals, prices_dict)
         result.print_summary()
         if result.trades:
-            print("  First trade:", result.trades[0].symbol,
-                  result.trades[0].side,
-                  "pnl=%+.2f%%" % result.trades[0].pnl_pct)
+            print(
+                "  First trade:",
+                result.trades[0].symbol,
+                result.trades[0].side,
+                "pnl=%+.2f%%" % result.trades[0].pnl_pct,
+            )
         print()
         all_results.append(result)
     total_return = sum(r.portfolio_summary["total_return_pct"] for r in all_results)

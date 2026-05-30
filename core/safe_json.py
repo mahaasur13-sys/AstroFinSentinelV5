@@ -1,4 +1,5 @@
 """core/safe_json.py — ATOM-017 FIX: Safe JSON operations with error handling"""
+
 import json
 import logging
 from datetime import datetime
@@ -7,11 +8,12 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 def safe_json_dump(data: Any, filepath: str, ensure_ascii: bool = False) -> bool:
     """Safely dump data to JSON file. Returns True on success."""
     if data is None:
         data = {"status": "null", "timestamp": datetime.now().isoformat()}
-    if not isinstance(data, (dict, list)):
+    if not isinstance(data, (dict, list)):  # noqa: UP038
         data = {"value": str(data), "timestamp": datetime.now().isoformat()}
     try:
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
@@ -24,6 +26,7 @@ def safe_json_dump(data: Any, filepath: str, ensure_ascii: bool = False) -> bool
     except IOError as e:
         logger.error(f"[safe_json] IO error writing {filepath}: {e}")
         return False
+
 
 def safe_json_load(filepath: str, default: Any = None) -> Any:
     """Safely load JSON file. Returns default on failure."""
@@ -46,6 +49,7 @@ def safe_json_load(filepath: str, default: Any = None) -> Any:
         logger.error(f"[safe_json] Unexpected error loading {filepath}: {e}")
         return {"status": "error", "error": str(e), "filepath": filepath}
 
+
 def safe_jsonl_append(record: Any, filepath: str) -> bool:
     """Append a record to a JSONL file safely."""
     if record is None:
@@ -61,6 +65,7 @@ def safe_jsonl_append(record: Any, filepath: str) -> bool:
         logger.error(f"[safe_json] JSONL append failed for {filepath}: {e}")
         return False
 
+
 def safe_jsonl_load(filepath: str) -> list:
     """Load all records from a JSONL file safely."""
     try:
@@ -71,8 +76,10 @@ def safe_jsonl_load(filepath: str) -> list:
             try:
                 records.append(json.loads(line))
             except json.JSONDecodeError as e:
-                logger.warning(f"[safe_json] Corrupted line {i+1} in {filepath}: {e}")
-                records.append({"status": "corrupted_line", "line": i+1, "raw": line[:100]})
+                logger.warning(f"[safe_json] Corrupted line {i + 1} in {filepath}: {e}")
+                records.append(
+                    {"status": "corrupted_line", "line": i + 1, "raw": line[:100]}
+                )
         return records
     except IOError:
         logger.info(f"[safe_json] JSONL file not found: {filepath}")

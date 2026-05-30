@@ -7,6 +7,7 @@ Pipeline:
 
 Clamp: all outputs in [-1, 1]
 """
+
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -15,17 +16,20 @@ from core.reward.ema import get_reward_ema
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RewardResult:
     """Full reward breakdown."""
-    raw: float           # Market + astro, pre-EMA
-    smoothed: float     # EMA-smoothed
+
+    raw: float  # Market + astro, pre-EMA
+    smoothed: float  # EMA-smoothed
     market_part: float  # Just PnL component
-    astro_part: float   # Just astro component
-    clamped: bool       # Was clamped during EMA
+    astro_part: float  # Just astro component
+    clamped: bool  # Was clamped during EMA
 
 
 # ─── Raw Reward ───────────────────────────────────────────────────────────────
+
 
 def compute_raw_reward(
     signal: str,
@@ -63,9 +67,17 @@ def compute_raw_reward(
     direction = +1 (BUY), -1 (SELL), 0 (NEUTRAL)
     """
     # Direction correctness
-    direction_map = {"buy": 1, "long": 1, "strong_buy": 1,
-                     "sell": -1, "short": -1, "strong_sell": -1,
-                     "neutral": 0, "hold": 0, "avoid": 0}
+    direction_map = {
+        "buy": 1,
+        "long": 1,
+        "strong_buy": 1,
+        "sell": -1,
+        "short": -1,
+        "strong_sell": -1,
+        "neutral": 0,
+        "hold": 0,
+        "avoid": 0,
+    }
     direction = direction_map.get(signal.lower(), 0)
 
     # Market component
@@ -93,6 +105,7 @@ def compute_raw_reward(
 
 # ─── EMA Smoothing ────────────────────────────────────────────────────────────
 
+
 def compute_smoothed_reward(
     key: str,
     raw_reward: float,
@@ -115,6 +128,7 @@ def compute_smoothed_reward(
 
 
 # ─── Combined Pipeline ────────────────────────────────────────────────────────
+
 
 def compute_reward_pipeline(
     signal: str,
@@ -155,19 +169,32 @@ def compute_reward_pipeline(
     smoothed = compute_smoothed_reward(symbol, raw, alpha=alpha)
 
     # Detect clamping
-    clamped = (smoothed == 1.0 or smoothed == -1.0)
+    clamped = smoothed == 1.0 or smoothed == -1.0
 
     # Compute parts
     conf_factor = max(0.0, min(1.0, confidence / 100.0))
-    direction_map = {"buy": 1, "long": 1, "strong_buy": 1,
-                     "sell": -1, "short": -1, "strong_sell": -1,
-                     "neutral": 0, "hold": 0, "avoid": 0}
+    direction_map = {
+        "buy": 1,
+        "long": 1,
+        "strong_buy": 1,
+        "sell": -1,
+        "short": -1,
+        "strong_sell": -1,
+        "neutral": 0,
+        "hold": 0,
+        "avoid": 0,
+    }
     direction = direction_map.get(signal.lower(), 0)
     market_part = direction * price_change * conf_factor
     astro_part = compute_astro_reward(
-        muhurta=muhurta, yoga=yoga, nakshatra=nakshatra,
-        rahu_kaal_active=rahu_kaal_active, regime=regime,
-        aspects=aspects, moon_sign=moon_sign, tithi=tithi,
+        muhurta=muhurta,
+        yoga=yoga,
+        nakshatra=nakshatra,
+        rahu_kaal_active=rahu_kaal_active,
+        regime=regime,
+        aspects=aspects,
+        moon_sign=moon_sign,
+        tithi=tithi,
     )
 
     return RewardResult(
@@ -180,6 +207,7 @@ def compute_reward_pipeline(
 
 
 # ─── Agent-level EMA (Phase 3.1) ───────────────────────────────────────────────
+
 
 def compute_agent_rewards(
     agent_signals: List[Dict],

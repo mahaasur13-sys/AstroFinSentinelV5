@@ -87,7 +87,7 @@ class QuantAgent(BaseAgent[AgentResponse]):
         else:
             direction = SignalDirection.NEUTRAL
 
-        confidence=int(sum(scores)/len(scores) * 100) if scores else 50
+        confidence = int(sum(scores) / len(scores) * 100) if scores else 50
 
         reasoning = (
             f"Momentum: {momentum['summary']}. "
@@ -117,7 +117,14 @@ class QuantAgent(BaseAgent[AgentResponse]):
         """Fetch OHLCV data from Binance."""
         try:
             import requests
-            interval_map = {"1H": "1h", "4H": "4h", "1D": "1d", "1W": "1w", "SWING": "1d"}
+
+            interval_map = {
+                "1H": "1h",
+                "4H": "4h",
+                "1D": "1d",
+                "1W": "1w",
+                "SWING": "1d",
+            }
             interval = interval_map.get(timeframe, "1d")
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit=100"
             resp = requests.get(url, timeout=10)
@@ -141,17 +148,21 @@ class QuantAgent(BaseAgent[AgentResponse]):
         mom_score = 0.5 + mom_20 * 2  # rough normalization
 
         if mom_score > 0.7:
-            summary = f"Strong momentum +{mom_20*100:.1f}%"
+            summary = f"Strong momentum +{mom_20 * 100:.1f}%"
         elif mom_score > 0.55:
-            summary = f"Weak momentum +{mom_20*100:.1f}%"
+            summary = f"Weak momentum +{mom_20 * 100:.1f}%"
         elif mom_score > 0.45:
-            summary = f"Neutral momentum {mom_20*100:.1f}%"
+            summary = f"Neutral momentum {mom_20 * 100:.1f}%"
         elif mom_score > 0.3:
-            summary = f"Weak bearish {mom_20*100:.1f}%"
+            summary = f"Weak bearish {mom_20 * 100:.1f}%"
         else:
-            summary = f"Strong bearish {mom_20*100:.1f}%"
+            summary = f"Strong bearish {mom_20 * 100:.1f}%"
 
-        return {"score": min(max(mom_score, 0), 1), "summary": summary, "mom_20": mom_20}
+        return {
+            "score": min(max(mom_score, 0), 1),
+            "summary": summary,
+            "mom_20": mom_20,
+        }
 
     def _mean_reversion_analysis(self, data: list, current_price: float) -> dict:
         """Mean reversion using z-score."""

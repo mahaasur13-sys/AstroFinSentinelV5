@@ -1,4 +1,5 @@
 """core/council/council.py - AstroCouncil: Multi-Agent Voting System"""
+
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -8,6 +9,7 @@ from core.council.types import AGENT_WEIGHTS, CouncilResult, Signal
 def _signal_val(s: Signal) -> float:
     return {Signal.LONG: 1.0, Signal.SHORT: -1.0, Signal.NEUTRAL: 0.0}[s]
 
+
 def compute_weighted_signal(members, weights):
     if not members:
         return 0.0, "no_members"
@@ -16,12 +18,16 @@ def compute_weighted_signal(members, weights):
     norm = wsum / total_w if total_w > 0 else 0.0
     return norm, f"weighted={norm:.3f} from {len(members)} members"
 
+
 def resolve_conflict(members):
     longs = shorts = neutrals = 0
     for x in members:
-        if x.vote == Signal.LONG: longs += 1
-        elif x.vote == Signal.SHORT: shorts += 1
-        else: neutrals += 1
+        if x.vote == Signal.LONG:
+            longs += 1
+        elif x.vote == Signal.SHORT:
+            shorts += 1
+        else:
+            neutrals += 1
     n = len(members)
     dissent = []
     if longs > shorts and longs >= neutrals:
@@ -34,6 +40,7 @@ def resolve_conflict(members):
             if x.vote != Signal.NEUTRAL:
                 dissent.append({"member": x.name, "vote": x.vote.value})
     return final, consensus, dissent
+
 
 def build_council_result(symbol, members, deliberation=""):
     ws, dlog = compute_weighted_signal(members, None)
@@ -52,6 +59,7 @@ def build_council_result(symbol, members, deliberation=""):
         conflict_resolved=True,
         dissent=dissent,
     )
+
 
 @dataclass
 class AstroCouncil:
@@ -73,7 +81,9 @@ class AstroCouncil:
             f"  Consensus: {result.consensus:.0%}  W-signal: {result.weighted_signal:+.3f}",
         ]
         for m in sorted(result.members, key=lambda x: -x.weight):
-            lines.append(f"  [{m.weight:.0%}] {m.name}: {m.vote.value} ({m.confidence:.0f}%)")
+            lines.append(
+                f"  [{m.weight:.0%}] {m.name}: {m.vote.value} ({m.confidence:.0f}%)"
+            )
         if result.dissent:
             lines.append(f"  Dissent: {len(result.dissent)} disagree")
         return "\n".join(lines)

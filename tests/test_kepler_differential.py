@@ -3,6 +3,7 @@ tests/test_kepler_differential.py — ATOM-STEP-3: Differential Testing (Swiss E
 ==========================================================================================
 Differential tests: pure Keplerian (core/kepler.py) vs Swiss Ephemeris DE405.
 """
+
 import math
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ HAS_SWISS = _eph.HAS_SWISS_EPHEMERIS
 # Thresholds
 REASONABLE_ERROR_ARCMIN = 10.0  # degrees — pure Keplerian vs N-body ~3-7 deg
 REASONABLE_ERROR_ARCSEC = 60.0  # 1 arcminute in arcseconds
-MAX_CATASTROPHIC_DEG = 60.0    # 60 degrees — absolute sanity bound
+MAX_CATASTROPHIC_DEG = 60.0  # 60 degrees — absolute sanity bound
 
 
 def angular_sep(lo1: float, lo2: float) -> float:
@@ -27,10 +28,7 @@ def angular_sep(lo1: float, lo2: float) -> float:
     return min(delta, 360.0 - delta)
 
 
-pytestmark = pytest.mark.skipif(
-    not HAS_SWISS,
-    reason="pyswisseph not installed"
-)
+pytestmark = pytest.mark.skipif(not HAS_SWISS, reason="pyswisseph not installed")
 
 
 class TestDifferentialSwissEphemeris:
@@ -51,7 +49,7 @@ class TestDifferentialSwissEphemeris:
         delta_deg = angular_sep(k_lon, s_lon)
 
         assert delta_deg < REASONABLE_ERROR_ARCMIN, (
-            f"{body}: J2000 Δ={delta_deg*60:.2f} arcmin "
+            f"{body}: J2000 Δ={delta_deg * 60:.2f} arcmin "
             f"(Kepler={k_lon:.4f}°, Swiss={s_lon:.4f}°)"
         )
 
@@ -75,13 +73,16 @@ class TestDifferentialSwissEphemeris:
 
     # ─── Test 3: No catastrophic divergence — outer planets only ───────
 
-    @pytest.mark.parametrize("body,jd", [
-        ("jupiter", 2451545.0),
-        ("jupiter", 2460000.0),
-        ("jupiter", 2430000.0),
-        ("saturn",  2451545.0),
-        ("saturn",  2460000.0),
-    ])
+    @pytest.mark.parametrize(
+        "body,jd",
+        [
+            ("jupiter", 2451545.0),
+            ("jupiter", 2460000.0),
+            ("jupiter", 2430000.0),
+            ("saturn", 2451545.0),
+            ("saturn", 2460000.0),
+        ],
+    )
     def test_no_catastrophic_divergence(self, body, jd):
         """Maximum separation should never exceed 60° for outer planets."""
         k_lon = _kp.propagate_kepler(body, jd).heliocentric_longitude
@@ -94,11 +95,14 @@ class TestDifferentialSwissEphemeris:
 
     # ─── Test 4: Keplerian periodicity (self-consistency) ─────────────
 
-    @pytest.mark.parametrize("body,orbit_fn", [
-        ("earth",   _kp.KeplerOrbit.earth),
-        ("jupiter", _kp.KeplerOrbit.jupiter),
-        ("saturn",  _kp.KeplerOrbit.saturn),
-    ])
+    @pytest.mark.parametrize(
+        "body,orbit_fn",
+        [
+            ("earth", _kp.KeplerOrbit.earth),
+            ("jupiter", _kp.KeplerOrbit.jupiter),
+            ("saturn", _kp.KeplerOrbit.saturn),
+        ],
+    )
     def test_kepler_periodicity(self, body, orbit_fn):
         """After one orbital period, heliocentric longitude returns to same value.
 
@@ -122,6 +126,7 @@ class TestDifferentialSwissEphemeris:
     def test_earth_radius_physical(self):
         """Earth radius should always be in physically plausible range."""
         import random
+
         random.seed(42)
         orbit = _kp.KeplerOrbit.earth()
         for _ in range(100):
@@ -136,22 +141,30 @@ class TestDifferentialSwissEphemeris:
     def test_no_nan(self, body, jd):
         """No NaN/Inf in Keplerian or Swiss calculations."""
         k_result = _kp.propagate_kepler(body, jd)
-        for field in ["heliocentric_longitude", "radius_au",
-                       "eccentric_anomaly", "true_anomaly"]:
+        for field in [
+            "heliocentric_longitude",
+            "radius_au",
+            "eccentric_anomaly",
+            "true_anomaly",
+        ]:
             val = getattr(k_result, field)
-            assert not (math.isnan(val) or math.isinf(val)), \
+            assert not (math.isnan(val) or math.isinf(val)), (
                 f"Kepler NaN/Inf: {field} for {body} at JD={jd}"
+            )
 
         s_result = _eph.calculate_planet(body, jd)
         assert not (math.isnan(s_result.longitude) or math.isinf(s_result.longitude))
 
     # ─── Test 7: Radius monotonicity — perihelion < aphelion ────────
 
-    @pytest.mark.parametrize("body,orbit_fn", [
-        ("earth",   _kp.KeplerOrbit.earth),
-        ("jupiter", _kp.KeplerOrbit.jupiter),
-        ("saturn",  _kp.KeplerOrbit.saturn),
-    ])
+    @pytest.mark.parametrize(
+        "body,orbit_fn",
+        [
+            ("earth", _kp.KeplerOrbit.earth),
+            ("jupiter", _kp.KeplerOrbit.jupiter),
+            ("saturn", _kp.KeplerOrbit.saturn),
+        ],
+    )
     def test_radius_perihelion_lt_aphelion(self, body, orbit_fn):
         """For any elliptic orbit: r(ν=0°) < r(ν=180°)."""
         orbit = orbit_fn()
@@ -161,9 +174,11 @@ class TestDifferentialSwissEphemeris:
         # r = p / (1 + e*cos(nu)) where p = a(1-e^2)
         p = a * (1.0 - e * e)
         r_peri = p / (1.0 + e * math.cos(math.radians(0.0)))
-        r_aph  = p / (1.0 + e * math.cos(math.radians(180.0)))
+        r_aph = p / (1.0 + e * math.cos(math.radians(180.0)))
 
-        assert r_peri < r_aph, f"{body}: perihelion {r_peri:.4f} >= aphelion {r_aph:.4f}"
+        assert r_peri < r_aph, (
+            f"{body}: perihelion {r_peri:.4f} >= aphelion {r_aph:.4f}"
+        )
         assert abs(r_peri - a * (1 - e)) < 0.001
 
 

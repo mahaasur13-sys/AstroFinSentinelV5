@@ -1,4 +1,5 @@
 """meta_rl/ranking.py -- ATOM-META-RL-008: Composite Strategy Ranking (P1.2)"""
+
 from __future__ import annotations
 
 import logging
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StrategyScore:
     """Ranked strategy with composite score breakdown."""
+
     reward: float
     composite_score: float
     sharpe_score: float
@@ -75,7 +77,9 @@ class CompositeRankingEngine:
 
                 # Per-component scores (0-1, higher = better)
                 sharpe_score = self._norm(sharpe, self.SHARPE_MIN, self.SHARPE_MAX)
-                win_rate_score = self._norm(win_rate, self.WINRATE_MIN, self.WINRATE_MAX)
+                win_rate_score = self._norm(
+                    win_rate, self.WINRATE_MIN, self.WINRATE_MAX
+                )
                 pnl_score = self._norm(pnl, self.PNL_MIN, self.PNL_MAX)
                 dd_penalty_score = 1.0 - self._norm(max_dd, 0.0, self.DD_MAX_TOLERABLE)
 
@@ -83,7 +87,9 @@ class CompositeRankingEngine:
                 rh = self._get(s, "reward_history", [])
                 stability_score = 0.5
                 if len(rh) >= 3:
-                    stability_score = 1.0 - float(np.std(rh) / (abs(np.mean(rh)) + 1e-8))
+                    stability_score = 1.0 - float(
+                        np.std(rh) / (abs(np.mean(rh)) + 1e-8)
+                    )
 
                 # Diversity: favor strategies with more trades (liquid)
                 diversity_score = self._norm(trades, 0, self.WIN_MAX_TOLERABLE)
@@ -96,21 +102,23 @@ class CompositeRankingEngine:
                     + self.weights.get("diversity", 0.10) * diversity_score
                 )
 
-                scored.append(StrategyScore(
-                    reward=reward,
-                    composite_score=composite_score,
-                    sharpe_score=sharpe_score,
-                    win_rate_score=win_rate_score,
-                    pnl_score=pnl_score,
-                    dd_penalty_score=dd_penalty_score,
-                    stability_score=stability_score,
-                    diversity_score=diversity_score,
-                    generation=self._get(s, "generation", 0),
-                    reward_history=rh,
-                    evaluation=ev,
-                    session_id=self._get(s, "session_id", ""),
-                    chromosome=self._get(s, "chromosome", {}),
-                ))
+                scored.append(
+                    StrategyScore(
+                        reward=reward,
+                        composite_score=composite_score,
+                        sharpe_score=sharpe_score,
+                        win_rate_score=win_rate_score,
+                        pnl_score=pnl_score,
+                        dd_penalty_score=dd_penalty_score,
+                        stability_score=stability_score,
+                        diversity_score=diversity_score,
+                        generation=self._get(s, "generation", 0),
+                        reward_history=rh,
+                        evaluation=ev,
+                        session_id=self._get(s, "session_id", ""),
+                        chromosome=self._get(s, "chromosome", {}),
+                    )
+                )
             except Exception as e:
                 logger.warning(f"[RANKING] Strategy scoring failed: {e}")
                 continue
@@ -141,6 +149,7 @@ def rank_all_sessions(n_top: int = 20) -> List[Dict]:
     """Load all sessions and return top-n globally-ranked strategies."""
     try:
         from meta_rl.persistence import get_persistence
+
         persist = get_persistence()
         sessions = persist.list_sessions()
         all_strategies = []

@@ -1,4 +1,5 @@
-from core.base_agent import BaseAgent, AgentResponse, SignalDirection
+from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+
 
 class MacroAgent(BaseAgent):
     def __init__(self):
@@ -11,6 +12,7 @@ class MacroAgent(BaseAgent):
             confidence=50,
             reasoning="Macro analysis stub",
         )
+
 
 async def run_macro_agent(state: dict) -> dict:
     """Convenience function for orchestration."""

@@ -30,6 +30,7 @@ hypothesis.settings.load_profile("ci")
 
 # ─── Strategies ────────────────────────────────────────────────────────────────
 
+
 @st.composite
 def jd_range(
     draw,
@@ -37,53 +38,75 @@ def jd_range(
     max_jd: float = 2500000.0,
 ) -> float:
     """Julian Date strategy covering ~300 years around J2000."""
-    return draw(st.floats(
-        min_value=min_jd, max_value=max_jd,
-        allow_nan=False, allow_infinity=False,
-    ))
+    return draw(
+        st.floats(
+            min_value=min_jd,
+            max_value=max_jd,
+            allow_nan=False,
+            allow_infinity=False,
+        )
+    )
 
 
 @st.composite
 def positive_eccentricity(draw) -> float:
     """Eccentricity strategy: 0 <= e < 1 (bound orbit)."""
-    return draw(st.floats(
-        min_value=0.0, max_value=0.9999,
-        allow_nan=False, allow_infinity=False,
-    ))
+    return draw(
+        st.floats(
+            min_value=0.0,
+            max_value=0.9999,
+            allow_nan=False,
+            allow_infinity=False,
+        )
+    )
 
 
 @st.composite
 def mean_anomaly_360(draw) -> float:
     """Mean anomaly in [0, 360) degrees."""
-    return draw(st.floats(
-        min_value=0.0, max_value=359.9999,
-        allow_nan=False, allow_infinity=False,
-    ))
+    return draw(
+        st.floats(
+            min_value=0.0,
+            max_value=359.9999,
+            allow_nan=False,
+            allow_infinity=False,
+        )
+    )
 
 
 # ─── Property 1: Orbital Radius ∈ [a(1-e), a(1+e)] ────────────────────────────
 
-@given(elements=st.builds(
-    OrbitalElements,
-    name=st.just("test_body"),
-    semi_major_axis=st.floats(min_value=0.1, max_value=50.0,
-                              allow_nan=False, allow_infinity=False),
-    eccentricity=positive_eccentricity(),
-    inclination=st.floats(min_value=0.0, max_value=180.0,
-                          allow_nan=False, allow_infinity=False),
-    long_ascending_node=st.floats(min_value=0.0, max_value=360.0,
-                                  allow_nan=False, allow_infinity=False),
-    arg_perihelion=st.floats(min_value=0.0, max_value=360.0,
-                              allow_nan=False, allow_infinity=False),
-    long_perihelion=st.floats(min_value=0.0, max_value=360.0,
-                               allow_nan=False, allow_infinity=False),
-    mean_longitude=mean_anomaly_360(),
-    mean_motion=st.floats(min_value=0.001, max_value=100.0,
-                           allow_nan=False, allow_infinity=False),
-    orbital_period=st.floats(min_value=1.0, max_value=100000.0,
-                              allow_nan=False, allow_infinity=False),
-    epoch_jd=jd_range(),
-))
+
+@given(
+    elements=st.builds(
+        OrbitalElements,
+        name=st.just("test_body"),
+        semi_major_axis=st.floats(
+            min_value=0.1, max_value=50.0, allow_nan=False, allow_infinity=False
+        ),
+        eccentricity=positive_eccentricity(),
+        inclination=st.floats(
+            min_value=0.0, max_value=180.0, allow_nan=False, allow_infinity=False
+        ),
+        long_ascending_node=st.floats(
+            min_value=0.0, max_value=360.0, allow_nan=False, allow_infinity=False
+        ),
+        arg_perihelion=st.floats(
+            min_value=0.0, max_value=360.0, allow_nan=False, allow_infinity=False
+        ),
+        long_perihelion=st.floats(
+            min_value=0.0, max_value=360.0, allow_nan=False, allow_infinity=False
+        ),
+        mean_longitude=mean_anomaly_360(),
+        mean_motion=st.floats(
+            min_value=0.001, max_value=100.0, allow_nan=False, allow_infinity=False
+        ),
+        orbital_period=st.floats(
+            min_value=1.0, max_value=100000.0, allow_nan=False, allow_infinity=False
+        ),
+        epoch_jd=jd_range(),
+    )
+)
 @settings(max_examples=200, verbosity=Verbosity.verbose)
 def test_radius_within_perihelion_aphelion(elements):
     """Radius r ∈ [a(1-e), a(1+e)] always holds for bound orbits."""
@@ -96,11 +119,13 @@ def test_radius_within_perihelion_aphelion(elements):
 
     assert not math.isnan(r), f"radius is NaN: a={a}, e={e}"
     assert not math.isinf(r), f"radius is Inf: a={a}, e={e}"
-    assert r_min - 1e-10 <= r <= r_max + 1e-10, \
+    assert r_min - 1e-10 <= r <= r_max + 1e-10, (
         f"radius {r} outside [{r_min:.6f}, {r_max:.6f}] for a={a}, e={e}"
+    )
 
 
 # ─── Property 2: Longitude ∈ [0, 360) ─────────────────────────────────────────
+
 
 @given(jd=jd_range())
 @settings(max_examples=500)
@@ -116,6 +141,7 @@ def test_longitude_in_circle(jd):
 
 # ─── Property 3: Mean Anomaly ∈ [0, 360) ──────────────────────────────────────
 
+
 @given(jd=jd_range())
 @settings(max_examples=500)
 def test_mean_anomaly_in_circle(jd):
@@ -129,6 +155,7 @@ def test_mean_anomaly_in_circle(jd):
 
 
 # ─── Property 4: Period = 360° / mean_motion (for known real bodies) ─────────────
+
 
 @given(jd=jd_range())
 @settings(max_examples=100)
@@ -145,11 +172,13 @@ def test_period_motion_consistency(jd):
         assert not math.isnan(computed_period), f"{body}: computed period is NaN"
         assert not math.isinf(computed_period), f"{body}: computed period is Inf"
         err = abs(computed_period - elements.orbital_period) / elements.orbital_period
-        assert err < 0.001, \
-            f"{body}: P={computed_period:.2f} differs from stored P={elements.orbital_period} by {err*100:.2f}%"
+        assert err < 0.001, (
+            f"{body}: P={computed_period:.2f} differs from stored P={elements.orbital_period} by {err * 100:.2f}%"
+        )
 
 
 # ─── Property 5: Newton-Raphson Convergence ≤ 20 iterations ────────────────────
+
 
 @given(M=mean_anomaly_360())
 @settings(max_examples=500)
@@ -172,15 +201,16 @@ def test_n_r_converges_fast(M):
         if abs(delta) < 1e-10:
             break
 
-    assert iterations <= 20, \
-        f"NR did not converge in 20 iterations for M={M}° (e={e})"
+    assert iterations <= 20, f"NR did not converge in 20 iterations for M={M}° (e={e})"
 
 
 # ─── Property 6: propagate_kepler raises for unknown body ─────────────────────
 
+
 @given(
     body=st.text(
-        min_size=1, max_size=30,
+        min_size=1,
+        max_size=30,
         alphabet=st.characters(categories=("Lu", "Ll", "Nd")),
     )
 )
@@ -194,6 +224,7 @@ def test_propagate_unknown_body_raises(body):
 
 # ─── Property 7: validate_vs_swiss_ephemeris always returns required keys ─────
 
+
 @given(body=st.sampled_from(["earth", "jupiter", "saturn"]), jd=jd_range())
 @settings(max_examples=100)
 def test_validate_returns_all_keys(body, jd):
@@ -204,11 +235,13 @@ def test_validate_returns_all_keys(body, jd):
     assert "status" in result, "result must contain 'status'"
     assert "message" in result, "result must contain 'message'"
     assert "kepler_lon" in result, "result must contain 'kepler_lon'"
-    assert result["status"] in ("PASS", "WARN", "FAIL", "SKIP", "ERROR"), \
+    assert result["status"] in ("PASS", "WARN", "FAIL", "SKIP", "ERROR"), (
         f"status must be PASS|WARN|FAIL|SKIP|ERROR, got {result['status']}"
+    )
 
 
 # ─── Property 8: No NaN across ±300 years from J2000 ─────────────────────────
+
 
 @given(jd=jd_range(min_jd=2000000.0, max_jd=2500000.0))
 @settings(max_examples=300)
@@ -218,17 +251,20 @@ def test_no_nan_across_300_years(jd):
     result = orbit.at_jd(jd)
 
     for field_name in [
-        "heliocentric_longitude", "radius_au", "mean_anomaly",
-        "eccentric_anomaly", "true_anomaly", "days_to_next_return",
+        "heliocentric_longitude",
+        "radius_au",
+        "mean_anomaly",
+        "eccentric_anomaly",
+        "true_anomaly",
+        "days_to_next_return",
     ]:
         val = getattr(result, field_name)
-        assert not math.isnan(val), \
-            f"NaN: {field_name} at JD={jd}: {result}"
-        assert not math.isinf(val), \
-            f"Inf: {field_name} at JD={jd}: {result}"
+        assert not math.isnan(val), f"NaN: {field_name} at JD={jd}: {result}"
+        assert not math.isinf(val), f"Inf: {field_name} at JD={jd}: {result}"
 
 
 # ─── Property 9: Known body result has all fields ─────────────────────────────
+
 
 @given(jd=jd_range())
 @settings(max_examples=100)
@@ -237,22 +273,31 @@ def test_known_body_result_complete(jd):
     for body in ["earth", "jupiter", "saturn"]:
         result = propagate_kepler(body, jd)
         for field in [
-            "body", "jd", "heliocentric_longitude", "radius_au",
-            "mean_anomaly", "eccentric_anomaly", "true_anomaly",
-            "mean_motion", "orbital_period", "days_to_next_return",
-            "is_retrograde", "speed_deg_per_day",
+            "body",
+            "jd",
+            "heliocentric_longitude",
+            "radius_au",
+            "mean_anomaly",
+            "eccentric_anomaly",
+            "true_anomaly",
+            "mean_motion",
+            "orbital_period",
+            "days_to_next_return",
+            "is_retrograde",
+            "speed_deg_per_day",
         ]:
-            assert hasattr(result, field), \
-                f"{body} result missing field '{field}'"
+            assert hasattr(result, field), f"{body} result missing field '{field}'"
 
 
 # ─── Property 10: Circular orbit (e=0) → E = M ───────────────────────────────
+
 
 @given(M=mean_anomaly_360())
 @settings(max_examples=200)
 def test_circular_orbit_eccentric_anomaly_equals_mean(M):
     """For e=0, eccentric anomaly E should equal mean anomaly M exactly."""
     from dataclasses import replace
+
     earth_elements = OrbitalElements.earth()
     circular_elements = replace(earth_elements, eccentricity=0.0)
     orbit = KeplerOrbit(circular_elements)
@@ -265,6 +310,7 @@ def test_circular_orbit_eccentric_anomaly_equals_mean(M):
 
 # ─── Property 11: Swiss validation SKIP/ERROR always has kepler_lon ───────────
 
+
 @given(jd=jd_range())
 @settings(max_examples=50)
 def test_validate_skips_gracefully(jd):
@@ -276,6 +322,7 @@ def test_validate_skips_gracefully(jd):
 
 
 # ─── Property 12: Longitude periodic with orbital period (real bodies only) ─────
+
 
 def test_longitude_periodic_real_bodies():
     """After exactly one orbital period, heliocentric longitude returns to same position.
@@ -300,9 +347,10 @@ def test_longitude_periodic_real_bodies():
         delta = abs(lon1 - lon0) % 360.0
         delta = min(delta, 360.0 - delta)
 
-        assert delta < 0.5, \
-            f"{name}: longitude changed by {delta}° after exactly one period " \
+        assert delta < 0.5, (
+            f"{name}: longitude changed by {delta}° after exactly one period "
             f"(P={elements.orbital_period:.2f}d)"
+        )
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 Встраивает AMRE-контур (uncertainty, grounding, decision record)
 в SynthesisAgent и sentinel_v5.
 """
+
 import hashlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -21,14 +22,16 @@ from .uncertainty import estimate_uncertainty
 # ─── Delisted Ticker Fallback ──────────────────────────────────────────────────
 
 DELISTED_TICKERS = {
-    "NICKEL", "NCL",  # Nickel
-    "FAANG",          # FAANG basket (split into individual tickers)
+    "NICKEL",
+    "NCL",  # Nickel
+    "FAANG",  # FAANG basket (split into individual tickers)
 }
 
 
 @dataclass
 class DelistFallback:
     """Fallback configuration for delisted/unsupported tickers."""
+
     original_symbol: str
     fallback_symbol: str
     reason: str
@@ -46,17 +49,17 @@ def check_delisted_fallback(symbol: str) -> Optional[DelistFallback]:
             "NICKEL": DelistFallback(
                 original_symbol=symbol_upper,
                 fallback_symbol="MCP",  # MCP token (proxy for metals)
-                reason="Nickel delisted — using MCP as proxy"
+                reason="Nickel delisted — using MCP as proxy",
             ),
             "NCL": DelistFallback(
                 original_symbol=symbol_upper,
                 fallback_symbol="MCP",
-                reason="Nickel delisted — using MCP as proxy"
+                reason="Nickel delisted — using MCP as proxy",
             ),
             "FAANG": DelistFallback(
                 original_symbol=symbol_upper,
                 fallback_symbol="QQQ",  # Tech index as proxy
-                reason="FAANG basket deprecated — using QQQ as proxy"
+                reason="FAANG basket deprecated — using QQQ as proxy",
             ),
         }
         return fallbacks.get(symbol_upper)
@@ -66,7 +69,7 @@ def check_delisted_fallback(symbol: str) -> Optional[DelistFallback]:
         return DelistFallback(
             original_symbol=symbol_upper,
             fallback_symbol="BTC",  # Default to BTC for crypto-style queries
-            reason="Unsupported character in ticker — defaulting to BTC"
+            reason="Unsupported character in ticker — defaulting to BTC",
         )
 
     return None
@@ -85,9 +88,11 @@ def apply_fallback(state: dict, fallback: DelistFallback) -> dict:
 
 # ─── AMRE Post-Processing ──────────────────────────────────────────────────────
 
+
 @dataclass
 class AMREOutput:
     """Output from AMRE processing."""
+
     uncertainty: Dict[str, float]
     grounding: Dict[str, Any]
     confidence_adjustment: int
@@ -166,20 +171,26 @@ def process_amre(
         {
             "id": f"traj_{i}",
             "depth": i,
-            "action": signals[i].get("signal", "NEUTRAL") if i < len(signals) else "UNKNOWN",
+            "action": signals[i].get("signal", "NEUTRAL")
+            if i < len(signals)
+            else "UNKNOWN",
             "q_value": reward,
             "advantage": reward - 0.5,
             "uncertainty": uncertainty.get("total", 0.5),
             "confidence": signals[i].get("confidence", 50) if i < len(signals) else 50,
-            "policy": "karluar"
+            "policy": "karluar",
         }
         for i in range(min(3, len(signals)))
     ]
 
     ensemble_dicts = [
         {
-            "name": signals[i].get("agent_name", f"agent_{i}") if i < len(signals) else f"agent_{i}",
-            "signal": signals[i].get("signal", "NEUTRAL") if i < len(signals) else "NEUTRAL",
+            "name": signals[i].get("agent_name", f"agent_{i}")
+            if i < len(signals)
+            else f"agent_{i}",
+            "signal": signals[i].get("signal", "NEUTRAL")
+            if i < len(signals)
+            else "NEUTRAL",
             "confidence": signals[i].get("confidence", 50) if i < len(signals) else 50,
             "weight": signals[i].get("confidence", 50) / 100 if i < len(signals) else 0,
             "q_value": reward,
@@ -196,7 +207,9 @@ def process_amre(
 
     ensemble_selection = [
         _ES(
-            agent_name=signals[i].get("agent_name", f"agent_{i}") if i < len(signals) else f"agent_{i}",
+            agent_name=signals[i].get("agent_name", f"agent_{i}")
+            if i < len(signals)
+            else f"agent_{i}",
             weight=signals[i].get("confidence", 50) / 100 if i < len(signals) else 0,
             q_value=reward,
         )
@@ -204,6 +217,7 @@ def process_amre(
     ]
 
     import uuid
+
     decision_record = build_decision_record(
         decision_id=f"DR-{uuid.uuid4().hex[:8].upper()}",
         session_id=state.get("session_id", "unknown"),
@@ -211,7 +225,11 @@ def process_amre(
         price=state.get("current_price", 0),
         timeframe=state.get("timeframe_requested", "SWING"),
         regime=state.get("regime", "NORMAL"),
-        state_hash=hashlib.md5(f"{symbol}:{state.get('current_price', 0)}:{state.get('regime', 'NORMAL')}".encode()).hexdigest()[:12] if 'hashlib' in dir() else "0" * 12,
+        state_hash=hashlib.md5(
+            f"{symbol}:{state.get('current_price', 0)}:{state.get('regime', 'NORMAL')}".encode()
+        ).hexdigest()[:12]
+        if "hashlib" in dir()
+        else "0" * 12,
         top_trajectories=top_trajectories_dicts,
         selected_ensemble=ensemble_dicts,
         q_values=[reward],
@@ -219,7 +237,10 @@ def process_amre(
         uncertainty=uncertainty,
         confidence_raw=confidence,
         confidence_final=oap_state.confidence,
-        confidence_adjustments=[f"grounding:{conf_adjust}", f"oap:{oap_state.confidence_boost}"],
+        confidence_adjustments=[
+            f"grounding:{conf_adjust}",
+            f"oap:{oap_state.confidence_boost}",
+        ],
         final_action=state.get("signal", "NEUTRAL"),
         position_pct=oap_state.position_pct,
         kpi_snapshot={

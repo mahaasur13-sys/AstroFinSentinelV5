@@ -1,6 +1,13 @@
-import os, sys, subprocess, re, datetime, tempfile, shutil
-from openai import OpenAI
+import datetime
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
+
+from openai import OpenAI
 
 # ---------- Конфигурация ----------
 MAX_RETRIES = 3
@@ -10,17 +17,26 @@ TICKETS_FILE = "docs/tickets.md"
 PROGRESS_FILE = "progress.md"
 INSTRUCTIONS_FILE = "RALPH_INSTRUCTIONS.md"
 
+
 # ---------- Функции помощники ----------
 def read_file(path):
-    with open(path) as f: return f.read()
+    with open(path) as f:
+        return f.read()
+
+
 def write_file(path, content):
-    with open(path, "w") as f: f.write(content)
+    with open(path, "w") as f:
+        f.write(content)
+
+
 def run(cmd, capture=True):
     return subprocess.run(cmd, shell=True, capture_output=capture, text=True)
+
 
 def is_protected_file(filepath):
     """Проверяет, относится ли файл к защищённым."""
     return os.path.basename(filepath) in PROTECTED_FILES
+
 
 def check_protected_files_in_diff():
     """Возвращает True, если в рабочем дереве нет изменений защищённых файлов."""
@@ -30,6 +46,7 @@ def check_protected_files_in_diff():
         if is_protected_file(f):
             return False
     return True
+
 
 def log_audit(log_path, task, llm_response, status, error=None):
     """Дозаписывает запись в аудит-лог."""
@@ -42,6 +59,7 @@ def log_audit(log_path, task, llm_response, status, error=None):
             f.write(f"ОШИБКА: {error}\n")
         f.write("---\n")
 
+
 def run_checks():
     """Выполняет обязательные проверки: ruff, pytest с coverage, docker ps."""
     print("🔍 Ruff check...")
@@ -49,19 +67,20 @@ def run_checks():
     if ruff.returncode != 0:
         return False, ruff.stdout + "\n" + ruff.stderr
     print("✅ Ruff ok")
-    
+
     print("🧪 Pytest + coverage...")
     test = run("pytest tests/ -v --cov=. --cov-fail-under=60")
     if test.returncode != 0:
         return False, test.stdout + "\n" + test.stderr
     print("✅ Tests ok")
-    
+
     print("🐳 Docker health...")
     ps = run("docker compose ps --filter status=running")
     if "unhealthy" in ps.stdout.lower():
         return False, "Unhealthy containers detected:\n" + ps.stdout
     print("✅ All containers healthy")
     return True, "All checks passed"
+
 
 # ---------- Основная логика агента ----------
 def main():
@@ -74,7 +93,9 @@ def main():
 
     tickets = read_file(TICKETS_FILE)
     progress = read_file(PROGRESS_FILE)
-    instructions = read_file(INSTRUCTIONS_FILE) if os.path.exists(INSTRUCTIONS_FILE) else ""
+    instructions = (
+        read_file(INSTRUCTIONS_FILE) if os.path.exists(INSTRUCTIONS_FILE) else ""
+    )
 
     # Ищем первую невыполненную задачу
     match = re.search(r"^- \[ \] (.+?)$", tickets, re.MULTILINE)
@@ -130,7 +151,7 @@ def main():
         if not check_protected_files_in_diff():
             print("🛑 Обнаружены изменения в защищённых файлах! Откатываем.")
             run("git checkout -- .")  # откат изменений
-            run("git stash pop")      # возвращаем исходное состояние
+            run("git stash pop")  # возвращаем исходное состояние
             print("Задача не выполнена из-за нарушения защиты.")
             sys.exit(1)
 
@@ -160,10 +181,13 @@ def main():
             if attempt == MAX_RETRIES:
                 print("⛔ Исчерпаны все попытки.")
                 with open(PROGRESS_FILE, "a") as pf:
-                    pf.write(f"\n## {task}\n- Статус: BLOCKED\n- Причина: не прошла проверки после {MAX_RETRIES} попыток\n")
+                    pf.write(
+                        f"\n## {task}\n- Статус: BLOCKED\n- Причина: не прошла проверки после {MAX_RETRIES} попыток\n"
+                    )
                 sys.exit(1)
     else:
         print("Задача не выполнена.")
+
 
 if __name__ == "__main__":
     main()

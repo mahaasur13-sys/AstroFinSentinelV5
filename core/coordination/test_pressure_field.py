@@ -1,4 +1,5 @@
 """test_pressure_field.py — ATOM-COORD-001: 3 Critical Tests + Constraints"""
+
 import pytest
 
 from core.coordination.pressure_field import (
@@ -134,7 +135,9 @@ class TestConstraints:
         result = apply_pressure_field(agents, enabled=True)
 
         for orig, upd in zip(agents, result):
-            assert orig.signal == upd.signal, f"Signal changed from {orig.signal} to {upd.signal}"
+            assert orig.signal == upd.signal, (
+                f"Signal changed from {orig.signal} to {upd.signal}"
+            )
 
 
 class TestRegimeDiscount:

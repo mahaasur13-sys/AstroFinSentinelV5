@@ -50,23 +50,23 @@ class TimeWindowAgent(BaseAgent[AgentResponse]):
 
         if bullish_windows >= 3:
             signal = SignalDirection.LONG
-            confidence=65
+            confidence = 65
             direction = "bullish"
         elif bearish_windows >= 3:
             signal = SignalDirection.SHORT
-            confidence=65
+            confidence = 65
             direction = "bearish"
         elif bullish_windows > bearish_windows:
             signal = SignalDirection.LONG
-            confidence=50
+            confidence = 50
             direction = "slight_bullish"
         elif bearish_windows > bullish_windows:
             signal = SignalDirection.SHORT
-            confidence=50
+            confidence = 50
             direction = "slight_bearish"
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=40
+            confidence = 40
             direction = "neutral"
 
         reasoning = (
@@ -98,6 +98,7 @@ class TimeWindowAgent(BaseAgent[AgentResponse]):
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
@@ -175,7 +176,7 @@ class TimeWindowAgent(BaseAgent[AgentResponse]):
             score = 0.55
         else:
             direction = "neutral"
-            summary = f"1D: midweek ({['Mon','Tue','Wed','Thu','Fri'][weekday]})"
+            summary = f"1D: midweek ({['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][weekday]})"
             score = 0.50
 
         return {"direction": direction, "summary": summary, "score": score}

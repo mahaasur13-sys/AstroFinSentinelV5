@@ -63,21 +63,21 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
 
         # Aggregate bullish score
         bullish_score = (
-            patterns["score"] * 0.30 +
-            volume_profile["score"] * 0.25 +
-            support_zones["score"] * 0.20 +
-            astro_signal["score"] * 0.25
+            patterns["score"] * 0.30
+            + volume_profile["score"] * 0.25
+            + support_zones["score"] * 0.20
+            + astro_signal["score"] * 0.25
         )
 
         if bullish_score >= 0.65:
             signal = SignalDirection.LONG
-            confidence=min(int(bullish_score * 100 + 10), 85)
+            confidence = min(int(bullish_score * 100 + 10), 85)
         elif bullish_score >= 0.45:
             signal = SignalDirection.NEUTRAL
-            confidence=50
+            confidence = 50
         else:
             signal = SignalDirection.NEUTRAL
-            confidence=35
+            confidence = 35
 
         reasoning = (
             f"Bullish patterns: {patterns['summary']}. "
@@ -112,12 +112,18 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
         """Fetch OHLCV data from Binance."""
         try:
             import requests
+
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
-            return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])] for x in data]
+            return [
+                [float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])]
+                for x in data
+            ]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
+            logger.warning(
+                f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}"
+            )
             return []
 
     def _detect_bullish_patterns(self, data: list) -> dict:
@@ -132,7 +138,7 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
         # Higher lows pattern
         hl_count = 0
         for i in range(3, len(lows)):
-            if lows[i] > lows[i-1] > lows[i-2]:
+            if lows[i] > lows[i - 1] > lows[i - 2]:
                 hl_count += 1
 
         # Breakout above recent high
@@ -163,13 +169,13 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
 
         if recent_vol > older_vol * 1.3:
             score = 0.70
-            summary = f"volume increasing +{((recent_vol/older_vol)-1)*100:.0f}%"
+            summary = f"volume increasing +{((recent_vol / older_vol) - 1) * 100:.0f}%"
         elif recent_vol > older_vol * 1.1:
             score = 0.55
-            summary = f"volume stable +{((recent_vol/older_vol)-1)*100:.0f}%"
+            summary = f"volume stable +{((recent_vol / older_vol) - 1) * 100:.0f}%"
         else:
             score = 0.40
-            summary = f"volume declining {((recent_vol/older_vol)-1)*100:.0f}%"
+            summary = f"volume declining {((recent_vol / older_vol) - 1) * 100:.0f}%"
 
         return {"score": min(score, 1.0), "summary": summary}
 
@@ -183,14 +189,16 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
 
         # Find recent swing lows
         swing_lows = []
-        for i in range(2, len(lows)-2):
-            if lows[i] < lows[i-1] and lows[i] < lows[i+1]:
+        for i in range(2, len(lows) - 2):
+            if lows[i] < lows[i - 1] and lows[i] < lows[i + 1]:
                 swing_lows.append(lows[i])
 
         if not swing_lows:
             return {"score": 0.5, "summary": "no clear support identified"}
 
-        nearest_support = max([s for s in swing_lows if s < current_price], default=lows[-5])
+        nearest_support = max(
+            [s for s in swing_lows if s < current_price], default=lows[-5]
+        )
 
         distance_pct = ((current_price - nearest_support) / current_price) * 100
 
@@ -230,7 +238,7 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
         moon_phase = (moon.longitude / 360) * 100
         moon_score = 0.55 if moon_phase < 50 else 0.45
 
-        total = (jupiter_score * 0.6 + moon_score * 0.4)
+        total = jupiter_score * 0.6 + moon_score * 0.4
 
         summary = f"Jupiter: {jupiter.longitude:.1f}°, Moon phase: {moon_phase:.0f}%"
 

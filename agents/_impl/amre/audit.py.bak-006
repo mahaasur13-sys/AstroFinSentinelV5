@@ -83,58 +83,58 @@ class DecisionRecord:
     decision_id: str
     timestamp: str
     session_id: str
-    
+
     # Состояние рынка
     symbol: str
     price: float
     timeframe: str
     regime: str
     state_hash: str  # Хеш состояния для воспроизводимости
-    
+
     # Траектории
     top_trajectories: List[TrajectorySnapshot]
-    
+
     # Ансамбль
     selected_ensemble: List[EnsembleMember]
-    
+
     # Q-values
     q_values: List[float]
     q_star: float
     advantage: float
-    
+
     # Неопределённость
     uncertainty_aleatoric: float
     uncertainty_epistemic: float
     uncertainty_total: float
-    
+
     # Confidence
     confidence_raw: int
     confidence_final: int
     confidence_adjustments: List[str]
-    
+
     # Решение
     final_action: str  # LONG / SHORT / NEUTRAL
     position_pct: float
-    
+
     # KPI
     kpi_snapshot: KPISnapshot
     # Метаданные
     metadata: Dict[str, Any]
     # Meta-RL → KARL: risk-adjusted PnL (ATOM-META-RL-005)
     risk_adjusted_pnl: float = 0.0
-    
+
     def to_dict(self) -> dict:
         """Конвертация в dict для сериализации"""
         d = asdict(self)
         d["_version"] = "KARL-009-v1"  # bump to v2 for risk_adjusted_pnl
         d["_hash"] = self.compute_hash()
         return d
-    
+
     def compute_hash(self) -> str:
         """Вычисляет хеш записи для верификации"""
         key_data = f"{self.decision_id}:{self.state_hash}:{self.q_star}:{self.final_action}"
         return hashlib.sha256(key_data.encode()).hexdigest()[:16]
-    
+
     @classmethod
     def from_dict(cls, d: dict) -> "DecisionRecord":
         """Восстановление из dict"""
@@ -145,76 +145,76 @@ class DecisionRecord:
 
 class AuditLog:
     """Хранилище всех DecisionRecord с индексами для быстрого поиска"""
-    
+
     def __init__(self):
         self.records: List[DecisionRecord] = []
         self._by_symbol: Dict[str, List[DecisionRecord]] = {}
         self._by_regime: Dict[str, List[DecisionRecord]] = {}
         self._by_action: Dict[str, List[DecisionRecord]] = {}
-    
+
     def record(self, record: DecisionRecord):
         """Добавить запись решения"""
         self.records.append(record)
-        
+
         # Индексация
         if record.symbol not in self._by_symbol:
             self._by_symbol[record.symbol] = []
         self._by_symbol[record.symbol].append(record)
-        
+
         if record.regime not in self._by_regime:
             self._by_regime[record.regime] = []
         self._by_regime[record.regime].append(record)
-        
+
         if record.final_action not in self._by_action:
             self._by_action[record.final_action] = []
         self._by_action[record.final_action].append(record)
-    
+
     def get_recent(self, n: int = 10) -> List[DecisionRecord]:
         return self.records[-n:]
-    
+
     def get_by_symbol(self, symbol: str) -> List[DecisionRecord]:
         return self._by_symbol.get(symbol, [])
-    
+
     def get_by_regime(self, regime: str) -> List[DecisionRecord]:
         return self._by_regime.get(regime, [])
-    
+
     def get_by_action(self, action: str) -> List[DecisionRecord]:
         return self._by_action.get(action, [])
-    
+
     def find_by_state_hash(self, state_hash: str) -> Optional[DecisionRecord]:
         """Воспроизвести конкретное решение по хешу состояния"""
         for r in self.records:
             if r.state_hash == state_hash:
                 return r
         return None
-    
+
     def find_similar(self, regime: str, action: str, n: int = 5) -> List[DecisionRecord]:
         """Найти похожие решения для анализа"""
         candidates = self._by_regime.get(regime, [])
         return [r for r in candidates if r.final_action == action][-n:]
-    
+
     def summary(self) -> Dict[str, Any]:
         """Статистика по всем решениям"""
         if not self.records:
             return {"total": 0, "avg_confidence": 0, "pass_rate": 0}
-        
+
         total = len(self.records)
         avg_conf = sum(r.confidence_final for r in self.records) / total
-        
+
         # Группировка по action
         action_dist = {}
         for r in self.records:
             action_dist[r.final_action] = action_dist.get(r.final_action, 0) + 1
-        
+
         # Regime distribution
         regime_dist = {}
         for r in self.records:
             regime_dist[r.regime] = regime_dist.get(r.regime, 0) + 1
-        
+
         # Success rate по confidence
         high_conf = [r for r in self.records if r.confidence_final >= 70]
         success_rate = len(high_conf) / total if total > 0 else 0
-        
+
         return {
             "total": total,
             "avg_confidence_final": round(avg_conf, 1),
@@ -224,31 +224,31 @@ class AuditLog:
             "avg_q_star": round(sum(r.q_star for r in self.records) / total, 4),
             "avg_uncertainty": round(sum(r.uncertainty_total for r in self.records) / total, 4),
         }
-    
+
     def analyze_drift(self) -> Dict[str, Any]:
         """Анализ OAP drift — деградирует ли система глобально"""
         if len(self.records) < 10:
             return {"status": "insufficient_data", "records": len(self.records)}
-        
+
         # Разбиваем на квинтейли по времени
         n = len(self.records)
         q1 = self.records[:n//4]
         q4 = self.records[-n//4:]
-        
+
         def avg_metrics(recs):
             return {
                 "avg_conf": sum(r.confidence_final for r in recs) / len(recs),
                 "avg_q": sum(r.q_star for r in recs) / len(recs),
                 "avg_unc": sum(r.uncertainty_total for r in recs) / len(recs),
             }
-        
+
         m1 = avg_metrics(q1)
         m4 = avg_metrics(q4)
-        
+
         drift_conf = m1["avg_conf"] - m4["avg_conf"]
         drift_q = m1["avg_q"] - m4["avg_q"]
         drift_unc = m4["avg_unc"] - m1["avg_unc"]
-        
+
         return {
             "status": "degrading" if drift_conf < -5 or drift_unc > 0.1 else "stable",
             "confidence_drift": round(drift_conf, 2),
@@ -256,11 +256,11 @@ class AuditLog:
             "uncertainty_drift": round(drift_unc, 4),
             "recent_high_conf_pct": round(len([r for r in q4 if r.confidence_final >= 70]) / len(q4), 3),
         }
-    
+
     def export_json(self) -> str:
         """Экспорт всех записей в JSON для внешнего анализа"""
         return json.dumps([r.to_dict() for r in self.records], indent=2, default=str)
-    
+
     def import_json(self, json_str: str):
         """Импорт записей из JSON"""
         data = json.loads(json_str)
@@ -316,7 +316,7 @@ def build_decision_record(
     risk_adjusted_pnl: float = 0.0,
 ) -> DecisionRecord:
     """Удобный builder для создания DecisionRecord из данных системы"""
-    
+
     # Конвертируем траектории
     traj_snapshots = [
         TrajectorySnapshot(
@@ -331,7 +331,7 @@ def build_decision_record(
         )
         for i, t in enumerate(top_trajectories)
     ]
-    
+
     # Конвертируем ансамбль
     ensemble_members = [
         EnsembleMember(
@@ -343,10 +343,10 @@ def build_decision_record(
         )
         for e in selected_ensemble
     ]
-    
+
     # Вычисляем advantage
     advantage = max(q_values) - q_star if q_values else 0.0
-    
+
     # KPI snapshot
     kpi = KPISnapshot(
         oos_fail_rate=kpi_snapshot.get("oos_fail_rate", 0.0),
@@ -360,7 +360,7 @@ def build_decision_record(
         ttc_depth=kpi_snapshot.get("ttc_depth", 3),
         grounding_strength=kpi_snapshot.get("grounding_strength", 0.8)
     )
-    
+
     return DecisionRecord(
         decision_id=decision_id,
         timestamp=datetime.now().isoformat(),

@@ -7,6 +7,7 @@ Security requirements:
 - Live mode requires explicit confirmation flag
 - All key access logged with masked values
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,6 +28,7 @@ if os.path.exists(_dotenv_path):
 @dataclass
 class APIKeyConfig:
     """Validated API key configuration."""
+
     exchange: str
     sandbox_mode: bool
     api_key: Optional[str]
@@ -46,33 +48,28 @@ class APIKeyConfig:
 def load_api_keys() -> APIKeyConfig:
     """
     Load and validate API keys from environment.
-    
+
     Security rules:
     1. Keys NEVER logged in full
     2. Sandbox mode works without keys
     3. Live mode requires both KEY and SECRET
     4. Explicit LIVE_ENABLED flag required for live trading
-    
+
     Returns:
         APIKeyConfig with masked key for logging
     """
     sandbox = os.getenv("CCXT_SANDBOX_MODE", "true").lower() == "true"
     live_enabled = os.getenv("META_RL_LIVE_ENABLED", "false").lower() == "true"
-    
+
     api_key = os.getenv("CCXT_API_KEY", "") or None
     api_secret = os.getenv("CCXT_API_SECRET", "") or None
     exchange = os.getenv("CCXT_EXCHANGE", "binance")
     rate_limit = int(os.getenv("CCXT_RATE_LIMIT", "50"))
     enable_rl = os.getenv("CCXT_ENABLE_RATE_LIMIT", "true").lower() == "true"
-    
+
     # Production = sandbox disabled + live explicitly enabled + keys present
-    is_production = (
-        not sandbox 
-        and live_enabled 
-        and bool(api_key) 
-        and bool(api_secret)
-    )
-    
+    is_production = not sandbox and live_enabled and bool(api_key) and bool(api_secret)
+
     # Validation
     if not sandbox and not is_production:
         if not api_key or not api_secret:
@@ -83,7 +80,7 @@ def load_api_keys() -> APIKeyConfig:
             )
             sandbox = True
             is_production = False
-    
+
     config = APIKeyConfig(
         exchange=exchange,
         sandbox_mode=sandbox,
@@ -93,36 +90,36 @@ def load_api_keys() -> APIKeyConfig:
         enable_rate_limit=enable_rl,
         is_production=is_production,
     )
-    
+
     logger.info(
         f"[SECURITY] CCXT Config loaded: "
         f"exchange={exchange} mode={'SANDBOX' if sandbox else 'LIVE'} "
         f"keys={'YES(production)' if is_production else 'NO'} "
         f"rate_limit={rate_limit}ms"
     )
-    
+
     return config
 
 
 def validate_live_mode() -> tuple[bool, str]:
     """
     Validate that live mode can be safely enabled.
-    
+
     Returns:
         (can_enable, reason)
     """
     config = load_api_keys()
-    
+
     if config.sandbox_mode:
         return True, "Sandbox mode active"
-    
+
     if not config.is_production:
         return False, "Production mode requires CCXT_SANDBOX_MODE=false + real keys"
-    
+
     if not config.api_key or not config.api_secret:
         return False, "API keys not configured"
-    
+
     if len(config.api_key) < 8:
         return False, "API key too short - appears invalid"
-    
+
     return True, f"Production ready: {config.key_masked}"

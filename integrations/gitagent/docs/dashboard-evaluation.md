@@ -1,7 +1,7 @@
 # Dashboard Evaluation: LangGraph vs n8n for AstroFin Sentinel V5
 
-**Date:** 2026-03-30  
-**ATOM:** ATOM-GITAGENT-002  
+**Date:** 2026-03-30
+**ATOM:** ATOM-GITAGENT-002
 **Status:** Recommended — **LangGraph** (primary), **n8n** (auxiliary)
 
 ---
@@ -40,14 +40,14 @@ def build_langgraph_from_topology(topology: Topology) -> StateGraph:
     Each Role becomes a graph node with conditional edges.
     """
     graph = StateGraph(AgentState)
-    
+
     for role in topology.roles:
         graph.add_node(role.name, agent_node(role))
-    
+
     for conn in topology.connections:
-        graph.add_edge(conn.from_node, conn.to_node, 
+        graph.add_edge(conn.from_node, conn.to_node,
                        cond=conditional_function(conn))
-    
+
     return graph.compile()
 ```
 

@@ -1,4 +1,5 @@
 """meta_rl/reward.py — ATOM-META-RL-004: Risk-Adjusted Reward Function"""
+
 from __future__ import annotations
 
 import logging
@@ -21,10 +22,11 @@ class RewardConfig:
     not the raw pnl field. The reward function is the single source of
     truth for strategy selection.
     """
+
     # ── Component weights ────────────────────────────────────────────────
     sharpe_weight: float = 0.35
-    pnl_weight: float = 0.30      # MUST be risk_adjusted_pnl (ATOM-META-RL-004)
-    drawdown_penalty_scale: float = 2.5   # increased from 2.0 (ATOM-META-RL-004)
+    pnl_weight: float = 0.30  # MUST be risk_adjusted_pnl (ATOM-META-RL-004)
+    drawdown_penalty_scale: float = 2.5  # increased from 2.0 (ATOM-META-RL-004)
     execution_cost_weight: float = 0.10
     stability_bonus_scale: float = 0.20
     min_trades_for_stability: int = 5
@@ -32,7 +34,7 @@ class RewardConfig:
 
     # ── Hard constraints ────────────────────────────────────────────────
     min_trades: int = 3
-    max_drawdown_soft: float = 0.50   # soft cap, heavy penalty above
+    max_drawdown_soft: float = 0.50  # soft cap, heavy penalty above
 
     def __post_init__(self):
         # Weights must sum to ~1.0 (normalised)
@@ -81,7 +83,9 @@ class RewardCalculator:
                 )
                 return cfg.base_reward
 
-            if math.isnan(result.risk_adjusted_pnl) or math.isinf(result.risk_adjusted_pnl):
+            if math.isnan(result.risk_adjusted_pnl) or math.isinf(
+                result.risk_adjusted_pnl
+            ):
                 return cfg.base_reward
 
             # ── 1. Sharpe component ─────────────────────────────────────────
@@ -155,7 +159,7 @@ class RewardCalculator:
         if math.isnan(adjusted_dd) or math.isinf(adjusted_dd):
             return 0.5
         dd = float(np.clip(adjusted_dd, 0.0, 1.0))
-        return self.config.drawdown_penalty_scale * (dd ** 2)
+        return self.config.drawdown_penalty_scale * (dd**2)
 
     def _execution_cost_penalty(self, cost: float) -> float:
         """Penalty proportional to round-trip cost as fraction of capital."""
@@ -194,7 +198,8 @@ class RewardCalculator:
             "sharpe_comp": cfg.sharpe_weight * self._sharpe_component(result.sharpe),
             "pnl_comp": cfg.pnl_weight * self._pnl_component(result.risk_adjusted_pnl),
             "dd_penalty": self._drawdown_penalty(adj_dd),
-            "cost_penalty": cfg.execution_cost_weight * self._execution_cost_penalty(result.execution_cost),
+            "cost_penalty": cfg.execution_cost_weight
+            * self._execution_cost_penalty(result.execution_cost),
             "stability_bonus": self._stability_bonus(result),
             "risk_adj_pnl_used": result.risk_adjusted_pnl,
             "raw_pnl_available_but_not_used": result.pnl,

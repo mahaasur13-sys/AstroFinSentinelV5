@@ -1,4 +1,5 @@
 """meta_rl/strategy_evaluator.py -- ATOM-META-RL-010/003/007: Basket + Live Data + WFA"""
+
 from __future__ import annotations
 
 import logging
@@ -55,6 +56,7 @@ class StrategyEvaluator:
         if self._basket_evaluator is None:
             try:
                 from meta_rl.basket import BasketEvaluator
+
                 self._basket_evaluator = BasketEvaluator(
                     strategy_evaluator=self,
                     backtest_adapter=self.backtest_adapter,
@@ -75,10 +77,14 @@ class StrategyEvaluator:
                 result = self._apply_risk_engine(result, market_data)
             else:
                 result = EvaluationResult(
-                    pnl=result.pnl, sharpe=result.sharpe,
-                    max_drawdown=result.max_drawdown, trades=result.trades,
-                    win_rate=result.win_rate, execution_cost=result.execution_cost,
-                    risk_adjusted_pnl=result.pnl, risk_adjustment_reason="NO_RISK_ENGINE",
+                    pnl=result.pnl,
+                    sharpe=result.sharpe,
+                    max_drawdown=result.max_drawdown,
+                    trades=result.trades,
+                    win_rate=result.win_rate,
+                    execution_cost=result.execution_cost,
+                    risk_adjusted_pnl=result.pnl,
+                    risk_adjustment_reason="NO_RISK_ENGINE",
                     adjusted_drawdown=result.max_drawdown,
                     equity_curve=result.equity_curve,
                 )
@@ -97,16 +103,24 @@ class StrategyEvaluator:
             primary_data = market_data_dict.get("BTCUSDT", {})
             result = self.evaluate(strategy, primary_data)
             from meta_rl.types import SymbolMetrics
+
             sm = SymbolMetrics(
-                symbol="BTCUSDT", pnl=result.pnl, sharpe=result.sharpe,
-                max_drawdown=result.max_drawdown, trades=result.trades,
-                win_rate=result.win_rate, exposure_pct=1.0, evaluation=result,
+                symbol="BTCUSDT",
+                pnl=result.pnl,
+                sharpe=result.sharpe,
+                max_drawdown=result.max_drawdown,
+                trades=result.trades,
+                win_rate=result.win_rate,
+                exposure_pct=1.0,
+                evaluation=result,
             )
             return BasketMetrics(
                 symbols=["BTCUSDT", "ETHUSDT", "SPY"],
                 symbol_metrics={"BTCUSDT": sm},
-                portfolio_pnl=result.pnl, portfolio_sharpe=result.sharpe,
-                portfolio_max_drawdown=result.max_drawdown, active_symbols=1,
+                portfolio_pnl=result.pnl,
+                portfolio_sharpe=result.sharpe,
+                portfolio_max_drawdown=result.max_drawdown,
+                active_symbols=1,
             )
         try:
             be = self._get_basket_evaluator()
@@ -128,6 +142,7 @@ class StrategyEvaluator:
             return self.evaluate(strategy, market_data)
         try:
             from meta_rl.walkforward import WalkForwardValidator
+
             validator = WalkForwardValidator(
                 evaluator=self,
                 n_splits=n_splits,
@@ -140,16 +155,18 @@ class StrategyEvaluator:
             valid_results = []
             for s in report.splits:
                 if s.oos_trades > 0:
-                    valid_results.append(EvaluationResult(
-                        pnl=s.oos_pnl,
-                        sharpe=s.oos_sharpe,
-                        max_drawdown=0.0,
-                        trades=s.oos_trades,
-                        win_rate=s.oos_win_rate,
-                        execution_cost=0.0,
-                        risk_adjusted_pnl=s.oos_reward,
-                        risk_adjustment_reason="WALK_FORWARD_OOS",
-                    ))
+                    valid_results.append(
+                        EvaluationResult(
+                            pnl=s.oos_pnl,
+                            sharpe=s.oos_sharpe,
+                            max_drawdown=0.0,
+                            trades=s.oos_trades,
+                            win_rate=s.oos_win_rate,
+                            execution_cost=0.0,
+                            risk_adjusted_pnl=s.oos_reward,
+                            risk_adjustment_reason="WALK_FORWARD_OOS",
+                        )
+                    )
             if not valid_results:
                 return self.evaluate(strategy, market_data)
 
@@ -214,17 +231,22 @@ class StrategyEvaluator:
         vol_regime = market_data.get("volatility_regime", "NORMAL")
         if hasattr(self.risk_engine, "adjust_pnl"):
             adj_pnl = self.risk_engine.adjust_pnl(
-                result.pnl, result.max_drawdown, vol_regime,
+                result.pnl,
+                result.max_drawdown,
+                vol_regime,
             )
         else:
             adj_pnl = result.pnl
-        dd_sq = result.max_drawdown ** 2
+        dd_sq = result.max_drawdown**2
         adj_dd = max(0.0, result.max_drawdown - dd_sq)
         reason = f"KELLY_{vol_regime.upper()}_DD2"
         return EvaluationResult(
-            pnl=result.pnl, sharpe=result.sharpe,
-            max_drawdown=result.max_drawdown, trades=result.trades,
-            win_rate=result.win_rate, execution_cost=result.execution_cost,
+            pnl=result.pnl,
+            sharpe=result.sharpe,
+            max_drawdown=result.max_drawdown,
+            trades=result.trades,
+            win_rate=result.win_rate,
+            execution_cost=result.execution_cost,
             risk_adjusted_pnl=adj_pnl,
             risk_adjustment_reason=reason,
             adjusted_drawdown=adj_dd,

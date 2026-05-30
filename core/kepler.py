@@ -21,49 +21,69 @@ from dataclasses import dataclass
 # Source: JPL DE405/DE406 + IAU 2009 standards
 # All angles in degrees, distances in AU, periods in days
 
+
 @dataclass
 class OrbitalElements:
     """Keplerian orbital elements for a solar system body at epoch J2000.0."""
+
     name: str
-    semi_major_axis: float      # a  [AU]
-    eccentricity: float          # e  [0..1]
-    inclination: float          # i  [degrees]
+    semi_major_axis: float  # a  [AU]
+    eccentricity: float  # e  [0..1]
+    inclination: float  # i  [degrees]
     long_ascending_node: float  # Ω  [degrees]
-    arg_perihelion: float       # ω  [degrees]
-    long_perihelion: float      # ϖ  = Ω + ω [degrees]
-    mean_longitude: float       # L  [degrees] at epoch
-    mean_motion: float          # n  [degrees/day]
-    orbital_period: float       # P  [days]
-    epoch_jd: float             # J2000.0 = 2451545.0
+    arg_perihelion: float  # ω  [degrees]
+    long_perihelion: float  # ϖ  = Ω + ω [degrees]
+    mean_longitude: float  # L  [degrees] at epoch
+    mean_motion: float  # n  [degrees/day]
+    orbital_period: float  # P  [days]
+    epoch_jd: float  # J2000.0 = 2451545.0
 
     @classmethod
     def earth(cls) -> "OrbitalElements":
         return cls(
-            name="Earth", semi_major_axis=1.00000011, eccentricity=0.01671022,
-            inclination=0.00005, long_ascending_node=0.0,
-            arg_perihelion=102.94719, long_perihelion=102.94719,
-            mean_longitude=100.46435, mean_motion=0.98564735,
-            orbital_period=365.256363, epoch_jd=2451545.0,
+            name="Earth",
+            semi_major_axis=1.00000011,
+            eccentricity=0.01671022,
+            inclination=0.00005,
+            long_ascending_node=0.0,
+            arg_perihelion=102.94719,
+            long_perihelion=102.94719,
+            mean_longitude=100.46435,
+            mean_motion=0.98564735,
+            orbital_period=365.256363,
+            epoch_jd=2451545.0,
         )
 
     @classmethod
     def jupiter(cls) -> "OrbitalElements":
         return cls(
-            name="Jupiter", semi_major_axis=5.20336301, eccentricity=0.04839266,
-            inclination=1.30330, long_ascending_node=100.46444,
-            arg_perihelion=14.72847, long_perihelion=115.19287,
-            mean_longitude=34.39644001, mean_motion=0.08308529,
-            orbital_period=4332.589, epoch_jd=2451545.0,
+            name="Jupiter",
+            semi_major_axis=5.20336301,
+            eccentricity=0.04839266,
+            inclination=1.30330,
+            long_ascending_node=100.46444,
+            arg_perihelion=14.72847,
+            long_perihelion=115.19287,
+            mean_longitude=34.39644001,
+            mean_motion=0.08308529,
+            orbital_period=4332.589,
+            epoch_jd=2451545.0,
         )
 
     @classmethod
     def saturn(cls) -> "OrbitalElements":
         return cls(
-            name="Saturn", semi_major_axis=9.53707032, eccentricity=0.05415060,
-            inclination=2.48446, long_ascending_node=113.66544,
-            arg_perihelion=92.59887, long_perihelion=206.26431,
-            mean_longitude=49.94432, mean_motion=0.03344414,
-            orbital_period=10759.22, epoch_jd=2451545.0,
+            name="Saturn",
+            semi_major_axis=9.53707032,
+            eccentricity=0.05415060,
+            inclination=2.48446,
+            long_ascending_node=113.66544,
+            arg_perihelion=92.59887,
+            long_perihelion=206.26431,
+            mean_longitude=49.94432,
+            mean_motion=0.03344414,
+            orbital_period=10759.22,
+            epoch_jd=2451545.0,
         )
 
 
@@ -86,11 +106,16 @@ class KeplerOrbit:
     def mean_anomaly_at(self, jd: float) -> float:
         """M = M₀ + n · (JD - JD₀)  [degrees]"""
         elapsed = jd - self.elements.epoch_jd
-        M = (self.elements.mean_longitude - self.elements.long_perihelion
-             + self.elements.mean_motion * elapsed) % 360.0
+        M = (
+            self.elements.mean_longitude
+            - self.elements.long_perihelion
+            + self.elements.mean_motion * elapsed
+        ) % 360.0
         return M if M >= 0 else M + 360.0
 
-    def eccentric_anomaly(self, M: float, tolerance: float = 1e-10, max_iter: int = 100) -> float:
+    def eccentric_anomaly(
+        self, M: float, tolerance: float = 1e-10, max_iter: int = 100
+    ) -> float:
         """
         Solve M = E - e·sin(E) via Newton-Raphson.
         M, E in degrees. Converts to radians internally.
@@ -130,9 +155,9 @@ class KeplerOrbit:
         M = self.mean_anomaly_at(jd)
         E = self.eccentric_anomaly(M)
         nu = self.true_anomaly(E)
-        longitude = (self.elements.long_ascending_node
-                     + self.elements.arg_perihelion
-                     + nu) % 360.0
+        longitude = (
+            self.elements.long_ascending_node + self.elements.arg_perihelion + nu
+        ) % 360.0
         return longitude if longitude >= 0 else longitude + 360.0
 
     def radius(self, jd: float) -> float:
@@ -170,7 +195,9 @@ class KeplerOrbit:
             true_anomaly=nu,
             mean_motion=self.elements.mean_motion,
             orbital_period=self.elements.orbital_period,
-            days_to_next_return=(360.0 - M) / self.elements.mean_motion if self.elements.mean_motion > 0 else 0,
+            days_to_next_return=(360.0 - M) / self.elements.mean_motion
+            if self.elements.mean_motion > 0
+            else 0,
             is_retrograde=False,
             speed_deg_per_day=self.elements.mean_motion,
         )
@@ -191,16 +218,17 @@ class KeplerOrbit:
 @dataclass
 class KeplerResult:
     """Full orbital state at a given Julian Date."""
+
     body: str
     jd: float
     heliocentric_longitude: float  # degrees 0-360
-    radius_au: float               # AU
-    mean_anomaly: float            # degrees
-    eccentric_anomaly: float       # degrees
-    true_anomaly: float            # degrees
-    mean_motion: float             # degrees/day
-    orbital_period: float           # days
-    days_to_next_return: float     # days until M=360°
+    radius_au: float  # AU
+    mean_anomaly: float  # degrees
+    eccentric_anomaly: float  # degrees
+    true_anomaly: float  # degrees
+    mean_motion: float  # degrees/day
+    orbital_period: float  # days
+    days_to_next_return: float  # days until M=360°
     is_retrograde: bool
     speed_deg_per_day: float
 
@@ -219,6 +247,7 @@ def propagate_kepler(body: str, jd: float) -> KeplerResult:
 
 
 # ─── Swiss Ephemeris Validator ────────────────────────────────────────────────
+
 
 def validate_vs_swiss_ephemeris(
     body: str,
@@ -239,11 +268,13 @@ def validate_vs_swiss_ephemeris(
     try:
         # Try relative first (works when core.ephemeris is already imported as package)
         from core import ephemeris as _eph
+
         has_swiss = _eph.HAS_SWISS_EPHEMERIS
     except ImportError:
         try:
             # Fallback: absolute import
             import core.ephemeris as _eph
+
             has_swiss = _eph.HAS_SWISS_EPHEMERIS
         except ImportError:
             has_swiss = False
@@ -288,10 +319,10 @@ def validate_vs_swiss_ephemeris(
         message = f"✅ Keplerian agrees with Swiss Ephemeris within {tolerance_deg}° (Δ={delta:.4f}°)"
     elif delta <= tolerance_deg * 5:
         status = "WARN"
-        message = f"⚠️  Keplerian deviates from Swiss Ephemeris by {delta:.4f}° (> {tolerance_deg}°, ≤ {tolerance_deg*5}°)"
+        message = f"⚠️  Keplerian deviates from Swiss Ephemeris by {delta:.4f}° (> {tolerance_deg}°, ≤ {tolerance_deg * 5}°)"
     else:
         status = "FAIL"
-        message = f"❌ Keplerian differs from Swiss Ephemeris by {delta:.4f}° (>{tolerance_deg*5}°) — check orbital elements"
+        message = f"❌ Keplerian differs from Swiss Ephemeris by {delta:.4f}° (>{tolerance_deg * 5}°) — check orbital elements"
 
     return {
         "kepler_lon": round(kepler_lon, 4),
@@ -319,7 +350,10 @@ if __name__ == "__main__":
     J2000 = 2451545.0
     now = datetime.datetime.utcnow()
     # Approximate current JD
-    now_jd = J2000 + (now - datetime.datetime(2000, 1, 1, 12, 0, 0)).total_seconds() / 86400.0
+    now_jd = (
+        J2000
+        + (now - datetime.datetime(2000, 1, 1, 12, 0, 0)).total_seconds() / 86400.0
+    )
 
     print("=" * 60)
     print("  Kepler Orbital Mechanics — ATOM-STEP-1")
@@ -345,10 +379,11 @@ if __name__ == "__main__":
         v = validate_vs_swiss_ephemeris(body, now_jd)
         print(f"     {body}: {v['message']}")
         if v.get("delta_lon") is not None:
-            print(f"            Kepler={v['kepler_lon']}°  Swiss={v['swiss_lon']}°  Δ={v['delta_lon']}°")
+            print(
+                f"            Kepler={v['kepler_lon']}°  Swiss={v['swiss_lon']}°  Δ={v['delta_lon']}°"
+            )
     print()
     print("=" * 60)
-
 
 
 # ─── Convenience Database ─────────────────────────────────────────────────────
@@ -362,13 +397,16 @@ OrbitalElementsDB = {
 # ── Pre-built orbits (KeplerOrbit.BODIES) ───────────────────────────────────
 
 KeplerOrbit.BODIES = {
-    "earth":   KeplerOrbit.earth(),
+    "earth": KeplerOrbit.earth(),
     "jupiter": KeplerOrbit.jupiter(),
-    "saturn":  KeplerOrbit.saturn(),
+    "saturn": KeplerOrbit.saturn(),
 }
 
 
 __all__ = [
-    "OrbitalElements", "KeplerOrbit", "KeplerResult",
-    "propagate_kepler", "validate_vs_swiss_ephemeris",
+    "OrbitalElements",
+    "KeplerOrbit",
+    "KeplerResult",
+    "propagate_kepler",
+    "validate_vs_swiss_ephemeris",
 ]

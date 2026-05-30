@@ -1,4 +1,5 @@
 """migrate_agents.py — ATOM-VALIDATE-001: Bulk migration of agent.yaml to schema v1.1"""
+
 import re
 from pathlib import Path
 from typing import Any, Dict
@@ -10,54 +11,102 @@ BASE_DIR = Path("/home/workspace/AstroFinSentinelV5/integrations/gitagent")
 # Domain → capabilities/tools/rules inference
 DOMAIN_DEFAULTS = {
     "astro": {
-        "capabilities": ["planetary_analysis", "aspect_calculation", "ephemeris_lookup"],
+        "capabilities": [
+            "planetary_analysis",
+            "aspect_calculation",
+            "ephemeris_lookup",
+        ],
         "tools": ["swiss_ephemeris", "natal_chart", "transit_calc"],
-        "rules": ["Use Swiss Ephemeris for all planetary calculations", "Apply orbs from configuration"],
+        "rules": [
+            "Use Swiss Ephemeris for all planetary calculations",
+            "Apply orbs from configuration",
+        ],
     },
     "fundamental": {
         "capabilities": ["fundamental_analysis", "valuation", "financial_metrics"],
         "tools": ["coingecko_api", "sec_filings", "financial_indicators"],
-        "rules": ["Always cite sources for financial data", "Cross-reference multiple data sources"],
+        "rules": [
+            "Always cite sources for financial data",
+            "Cross-reference multiple data sources",
+        ],
     },
     "quant": {
-        "capabilities": ["quantitative_analysis", "ml_prediction", "statistical_modeling"],
+        "capabilities": [
+            "quantitative_analysis",
+            "ml_prediction",
+            "statistical_modeling",
+        ],
         "tools": ["backtest_engine", "ml_predictor", "statistical_analysis"],
-        "rules": ["Use walk-forward validation", "Report uncertainty with every prediction"],
+        "rules": [
+            "Use walk-forward validation",
+            "Report uncertainty with every prediction",
+        ],
     },
     "macro": {
-        "capabilities": ["macro_analysis", "economic_indicators", "market_regime_detection"],
+        "capabilities": [
+            "macro_analysis",
+            "economic_indicators",
+            "market_regime_detection",
+        ],
         "tools": ["economic_data", "vix_monitor", "dxy_tracker"],
-        "rules": ["Monitor VIX and DXY for regime changes", "Apply volatility-adjusted position sizing"],
+        "rules": [
+            "Monitor VIX and DXY for regime changes",
+            "Apply volatility-adjusted position sizing",
+        ],
     },
     "technical": {
-        "capabilities": ["technical_analysis", "pattern_recognition", "indicator_calculation"],
+        "capabilities": [
+            "technical_analysis",
+            "pattern_recognition",
+            "indicator_calculation",
+        ],
         "tools": ["price_chart", "rsi", "macd", "bollinger_bands"],
-        "rules": ["Use multiple timeframes for confirmation", "Apply volatility filters"],
+        "rules": [
+            "Use multiple timeframes for confirmation",
+            "Apply volatility filters",
+        ],
     },
     "options": {
-        "capabilities": ["options_flow_analysis", "gamma_exposure", "unusual_activity_detection"],
+        "capabilities": [
+            "options_flow_analysis",
+            "gamma_exposure",
+            "unusual_activity_detection",
+        ],
         "tools": ["options_scanner", "gamma_analysis", "flow_monitor"],
         "rules": ["Flag unusual options activity above 1.5x average"],
     },
     "sentiment": {
         "capabilities": ["sentiment_analysis", "social_monitoring", "news_analysis"],
         "tools": ["news_feed", "social_sentiment", "fear_greed_index"],
-        "rules": ["Aggregate sentiment across multiple sources", "Apply time-decay to news"],
+        "rules": [
+            "Aggregate sentiment across multiple sources",
+            "Apply time-decay to news",
+        ],
     },
     "risk": {
         "capabilities": ["risk_assessment", "portfolio_risk", "drawdown_tracking"],
         "tools": ["risk_calculator", "var_computation", "stress_testing"],
-        "rules": ["Always apply volatility-adjusted sizing", "Cap maximum drawdown exposure"],
+        "rules": [
+            "Always apply volatility-adjusted sizing",
+            "Cap maximum drawdown exposure",
+        ],
     },
     "electional": {
-        "capabilities": ["electional_astrology", "muhurta_timing", "choghadiya_analysis"],
+        "capabilities": [
+            "electional_astrology",
+            "muhurta_timing",
+            "choghadiya_analysis",
+        ],
         "tools": ["choghadiya_table", "nakshatra_calc", "panchanga"],
         "rules": ["Prefer auspicious Yoga for entries", "Avoid malefic windows"],
     },
     "orchestrator": {
         "capabilities": ["orchestration", "agent_coordination", "synthesis"],
         "tools": ["agent_dispatcher", "result_aggregator"],
-        "rules": ["Coordinate all sub-agents before synthesis", "Apply weighted aggregation"],
+        "rules": [
+            "Coordinate all sub-agents before synthesis",
+            "Apply weighted aggregation",
+        ],
     },
 }
 
@@ -84,9 +133,11 @@ def infer_name(name_raw: Any) -> str:
     name = name_raw.lower()
     # Replace uppercase runs (like "MacroAgent") with snake_case
     # e.g. "MacroAgent" → "macro_agent", "MLPredictorAgent" → "ml_predictor_agent"
-    name = re.sub(r'([A-Z]+(?=[A-Z][a-z])|[A-Z][a-z]+)', lambda m: m.group(1).lower(), name)
-    name = re.sub(r'([A-Z]+)', lambda m: '_' + m.group(1).lower(), name)
-    name = re.sub(r'_+', '_', name).strip('_')
+    name = re.sub(
+        r"([A-Z]+(?=[A-Z][a-z])|[A-Z][a-z]+)", lambda m: m.group(1).lower(), name
+    )
+    name = re.sub(r"([A-Z]+)", lambda m: "_" + m.group(1).lower(), name)
+    name = re.sub(r"_+", "_", name).strip("_")
     return name
 
 
@@ -137,7 +188,11 @@ def migrate_agent(yaml_path: Path) -> Dict[str, Any]:
             content = duties_path.read_text()
             caps = re.findall(r"##?\s*(\w[\w\s]*?)(?:\n|$)", content[:500])
             if caps:
-                data["capabilities"] = [c.strip().lower().replace(" ", "_") for c in caps[:5] if len(c.strip()) > 3]
+                data["capabilities"] = [
+                    c.strip().lower().replace(" ", "_")
+                    for c in caps[:5]
+                    if len(c.strip()) > 3
+                ]
         if not data.get("capabilities"):
             data["capabilities"] = domain_defaults["capabilities"]
 
@@ -178,7 +233,9 @@ def migrate_agent(yaml_path: Path) -> Dict[str, Any]:
 
 def migrate_all():
     """Migrate all agent.yaml files in integrations/gitagent/."""
-    agent_dirs = [d for d in BASE_DIR.iterdir() if d.is_dir() and (d / "agent.yaml").exists()]
+    agent_dirs = [
+        d for d in BASE_DIR.iterdir() if d.is_dir() and (d / "agent.yaml").exists()
+    ]
     agent_dirs.sort()
 
     results = []
@@ -207,19 +264,23 @@ def migrate_all():
             if "output_schema" not in original:
                 changes.append("+output_schema")
 
-            results.append({
-                "name": migrated["name"],
-                "path": str(yaml_path.relative_to(BASE_DIR.parent.parent.parent)),
-                "status": "migrated",
-                "changes": changes,
-            })
+            results.append(
+                {
+                    "name": migrated["name"],
+                    "path": str(yaml_path.relative_to(BASE_DIR.parent.parent.parent)),
+                    "status": "migrated",
+                    "changes": changes,
+                }
+            )
         except Exception as e:
-            results.append({
-                "name": agent_dir.name,
-                "path": str(yaml_path),
-                "status": f"ERROR: {e}",
-                "changes": [],
-            })
+            results.append(
+                {
+                    "name": agent_dir.name,
+                    "path": str(yaml_path),
+                    "status": f"ERROR: {e}",
+                    "changes": [],
+                }
+            )
 
     return results
 
@@ -237,7 +298,7 @@ if __name__ == "__main__":
 
     passed = sum(1 for r in results if r["status"] == "migrated")
     failed = sum(1 for r in results if r["status"] != "migrated")
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Migrated: {passed}/{len(results)}")
     if failed:
         print(f"Failed: {failed}")

@@ -2,6 +2,7 @@
 
 ATOM-GITAGENT-003: Phase 3 completion
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -305,6 +306,7 @@ def cmd_commit(args):
         print("\n🔄 Executing git commit...")
         try:
             import subprocess
+
             result = subprocess.run(
                 ["git", "commit", "-m", msg.to_string()],
                 capture_output=True,
@@ -375,54 +377,82 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # export-agent
-    export_parser = subparsers.add_parser("export-agent", help="Export MASFactory agents to GitAgent")
+    export_parser = subparsers.add_parser(
+        "export-agent", help="Export MASFactory agents to GitAgent"
+    )
     export_parser.add_argument("agents", nargs="+", help="Agent names to export")
-    export_parser.add_argument("--package-name", "-n", default="astrofin_agents", help="Package name")
+    export_parser.add_argument(
+        "--package-name", "-n", default="astrofin_agents", help="Package name"
+    )
     export_parser.add_argument("--output-dir", "-o", help="Output directory")
     export_parser.set_defaults(func=cmd_export_agent)
 
     # import-agent
-    import_parser = subparsers.add_parser("import-agent", help="Import GitAgent package to MASFactory")
+    import_parser = subparsers.add_parser(
+        "import-agent", help="Import GitAgent package to MASFactory"
+    )
     import_parser.add_argument("package_path", help="Path to GitAgent package")
     import_parser.set_defaults(func=cmd_import_agent)
 
     # roundtrip
-    roundtrip_parser = subparsers.add_parser("roundtrip", help="Test export → import → verify")
-    roundtrip_parser.add_argument("--package-name", "-n", default="test_roundtrip", help="Package name")
-    roundtrip_parser.add_argument("--agents", nargs="+", help="Agent names (default: 4 key agents)")
+    roundtrip_parser = subparsers.add_parser(
+        "roundtrip", help="Test export → import → verify"
+    )
+    roundtrip_parser.add_argument(
+        "--package-name", "-n", default="test_roundtrip", help="Package name"
+    )
+    roundtrip_parser.add_argument(
+        "--agents", nargs="+", help="Agent names (default: 4 key agents)"
+    )
     roundtrip_parser.set_defaults(func=cmd_roundtrip)
 
     # mcp-search
-    mcp_search_parser = subparsers.add_parser("mcp-search", help="Search MCP tools in Smithery/GitHub")
+    mcp_search_parser = subparsers.add_parser(
+        "mcp-search", help="Search MCP tools in Smithery/GitHub"
+    )
     mcp_search_parser.add_argument("query", help="Search query")
-    mcp_search_parser.add_argument("--max-results", "-m", type=int, default=10, help="Max results")
+    mcp_search_parser.add_argument(
+        "--max-results", "-m", type=int, default=10, help="Max results"
+    )
     mcp_search_parser.set_defaults(func=cmd_mcp_search)
 
     # mcp-install
-    mcp_install_parser = subparsers.add_parser("mcp-install", help="Install an MCP tool")
+    mcp_install_parser = subparsers.add_parser(
+        "mcp-install", help="Install an MCP tool"
+    )
     mcp_install_parser.add_argument("tool_id", help="Tool ID")
     mcp_install_parser.add_argument("--install-path", help="Custom install directory")
     mcp_install_parser.set_defaults(func=cmd_mcp_install)
 
     # mcp-list
     mcp_list_parser = subparsers.add_parser("mcp-list", help="List installed MCP tools")
-    mcp_list_parser.add_argument("--all", "-a", action="store_true", help="Show all available")
+    mcp_list_parser.add_argument(
+        "--all", "-a", action="store_true", help="Show all available"
+    )
     mcp_list_parser.set_defaults(func=cmd_mcp_list)
 
     # mcp-remove
-    mcp_remove_parser = subparsers.add_parser("mcp-remove", help="Remove an installed MCP tool")
+    mcp_remove_parser = subparsers.add_parser(
+        "mcp-remove", help="Remove an installed MCP tool"
+    )
     mcp_remove_parser.add_argument("tool_id", help="Tool ID to remove")
     mcp_remove_parser.set_defaults(func=cmd_mcp_remove)
 
     # commit
     commit_parser = subparsers.add_parser("commit", help="Generate commit message")
     commit_parser.add_argument("--ref", help="Git ref to diff against")
-    commit_parser.add_argument("--preview", "-p", action="store_true", help="Preview only")
-    commit_parser.add_argument("--execute", "-e", action="store_true", help="Execute git commit")
+    commit_parser.add_argument(
+        "--preview", "-p", action="store_true", help="Preview only"
+    )
+    commit_parser.add_argument(
+        "--execute", "-e", action="store_true", help="Execute git commit"
+    )
     commit_parser.set_defaults(func=cmd_commit)
 
     # validate
-    validate_parser = subparsers.add_parser("validate", help="Validate a GitAgent package")
+    validate_parser = subparsers.add_parser(
+        "validate", help="Validate a GitAgent package"
+    )
     validate_parser.add_argument("package_path", help="Path to GitAgent package")
     validate_parser.set_defaults(func=cmd_validate)
 

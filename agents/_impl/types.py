@@ -15,7 +15,7 @@ class Signal(str, Enum):
     HOLD = "HOLD"
     SELL = "SELL"
     STRONG_SELL = "STRONG_SELL"
-    
+
     @property
     def score(self) -> float:
         """Map signal to numeric score for weighted calculation."""
@@ -33,6 +33,7 @@ class Signal(str, Enum):
 @dataclass
 class TradingSignal:
     """Final trading signal from weighted agent responses."""
+
     signal: str
     confidence: float
     symbol: str = ""

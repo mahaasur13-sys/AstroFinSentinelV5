@@ -29,6 +29,7 @@ from tools.metrics_server import CACHE_HITS, CACHE_MISSES, THOMPSON_PARAMS
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 
+
 def _belief_db_path() -> Path:
     root = get_project_root()
     db_dir = root / "core"
@@ -82,13 +83,15 @@ CREATE INDEX IF NOT EXISTS idx_selection_log_session
 
 # ─── Data classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class BeliefState:
     """Beta distribution state for one agent."""
-    agent_name:     str
-    alpha:         float   = 1.0
-    beta:          float   = 1.0
-    total_sessions: int   = 0
+
+    agent_name: str
+    alpha: float = 1.0
+    beta: float = 1.0
+    total_sessions: int = 0
 
     @property
     def mean(self) -> float:
@@ -126,18 +129,19 @@ class BeliefState:
 
     def to_dict(self) -> dict:
         return {
-            "agent_name":      self.agent_name,
-            "alpha":           round(self.alpha, 4),
-            "beta":            round(self.beta, 4),
-            "total_sessions":  self.total_sessions,
-            "mean_accuracy":   round(self.mean, 4),
-            "mode_accuracy":   self.mode,
-            "std":             round(self.std, 4),
-            "ci_95":           self.credibility_interval(0.95),
+            "agent_name": self.agent_name,
+            "alpha": round(self.alpha, 4),
+            "beta": round(self.beta, 4),
+            "total_sessions": self.total_sessions,
+            "mean_accuracy": round(self.mean, 4),
+            "mode_accuracy": self.mode,
+            "std": round(self.std, 4),
+            "ci_95": self.credibility_interval(0.95),
         }
 
 
 # ─── BeliefTracker ─────────────────────────────────────────────────────────────
+
 
 class BeliefTracker:
     """
@@ -179,8 +183,7 @@ class BeliefTracker:
         CACHE_MISSES.inc()
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT * FROM agent_beliefs WHERE agent_name = ?",
-                (agent_name,)
+                "SELECT * FROM agent_beliefs WHERE agent_name = ?", (agent_name,)
             ).fetchone()
         if not row:
             self._cache[agent_name] = None
@@ -200,12 +203,15 @@ class BeliefTracker:
             rows = conn.execute(
                 "SELECT * FROM agent_beliefs ORDER BY total_sessions DESC"
             ).fetchall()
-        return {r["agent_name"]: BeliefState(
-            agent_name=r["agent_name"],
-            alpha=r["alpha"],
-            beta=r["beta"],
-            total_sessions=r["total_sessions"],
-        ) for r in rows}
+        return {
+            r["agent_name"]: BeliefState(
+                agent_name=r["agent_name"],
+                alpha=r["alpha"],
+                beta=r["beta"],
+                total_sessions=r["total_sessions"],
+            )
+            for r in rows
+        }
 
     def update_from_session(self, session_result: dict) -> dict[str, bool]:
         """
@@ -259,12 +265,15 @@ class BeliefTracker:
     def get_agent_history(self, agent_name: str, limit: int = 100) -> list[dict]:
         """Return last N outcomes for one agent."""
         with self._conn() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT * FROM agent_belief_history
                 WHERE agent_name = ?
                 ORDER BY created_at DESC
                 LIMIT ?
-            """, (agent_name, limit)).fetchall()
+            """,
+                (agent_name, limit),
+            ).fetchall()
         return [dict(r) for r in rows]
 
     def leaderboard(self) -> list[dict]:
@@ -276,17 +285,19 @@ class BeliefTracker:
         rows = []
         for name, state in all_states.items():
             ci_lo, ci_hi = state.credibility_interval(0.95)
-            rows.append({
-                "agent_name":      name,
-                "mean_accuracy":   round(state.mean, 4),
-                "mode_accuracy":   state.mode,
-                "ci_95":           (ci_lo, ci_hi),
-                "ci_width":        round(ci_hi - ci_lo, 4),
-                "total_sessions":  state.total_sessions,
-                "alpha":           round(state.alpha, 2),
-                "beta":            round(state.beta, 2),
-                "std":             round(state.std, 4),
-            })
+            rows.append(
+                {
+                    "agent_name": name,
+                    "mean_accuracy": round(state.mean, 4),
+                    "mode_accuracy": state.mode,
+                    "ci_95": (ci_lo, ci_hi),
+                    "ci_width": round(ci_hi - ci_lo, 4),
+                    "total_sessions": state.total_sessions,
+                    "alpha": round(state.alpha, 2),
+                    "beta": round(state.beta, 2),
+                    "std": round(state.std, 4),
+                }
+            )
 
         rows.sort(key=lambda r: r["mean_accuracy"], reverse=True)
         return rows
@@ -300,27 +311,33 @@ class BeliefTracker:
         with self._conn() as conn:
             if agent_name:
                 deleted = conn.execute(
-                    "DELETE FROM agent_beliefs WHERE agent_name = ?",
-                    (agent_name,)
+                    "DELETE FROM agent_beliefs WHERE agent_name = ?", (agent_name,)
                 ).rowcount
                 conn.execute(
                     "DELETE FROM agent_belief_history WHERE agent_name = ?",
-                    (agent_name,)
+                    (agent_name,),
                 )
             else:
-                deleted = conn.execute(
-                    "DELETE FROM agent_beliefs"
-                ).rowcount
+                deleted = conn.execute("DELETE FROM agent_beliefs").rowcount
                 conn.execute("DELETE FROM agent_belief_history")
             conn.commit()
         return deleted
 
     # ── Internal ───────────────────────────────────────────────────────────────
 
-    def _update_agent(self, agent_name: str, alpha_delta: float, beta_delta: float,
-                      session_id: str, final_signal: str, agent_signal: str, is_success: bool):
+    def _update_agent(
+        self,
+        agent_name: str,
+        alpha_delta: float,
+        beta_delta: float,
+        session_id: str,
+        final_signal: str,
+        agent_signal: str,
+        is_success: bool,
+    ):
         with self._conn() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO agent_beliefs (agent_name, alpha, beta, total_sessions)
                 VALUES (?, 1.0 + ?, 1.0 + ?, 1)
                 ON CONFLICT(agent_name) DO UPDATE SET
@@ -328,32 +345,47 @@ class BeliefTracker:
                     beta           = beta           + excluded.beta,
                     total_sessions = total_sessions  + 1,
                     updated_at     = datetime('now')
-            """, (agent_name, alpha_delta, beta_delta))
+            """,
+                (agent_name, alpha_delta, beta_delta),
+            )
 
             # Обновляем Prometheus Gauge для Thompson параметров
             current = conn.execute(
                 "SELECT alpha, beta FROM agent_beliefs WHERE agent_name = ?",
-                (agent_name,)
+                (agent_name,),
             ).fetchone()
             if current:
-                THOMPSON_PARAMS.labels(agent_name=agent_name, param="alpha").set(current["alpha"])
-                THOMPSON_PARAMS.labels(agent_name=agent_name, param="beta").set(current["beta"])
+                THOMPSON_PARAMS.labels(agent_name=agent_name, param="alpha").set(
+                    current["alpha"]
+                )
+                THOMPSON_PARAMS.labels(agent_name=agent_name, param="beta").set(
+                    current["beta"]
+                )
                 mean_val = current["alpha"] / (current["alpha"] + current["beta"])
-                THOMPSON_PARAMS.labels(agent_name=agent_name, param="mean").set(mean_val)
+                THOMPSON_PARAMS.labels(agent_name=agent_name, param="mean").set(
+                    mean_val
+                )
 
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO agent_belief_history
                     (agent_name, session_id, final_signal, agent_signal,
                      is_success, posterior_alpha, posterior_beta)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                agent_name, session_id, final_signal, agent_signal,
-                int(is_success),
-                1.0 + alpha_delta,
-                1.0 + beta_delta,
-            ))
+            """,
+                (
+                    agent_name,
+                    session_id,
+                    final_signal,
+                    agent_signal,
+                    int(is_success),
+                    1.0 + alpha_delta,
+                    1.0 + beta_delta,
+                ),
+            )
 
-            conn.execute("""
+            conn.execute(
+                """
                 DELETE FROM agent_belief_history
                 WHERE agent_name = ?
                 AND id NOT IN (
@@ -362,13 +394,16 @@ class BeliefTracker:
                     ORDER BY created_at DESC
                     LIMIT ?
                 )
-            """, (agent_name, agent_name, self.history_limit))
+            """,
+                (agent_name, agent_name, self.history_limit),
+            )
 
             conn.commit()
 
     @staticmethod
     def _sample_beta(alpha: float, beta: float) -> float:
         import numpy as np
+
         return float(np.random.beta(alpha, beta))
 
     @staticmethod
@@ -407,14 +442,18 @@ class BeliefTracker:
     def _pool_for(self, agent_name: str) -> str:
         return self._POOL_MAP.get(agent_name, "astro")
 
-    def _log_session_selections(self, session_id: str, called_agents: list[str], agent_results: dict[str, bool]):
+    def _log_session_selections(
+        self, session_id: str, called_agents: list[str], agent_results: dict[str, bool]
+    ):
         called_set = {a for a in called_agents if a != "SystemFallback"}
         all_pool_agents = set(self._POOL_MAP.keys())
         not_called = all_pool_agents - called_set
 
         rows: list[tuple] = []
         for name in called_set:
-            rows.append((session_id, name, self._pool_for(name), 1, agent_results.get(name)))
+            rows.append(
+                (session_id, name, self._pool_for(name), 1, agent_results.get(name))
+            )
         for name in not_called:
             rows.append((session_id, name, self._pool_for(name), 0, None))
 
@@ -422,32 +461,46 @@ class BeliefTracker:
             return
 
         with self._conn() as conn:
-            conn.executemany("""
+            conn.executemany(
+                """
                 INSERT OR REPLACE INTO agent_selection_log
                     (session_id, agent_name, pool_name, was_called, success_flag)
                 VALUES (?, ?, ?, ?, ?)
-            """, rows)
+            """,
+                rows,
+            )
             conn.commit()
 
-    def get_selection_log(self, agent_name: str = None, session_id: str = None, limit: int = 100) -> list[dict]:
+    def get_selection_log(
+        self, agent_name: str = None, session_id: str = None, limit: int = 100
+    ) -> list[dict]:
         with self._conn() as conn:
             if agent_name:
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT * FROM agent_selection_log
                     WHERE agent_name = ?
                     ORDER BY created_at DESC LIMIT ?
-                """, (agent_name, limit)).fetchall()
+                """,
+                    (agent_name, limit),
+                ).fetchall()
             elif session_id:
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT * FROM agent_selection_log
                     WHERE session_id = ?
                     ORDER BY created_at DESC
-                """, (session_id,)).fetchall()
+                """,
+                    (session_id,),
+                ).fetchall()
             else:
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT * FROM agent_selection_log
                     ORDER BY created_at DESC LIMIT ?
-                """, (limit,)).fetchall()
+                """,
+                    (limit,),
+                ).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -455,11 +508,13 @@ class BeliefTracker:
 
 _belief_tracker: Optional[BeliefTracker] = None
 
+
 def get_belief_tracker() -> BeliefTracker:
     global _belief_tracker
     if _belief_tracker is None:
         _belief_tracker = BeliefTracker()
     return _belief_tracker
+
 
 def update_beliefs_from_session(session_result: dict) -> dict[str, bool]:
     return get_belief_tracker().update_from_session(session_result)

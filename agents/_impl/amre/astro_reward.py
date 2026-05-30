@@ -1,4 +1,5 @@
 """amre/astro_reward.py - ATOM-021: Astro-enhanced Reward Function"""
+
 """Astronomically-informed reward for KARL trading decisions."""
 
 from typing import Any, Dict, List
@@ -40,9 +41,32 @@ ZODIAC_ARC = {
 }
 
 NAKSHATRA_SCORES = [
-    0.8, 0.7, 0.6, 0.9, 0.5, 0.4, 0.7, 0.8, 0.6,
-    0.5, 0.9, 0.4, 0.8, 0.7, 0.6, 0.5, 0.9, 0.4,
-    0.7, 0.8, 0.6, 0.5, 0.4, 0.9, 0.7, 0.8,
+    0.8,
+    0.7,
+    0.6,
+    0.9,
+    0.5,
+    0.4,
+    0.7,
+    0.8,
+    0.6,
+    0.5,
+    0.9,
+    0.4,
+    0.8,
+    0.7,
+    0.6,
+    0.5,
+    0.9,
+    0.4,
+    0.7,
+    0.8,
+    0.6,
+    0.5,
+    0.4,
+    0.9,
+    0.7,
+    0.8,
 ]
 
 
@@ -50,7 +74,13 @@ def get_lunar_phase_score(moon_longitude: float) -> float:
     phase_angle = moon_longitude % 180
     nearest = min(LUNAR_PHASES, key=lambda x: abs(x[0] - phase_angle))
     nature = nearest[2]
-    scores = {"caution": 0.5, "neutral": 0.7, "opportunity": 0.8, "momentum": 0.9, "peak": 0.6}
+    scores = {
+        "caution": 0.5,
+        "neutral": 0.7,
+        "opportunity": 0.8,
+        "momentum": 0.9,
+        "peak": 0.6,
+    }
     return scores.get(nature, 0.7)
 
 
@@ -89,7 +119,7 @@ def compute_astro_reward(
     moon_longitude: float,
     aspects: List[Dict[str, Any]],
     nakshatra_longitude: float,
-    base_reward: float
+    base_reward: float,
 ) -> Dict[str, float]:
     lunar_score = get_lunar_phase_score(moon_longitude)
     aspect_score = get_planetary_aspect_score(aspects)
@@ -127,7 +157,9 @@ def compute_astro_reward(
     }
 
 
-def get_astro_market_phase(moon_longitude: float, sun_longitude: float = 0) -> Dict[str, Any]:
+def get_astro_market_phase(
+    moon_longitude: float, sun_longitude: float = 0
+) -> Dict[str, Any]:
     lunar_day = int(moon_longitude / 12) % 30
     if lunar_day < 5:
         phase, sentiment, momentum = "New Moon Cycle", "cautious", "building"
@@ -142,6 +174,13 @@ def get_astro_market_phase(moon_longitude: float, sun_longitude: float = 0) -> D
     else:
         phase, sentiment, momentum = "Waning Phase", "corrective", "declining"
     return {
-        "phase": phase, "sentiment": sentiment, "momentum": momentum,
-        "lunar_day": lunar_day, "favorable_for": "LONG" if "Waxing" in phase else "SHORT" if "Waning" in phase else "NEUTRAL",
+        "phase": phase,
+        "sentiment": sentiment,
+        "momentum": momentum,
+        "lunar_day": lunar_day,
+        "favorable_for": "LONG"
+        if "Waxing" in phase
+        else "SHORT"
+        if "Waning" in phase
+        else "NEUTRAL",
     }

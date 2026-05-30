@@ -6,6 +6,7 @@ Tests:
   C3: record() round-trip save → load preserves all fields
   C4: record_run() with BacktestRun directly returns session_id
 """
+
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +32,7 @@ def tmp_db():
 
 
 # ─── C1: MetricsDB.list() ─────────────────────────────────────────────────────
+
 
 def test_list_returns_backtest_run_objects(tmp_db):
     run = BacktestRun(
@@ -85,6 +87,7 @@ def test_list_respects_limit(tmp_db):
 
 # ─── C2: MetricsDB.summary() ──────────────────────────────────────────────────
 
+
 def test_summary_avg_win_rate(tmp_db):
     tmp_db.save(_make_run("s1", "BTCUSDT", win_rate=50.0))
     tmp_db.save(_make_run("s2", "BTCUSDT", win_rate=60.0))
@@ -138,6 +141,7 @@ def test_summary_returns_none_when_empty():
 
 # ─── C3: record() round-trip ─────────────────────────────────────────────────
 
+
 def test_record_roundtrip(tmp_db):
     sid = record(
         symbol="BTCUSDT",
@@ -163,6 +167,7 @@ def test_record_roundtrip(tmp_db):
 
 # ─── C4: record_run() with BacktestRun ───────────────────────────────────────
 
+
 def test_record_run_with_backtest_run(tmp_db):
     run = _make_run("cr001", "ETHUSDT", win_rate=55.0, sharpe_ratio=1.2)
     sid = record_run(run)
@@ -174,6 +179,7 @@ def test_record_run_with_backtest_run(tmp_db):
 
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
+
 
 def _make_run(session_id: str, symbol: str, **overrides) -> BacktestRun:
     defaults = dict(

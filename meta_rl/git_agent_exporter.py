@@ -1,4 +1,5 @@
 """meta_rl/git_agent_exporter.py — ATOM-META-RL-013: GitAgent Export for Strategies"""
+
 from __future__ import annotations
 
 import hashlib
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 GIT_EXPORT_ENABLED = True
 EXPORT_ON_EVOLUTION = False
 
+
 @dataclass
 class ExportResult:
     slug: str
@@ -24,11 +26,13 @@ class ExportResult:
     validated: bool
     errors: List[str]
 
+
 def _slug_safe(text: str) -> str:
     keep = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
     slug = "".join(c if c in keep else "-" for c in text.lower().strip())
     slug = re.sub(r"--+", "-", slug).strip("-")
     return slug[:40] or "strategy"
+
 
 def _slug_for_strategy(strategy: Any) -> str:
     chrom = getattr(strategy, "chromosome", {})
@@ -39,13 +43,23 @@ def _slug_for_strategy(strategy: Any) -> str:
     short_hash = hashlib.md5(seed_str.encode()).hexdigest()[:8]
     return short_hash
 
+
 def _regime_label(rf: str) -> str:
-    mapping = {"ALL": "ALL", "BULL_ONLY": "BULL-RESTRICTED", "BEAR_ONLY": "BEAR-RESTRICTED"}
+    mapping = {
+        "ALL": "ALL",
+        "BULL_ONLY": "BULL-RESTRICTED",
+        "BEAR_ONLY": "BEAR-RESTRICTED",
+    }
     return mapping.get(rf, rf)
 
-def export_strategy(strategy: Any, version_tag: str = None, output_dir: str = None) -> ExportResult:
+
+def export_strategy(
+    strategy: Any, version_tag: str = None, output_dir: str = None
+) -> ExportResult:
     if not GIT_EXPORT_ENABLED:
-        return ExportResult(slug="", path="", validated=False, errors=["GIT_EXPORT_ENABLED=False"])
+        return ExportResult(
+            slug="", path="", validated=False, errors=["GIT_EXPORT_ENABLED=False"]
+        )
     try:
         output_dir = output_dir or "integrations/gitagent/exported_strategies"
         short = _slug_for_strategy(strategy)
@@ -136,11 +150,13 @@ strategy = load_strategy("{pkg}")
         logger.warning(f"[META-RL-GIT] export failed: {ex}")
         return ExportResult(slug="", path="", validated=False, errors=[str(ex)])
 
+
 def _write_text(content: str, path: Path):
     try:
         Path(path).write_text(content, encoding="utf-8")
     except Exception as ex:
         logger.warning(f"[META-RL-GIT] write_text failed {path}: {ex}")
+
 
 def _write_yaml(data: dict, path: Path):
     try:
@@ -149,6 +165,7 @@ def _write_yaml(data: dict, path: Path):
     except Exception as ex:
         logger.warning(f"[META-RL-GIT] yaml dump failed {path}: {ex}")
 
+
 def _write_json(data: dict, path: Path):
     try:
         with open(path, "w") as f:
@@ -156,9 +173,11 @@ def _write_json(data: dict, path: Path):
     except Exception as ex:
         logger.warning(f"[META-RL-GIT] json dump failed {path}: {ex}")
 
+
 def load_strategy(package_path: str) -> Optional[Any]:
     try:
         from strategies.generator import GeneratedStrategy
+
         pkg = Path(package_path)
         params_path = pkg / "strategy_params.json"
         if not params_path.exists():

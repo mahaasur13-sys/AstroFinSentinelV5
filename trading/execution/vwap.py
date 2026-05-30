@@ -1,4 +1,5 @@
 """trading/execution/vwap.py — ATOM-STEP-10: VWAP Execution Strategy"""
+
 from __future__ import annotations
 
 import time
@@ -66,6 +67,7 @@ class VWAPExecutionReport:
 @dataclass
 class VWAPConfig:
     """VWAP execution configuration."""
+
     num_slices: int = 10
     slice_duration_seconds: int = 30
     participation_rate: float = 0.10  # target % of market volume per slice
@@ -91,10 +93,30 @@ class VWAPConfig:
         Lunch (12-1pm) is lowest.
         """
         hours = [
-            0.5,  0.3,  0.2,  0.2,  0.3,  0.5,  # 0-5am
-            1.0,  2.5,  4.0,  3.5,  3.0,  2.0,  # 6-11am
-            2.0,  2.5,  3.0,  3.5,  4.0,  4.5,  # 12-17pm
-            3.5,  2.5,  1.5,  1.0,  0.7,  0.5,  # 18-23pm
+            0.5,
+            0.3,
+            0.2,
+            0.2,
+            0.3,
+            0.5,  # 0-5am
+            1.0,
+            2.5,
+            4.0,
+            3.5,
+            3.0,
+            2.0,  # 6-11am
+            2.0,
+            2.5,
+            3.0,
+            3.5,
+            4.0,
+            4.5,  # 12-17pm
+            3.5,
+            2.5,
+            1.5,
+            1.0,
+            0.7,
+            0.5,  # 18-23pm
         ]
         total = sum(hours)
         return [h / total for h in hours]
@@ -210,10 +232,15 @@ class VWAPExecutor:
             participation = market_vol * cfg.participation_rate if market_vol > 0 else 0
             target_qty = min(target_qty, market_vol * cfg.max_participation_rate)
 
-            if participation > 0 and target_qty / participation > cfg.max_participation_rate:
+            if (
+                participation > 0
+                and target_qty / participation > cfg.max_participation_rate
+            ):
                 participation_violations += 1
 
-            participation_rate = (target_qty / market_vol * 100) if market_vol > 0 else 0
+            participation_rate = (
+                (target_qty / market_vol * 100) if market_vol > 0 else 0
+            )
             participation_sum += participation_rate
 
             # Market impact
@@ -223,7 +250,9 @@ class VWAPExecutor:
 
             # Slippage
             slip = self.slippage.calculate(
-                side, target_qty, slice_price,
+                side,
+                target_qty,
+                slice_price,
                 volatility_bps=impact.slippage_bps * 100,
                 spread_bps=self.ob_sim.spread_bps,
                 adv=self.ob_sim.adv,
@@ -232,19 +261,21 @@ class VWAPExecutor:
             )
 
             if slip.slippage_bps > cfg.max_price_slippage_bps:
-                report.slices.append(VWAPSlice(
-                    slice_num=i + 1,
-                    scheduled_time=now + i * cfg.slice_duration_seconds,
-                    target_qty=raw_target,
-                    actual_qty=0,
-                    exec_price=0,
-                    slippage_bps=slip.slippage_bps,
-                    slippage_cost=0,
-                    market_volume=market_vol,
-                    participation_rate=participation_rate,
-                    filled=False,
-                    order_id="ABORTED",
-                ))
+                report.slices.append(
+                    VWAPSlice(
+                        slice_num=i + 1,
+                        scheduled_time=now + i * cfg.slice_duration_seconds,
+                        target_qty=raw_target,
+                        actual_qty=0,
+                        exec_price=0,
+                        slippage_bps=slip.slippage_bps,
+                        slippage_cost=0,
+                        market_volume=market_vol,
+                        participation_rate=participation_rate,
+                        filled=False,
+                        order_id="ABORTED",
+                    )
+                )
                 continue
 
             exec_price = slip.exec_price
@@ -257,19 +288,21 @@ class VWAPExecutor:
             total_commission += commission
             filled_qty_total += target_qty
 
-            report.slices.append(VWAPSlice(
-                slice_num=i + 1,
-                scheduled_time=now + i * cfg.slice_duration_seconds,
-                target_qty=raw_target,
-                actual_qty=target_qty,
-                exec_price=exec_price,
-                slippage_bps=slip.slippage_bps,
-                slippage_cost=slip.slippage_cost,
-                market_volume=market_vol,
-                participation_rate=participation_rate,
-                filled=True,
-                order_id=f"VWAP-{int(now*1000)}-{i}",
-            ))
+            report.slices.append(
+                VWAPSlice(
+                    slice_num=i + 1,
+                    scheduled_time=now + i * cfg.slice_duration_seconds,
+                    target_qty=raw_target,
+                    actual_qty=target_qty,
+                    exec_price=exec_price,
+                    slippage_bps=slip.slippage_bps,
+                    slippage_cost=slip.slippage_cost,
+                    market_volume=market_vol,
+                    participation_rate=participation_rate,
+                    filled=True,
+                    order_id=f"VWAP-{int(now * 1000)}-{i}",
+                )
+            )
 
             time.sleep(0.01)
 
@@ -279,7 +312,11 @@ class VWAPExecutor:
         report.remaining_qty = qty - filled_qty_total
 
         filled = [s for s in report.slices if s.filled]
-        report.avg_price = sum(s.exec_price * s.actual_qty for s in filled) / filled_qty_total if filled_qty_total > 0 else 0
+        report.avg_price = (
+            sum(s.exec_price * s.actual_qty for s in filled) / filled_qty_total
+            if filled_qty_total > 0
+            else 0
+        )
         report.vwap = report.avg_price
 
         # VWAP benchmark: sum(price * volume) / sum(volume) for filled slices
@@ -288,7 +325,9 @@ class VWAPExecutor:
         if vwap_denominator > 0:
             report.vwap = vwap_numerator / vwap_denominator
 
-        report.avg_slippage_bps = sum(s.slippage_bps for s in filled) / len(filled) if filled else 0
+        report.avg_slippage_bps = (
+            sum(s.slippage_bps for s in filled) / len(filled) if filled else 0
+        )
         report.total_slippage_cost = total_slippage_cost
         report.total_commission = total_commission
         report.total_cost = total_cost
@@ -299,27 +338,35 @@ class VWAPExecutor:
         report.participation_violations = participation_violations
 
         if report.price_start > 0:
-            report.price_impact_bps = abs(report.avg_price - report.price_start) / report.price_start * 10000
+            report.price_impact_bps = (
+                abs(report.avg_price - report.price_start) / report.price_start * 10000
+            )
 
         return report
 
     def __repr__(self) -> str:
-        return (f"VWAPExecutor(num_slices={self.ob_sim.num_levels}, "
-                f"commission={self.commission_bps}bps)")
+        return (
+            f"VWAPExecutor(num_slices={self.ob_sim.num_levels}, "
+            f"commission={self.commission_bps}bps)"
+        )
 
 
 if __name__ == "__main__":
     print("=== VWAP Execution ===")
     executor = VWAPExecutor()
     cfg = VWAPConfig(num_slices=5, slice_duration_seconds=10)
-    report = executor.execute("BTC/USDT", "buy", qty=1.0, current_price=50000, config=cfg)
+    report = executor.execute(
+        "BTC/USDT", "buy", qty=1.0, current_price=50000, config=cfg
+    )
     print(f"  {report.summary()}")
     for s in report.slices:
         status = "FILLED" if s.filled else "ABORTED"
-        print(f"    Slice {s.slice_num}: {status} | "
-              f"qty={s.actual_qty:.4f} | "
-              f"@${s.exec_price:.2f} | "
-              f"mkt_vol={s.market_volume:.2f} | "
-              f"participation={s.participation_rate:.1f}%")
+        print(
+            f"    Slice {s.slice_num}: {status} | "
+            f"qty={s.actual_qty:.4f} | "
+            f"@${s.exec_price:.2f} | "
+            f"mkt_vol={s.market_volume:.2f} | "
+            f"participation={s.participation_rate:.1f}%"
+        )
     print(f"  VWAP benchmark: ${report.vwap:.2f}")
     print(f"  Participation violations: {report.participation_violations}")
