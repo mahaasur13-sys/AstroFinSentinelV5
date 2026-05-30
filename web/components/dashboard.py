@@ -35,9 +35,7 @@ def dashboard_tab():
                         dbc.Card(
                             dbc.CardBody(
                                 [
-                                    html.H3(
-                                        f"{strategies}", className="mb-0 text-warning"
-                                    ),
+                                    html.H3(f"{strategies}", className="mb-0 text-warning"),
                                     html.Small("Strategies Evolved"),
                                 ]
                             )
@@ -48,9 +46,7 @@ def dashboard_tab():
                         dbc.Card(
                             dbc.CardBody(
                                 [
-                                    html.H3(
-                                        f"{best:+.4f}", className="mb-0 text-success"
-                                    ),
+                                    html.H3(f"{best:+.4f}", className="mb-0 text-success"),
                                     html.Small("Best Reward"),
                                 ]
                             )
@@ -61,9 +57,7 @@ def dashboard_tab():
                         dbc.Card(
                             dbc.CardBody(
                                 [
-                                    html.H3(
-                                        f"{mean:+.4f}", className="mb-0 text-secondary"
-                                    ),
+                                    html.H3(f"{mean:+.4f}", className="mb-0 text-secondary"),
                                     html.Small("Mean Reward"),
                                 ]
                             )

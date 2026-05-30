@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 
 from tools.metrics_server import CACHE_HITS, CACHE_MISSES
 
@@ -8,7 +7,6 @@ from tools.metrics_server import CACHE_HITS, CACHE_MISSES
 def test_ephemeris_cache_increments_counters():
     """Повторный вызов calculate_natal_chart должен инкрементировать cache hit."""
     from core.ephemeris import (
-        _calculate_natal_chart_uncached,
         _natal_cache,
         calculate_natal_chart,
     )
@@ -19,9 +17,7 @@ def test_ephemeris_cache_increments_counters():
     before_misses = CACHE_MISSES._value.get() if hasattr(CACHE_MISSES, "_value") else 0
 
     # Мокаем внутреннюю функцию
-    with patch(
-        "core.ephemeris._calculate_natal_chart_uncached", return_value={"sun": 0.0}
-    ):
+    with patch("core.ephemeris._calculate_natal_chart_uncached", return_value={"sun": 0.0}):
         result1 = calculate_natal_chart("2025-01-01")
         result2 = calculate_natal_chart("2025-01-01")
 

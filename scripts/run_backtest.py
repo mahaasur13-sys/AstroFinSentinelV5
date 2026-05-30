@@ -64,7 +64,7 @@ def main():
     symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
     base_prices = [50000.0, 3000.0, 100.0]
     all_results = []
-    for symbol, base in zip(symbols, base_prices):
+    for symbol, base in zip(symbols, base_prices, strict=False):
         prices = generate_synthetic_data(symbol, days=30, base_price=base)
         lo, hi = min(p for _, p in prices), max(p for _, p in prices)
         print("[%s] %d bars, $%.2f-$%.2f" % (symbol, len(prices), lo, hi))

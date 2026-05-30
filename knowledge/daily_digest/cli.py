@@ -75,9 +75,7 @@ def cmd_propose(args):
             analysis_data = json.loads(path.read_text())
     else:
         # Try to find latest analysis
-        analyses = sorted(
-            Path(__file__).parent.glob("analysis_????-??-??.json"), reverse=True
-        )
+        analyses = sorted(Path(__file__).parent.glob("analysis_????-??-??.json"), reverse=True)
         if analyses:
             import json
 
@@ -89,15 +87,13 @@ def cmd_propose(args):
             if briefs:
                 analyzer = DigestAnalyzer(str(briefs[0]))
                 analysis = analyzer.analyze()
-                analysis_data = (
-                    analysis.__dict__ if hasattr(analysis, "__dict__") else analysis
-                )
+                analysis_data = analysis.__dict__ if hasattr(analysis, "__dict__") else analysis
             else:
                 print("Error: No digest found. Run analyze first.")
                 return 1
 
     proposer = AtomProposer()
-    proposals = proposer.propose_from_analysis(analysis_data)
+    proposer.propose_from_analysis(analysis_data)
 
     if args.print or not args.save:
         proposer.print_proposals()
@@ -137,9 +133,7 @@ def cmd_run(args):
     from .daily_digest_log import DigestLog
 
     print(f"\n{'=' * 70}")
-    print(
-        f"  🔄 DAILY DIGEST PIPELINE — {args.date or datetime.now().strftime('%Y-%m-%d')}"
-    )
+    print(f"  🔄 DAILY DIGEST PIPELINE — {args.date or datetime.now().strftime('%Y-%m-%d')}")
     print(f"{'=' * 70}\n")
 
     # Step 1: Find and analyze digest
@@ -188,9 +182,7 @@ def cmd_run(args):
 
     # Extract key ideas for log
     key_ideas = []
-    for f in sorted(analysis.high_relevance_findings, key=lambda x: -x.relevance_score)[
-        :3
-    ]:
+    for f in sorted(analysis.high_relevance_findings, key=lambda x: -x.relevance_score)[:3]:
         key_ideas.append(f.title[:40])
 
     entry = log.add_entry(

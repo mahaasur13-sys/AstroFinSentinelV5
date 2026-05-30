@@ -22,7 +22,7 @@ Env vars:
 
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,9 @@ _PENALTY_STEP = float(os.getenv("GROUNDING_PENALTY_STEP", "0.13"))
 
 def validate_with_grounding(
     state: Any,
-    signals: List[Any],
+    signals: list[Any],
     current_confidence: int = 50,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Domain grounding validation с мягким multiplicative degrade.
 
@@ -72,7 +72,7 @@ def validate_with_grounding(
             return s.get(key, default)
         return default
 
-    issues: List[str] = []
+    issues: list[str] = []
     for s in signals:
         sig = _get(s, "signal", "")
         conf = _get(s, "confidence", 50)

@@ -1,7 +1,7 @@
 """amre/trajectory.py — Market state + Trajectory + TrajectoryStep"""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -9,15 +9,15 @@ class TrajectoryStep:
     timestamp: str
     price: float
     regime: str
-    signals: Dict[str, float]
+    signals: dict[str, float]
     confidence: int
-    position: Optional[str] = None
+    position: str | None = None
 
 
 @dataclass
 class Trajectory:
-    steps: List[TrajectoryStep] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    steps: list[TrajectoryStep] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -40,14 +40,14 @@ class MarketState:
     session_id: str
     timestamp: str
     regime: str = "NORMAL"
-    trajectory: Optional[Trajectory] = None
-    reward: Optional[float] = None
-    confidence: Optional[int] = None
-    signal_diversity: Optional[int] = None
-    regime_stability: Optional[float] = None
-    market_regime: Optional[str] = None
-    is_contrarian: Optional[bool] = None
-    volatility_score: Optional[float] = None
+    trajectory: Trajectory | None = None
+    reward: float | None = None
+    confidence: int | None = None
+    signal_diversity: int | None = None
+    regime_stability: float | None = None
+    market_regime: str | None = None
+    is_contrarian: bool | None = None
+    volatility_score: float | None = None
 
 
 def market_state_hash(ms: MarketState) -> str:
@@ -89,19 +89,14 @@ def compute_trajectory_metrics(traj: Trajectory) -> TrajectoryMetrics:
         max_drawdown=round(dd, 4),
         win_rate=round(win_rate, 4),
         trade_count=len(traj.steps),
-        avg_confidence=round(
-            sum(s.confidence for s in traj.steps) / len(traj.steps), 1
-        ),
+        avg_confidence=round(sum(s.confidence for s in traj.steps) / len(traj.steps), 1),
         regime_stability=round(1.0 - dd, 4),
     )
 
 
 def trajectory_to_dict(traj: Trajectory) -> dict:
     return {
-        "steps": [
-            {"timestamp": s.timestamp, "price": s.price, "regime": s.regime}
-            for s in traj.steps
-        ],
+        "steps": [{"timestamp": s.timestamp, "price": s.price, "regime": s.regime} for s in traj.steps],
         "metadata": traj.metadata,
     }
 

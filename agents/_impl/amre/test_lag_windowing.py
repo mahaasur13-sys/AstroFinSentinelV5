@@ -109,7 +109,6 @@ class TestEMAWorksAfterWindowChange:
         # Накапливаем несколько значений
         self.lw.add(confidence=70, volatility=0.01)  # normal
         self.lw.add(confidence=72, volatility=0.01)
-        ema_before = self.lw._ema
 
         # Меняем окно на большее (низкая волатильность)
         self.lw.add(confidence=71, volatility=0.003)
@@ -158,9 +157,7 @@ class TestWarmupBlend:
 
         for i in range(1, WARMUP_THRESHOLD):
             result = lw.add(confidence=50 + i)
-            assert result["blend"] == BLEND_WARMUP, (
-                f"Step {i} (count={result['count']}) should be warmup"
-            )
+            assert result["blend"] == BLEND_WARMUP, f"Step {i} (count={result['count']}) should be warmup"
 
     def test_mature_blend_after_20(self):
         """После 20 решений используется BLEND_MATURE=0.15."""
@@ -228,9 +225,7 @@ class TestLagAdjustment:
         # Обычные отклонения не дают lag_adj > 1
         for raw in [30, 45, 70, 85]:
             r = lw.add(confidence=raw)
-            assert abs(r["lag_adj"]) <= 2.0, (
-                f"lag_adj={r['lag_adj']} too large for raw={raw}"
-            )
+            assert abs(r["lag_adj"]) <= 2.0, f"lag_adj={r['lag_adj']} too large for raw={raw}"
 
 
 class TestPositionLag:
@@ -286,9 +281,7 @@ class TestFinalConfidence:
         raw_std = _std(raws)
         final_std = _std(finals)
 
-        assert final_std < raw_std, (
-            f"Final std {final_std} should be < raw std {raw_std}"
-        )
+        assert final_std < raw_std, f"Final std {final_std} should be < raw std {raw_std}"
 
     def test_spike_dampened(self):
         """Одиночный spike (90→30→82) сглаживается."""

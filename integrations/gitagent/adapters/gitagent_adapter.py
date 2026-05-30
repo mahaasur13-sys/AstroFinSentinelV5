@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -17,12 +17,12 @@ class GitAgentManifest:
     name: str
     description: str
     version: str = "1.0.0"
-    model: Optional[Dict[str, Any]] = None
-    skills: Optional[List[str]] = None
-    tools: Optional[List[str]] = None
-    compliance: Optional[Dict[str, Any]] = None
-    sub_agents: Optional[List[str]] = None
-    workflows: Optional[List[str]] = None
+    model: dict[str, Any] | None = None
+    skills: list[str] | None = None
+    tools: list[str] | None = None
+    compliance: dict[str, Any] | None = None
+    sub_agents: list[str] | None = None
+    workflows: list[str] | None = None
 
     def to_yaml(self, path: Path):
         with open(path, "w") as f:
@@ -64,9 +64,7 @@ class MASFactoryToGitAgentAdapter:
 
         manifest = GitAgentManifest(
             name=self.package_name,
-            description=topology.metadata.get(
-                "description", f"MASFactory topology: {topology.intention}"
-            ),
+            description=topology.metadata.get("description", f"MASFactory topology: {topology.intention}"),
             version="1.0.0",
             sub_agents=[r.name for r in topology.roles],
             workflows=["synthesize", "route", "aggregate"],
@@ -120,9 +118,7 @@ class MASFactoryToGitAgentAdapter:
 - sources: list
 """
             (role_dir / "SKILL.md").write_text(skill_md)
-            (role_dir / "manifest.yaml").write_text(
-                f"name: {role.name}\ntype: agent_role\n"
-            )
+            (role_dir / "manifest.yaml").write_text(f"name: {role.name}\ntype: agent_role\n")
 
         return pkg
 
@@ -149,16 +145,12 @@ class GitAgentToMASFactoryAdapter:
             for role_dir in sorted(sub_agents_dir.iterdir()):
                 if role_dir.is_dir():
                     skill_md = role_dir / "SKILL.md"
-                    instructions_text = (
-                        skill_md.read_text() if skill_md.exists() else ""
-                    )
+                    instructions_text = skill_md.read_text() if skill_md.exists() else ""
                     roles.append(
                         Role(
                             name=role_dir.name,
                             agent_type=role_dir.name,
-                            capabilities=[instructions_text[:100]]
-                            if instructions_text
-                            else [],
+                            capabilities=[instructions_text[:100]] if instructions_text else [],
                             inputs=[],
                             outputs=[],
                             timeout_ms=30000,
@@ -181,9 +173,7 @@ class GitAgentToMASFactoryAdapter:
             return None
 
 
-def export_masfactory_to_gitagent(
-    topology: "Topology", output_dir: str, package_name: str
-) -> str:
+def export_masfactory_to_gitagent(topology: "Topology", output_dir: str, package_name: str) -> str:
     """Export MASFactory Topology as GitAgent package"""
     adapter = MASFactoryToGitAgentAdapter(package_name, output_dir)
     return str(adapter.from_topology(topology))

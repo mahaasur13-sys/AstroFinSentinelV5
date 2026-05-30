@@ -35,7 +35,7 @@ class TimeWindowAgent(BaseAgent[AgentResponse]):
         Find optimal time windows for entry.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        timeframe = state.get("timeframe_requested", "SWING")
+        state.get("timeframe_requested", "SWING")
 
         # Scan windows across timeframes
         window_4h = await self._scan_4h_window(symbol)

@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 import yaml
 
@@ -24,7 +24,7 @@ class ExportResult:
     slug: str
     path: str
     validated: bool
-    errors: List[str]
+    errors: list[str]
 
 
 def _slug_safe(text: str) -> str:
@@ -53,13 +53,9 @@ def _regime_label(rf: str) -> str:
     return mapping.get(rf, rf)
 
 
-def export_strategy(
-    strategy: Any, version_tag: str = None, output_dir: str = None
-) -> ExportResult:
+def export_strategy(strategy: Any, version_tag: str = None, output_dir: str = None) -> ExportResult:
     if not GIT_EXPORT_ENABLED:
-        return ExportResult(
-            slug="", path="", validated=False, errors=["GIT_EXPORT_ENABLED=False"]
-        )
+        return ExportResult(slug="", path="", validated=False, errors=["GIT_EXPORT_ENABLED=False"])
     try:
         output_dir = output_dir or "integrations/gitagent/exported_strategies"
         short = _slug_for_strategy(strategy)
@@ -174,7 +170,7 @@ def _write_json(data: dict, path: Path):
         logger.warning(f"[META-RL-GIT] json dump failed {path}: {ex}")
 
 
-def load_strategy(package_path: str) -> Optional[Any]:
+def load_strategy(package_path: str) -> Any | None:
     try:
         from strategies.generator import GeneratedStrategy
 

@@ -1,7 +1,6 @@
 import os
 import tempfile
 
-import pytest
 
 from scripts.ralph_agent import (
     check_protected_files_in_diff,
@@ -34,9 +33,7 @@ def test_check_protected_files_in_diff(monkeypatch):
     # Симулируем вывод git diff --name-only с защищённым файлом
     monkeypatch.setattr(
         "subprocess.run",
-        lambda *a, **kw: type(
-            "res", (), {"stdout": "docker-compose.yml\nother_file.py", "returncode": 0}
-        ),
+        lambda *a, **kw: type("res", (), {"stdout": "docker-compose.yml\nother_file.py", "returncode": 0}),
     )
     result = check_protected_files_in_diff()
     assert result is False  # Функция должна вернуть False, если есть защищённый файл

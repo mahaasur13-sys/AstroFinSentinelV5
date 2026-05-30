@@ -2,10 +2,9 @@ import ast
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Tuple
 
 
-def is_valid_python(code: str) -> Tuple[bool, str]:
+def is_valid_python(code: str) -> tuple[bool, str]:
     try:
         ast.parse(code)
         return True, ""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -26,10 +26,10 @@ class StrategyScore:
     stability_score: float
     diversity_score: float
     generation: int
-    reward_history: List[float]
-    evaluation: Optional[Dict]
+    reward_history: list[float]
+    evaluation: dict | None
     session_id: str
-    chromosome: Dict
+    chromosome: dict
 
 
 class CompositeRankingEngine:
@@ -44,7 +44,7 @@ class CompositeRankingEngine:
     DD_MAX_TOLERABLE = 0.5
     WIN_MAX_TOLERABLE = 50
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None):
+    def __init__(self, weights: dict[str, float] | None = None):
         self.enabled = COMPOSITE_RANKING_ENABLED
         self.weights = weights or dict(COMPOSITE_WEIGHTS)
 
@@ -59,7 +59,7 @@ class CompositeRankingEngine:
             return s.get(key, default)
         return getattr(s, key, default)
 
-    def rank_strategies(self, strategies: List) -> List[StrategyScore]:
+    def rank_strategies(self, strategies: list) -> list[StrategyScore]:
         if not strategies:
             logger.info("[RANKING] No strategies to rank")
             return []
@@ -77,9 +77,7 @@ class CompositeRankingEngine:
 
                 # Per-component scores (0-1, higher = better)
                 sharpe_score = self._norm(sharpe, self.SHARPE_MIN, self.SHARPE_MAX)
-                win_rate_score = self._norm(
-                    win_rate, self.WINRATE_MIN, self.WINRATE_MAX
-                )
+                win_rate_score = self._norm(win_rate, self.WINRATE_MIN, self.WINRATE_MAX)
                 pnl_score = self._norm(pnl, self.PNL_MIN, self.PNL_MAX)
                 dd_penalty_score = 1.0 - self._norm(max_dd, 0.0, self.DD_MAX_TOLERABLE)
 
@@ -87,9 +85,7 @@ class CompositeRankingEngine:
                 rh = self._get(s, "reward_history", [])
                 stability_score = 0.5
                 if len(rh) >= 3:
-                    stability_score = 1.0 - float(
-                        np.std(rh) / (abs(np.mean(rh)) + 1e-8)
-                    )
+                    stability_score = 1.0 - float(np.std(rh) / (abs(np.mean(rh)) + 1e-8))
 
                 # Diversity: favor strategies with more trades (liquid)
                 diversity_score = self._norm(trades, 0, self.WIN_MAX_TOLERABLE)
@@ -134,10 +130,10 @@ class CompositeRankingEngine:
             )
         return scored
 
-    def top_n(self, strategies: List, n: int = 5) -> List[StrategyScore]:
+    def top_n(self, strategies: list, n: int = 5) -> list[StrategyScore]:
         return self.rank_strategies(strategies)[:n]
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         return {
             "enabled": self.enabled,
             "weights": {k: round(v, 3) for k, v in self.weights.items()},
@@ -145,7 +141,7 @@ class CompositeRankingEngine:
         }
 
 
-def rank_all_sessions(n_top: int = 20) -> List[Dict]:
+def rank_all_sessions(n_top: int = 20) -> list[dict]:
     """Load all sessions and return top-n globally-ranked strategies."""
     try:
         from meta_rl.persistence import get_persistence

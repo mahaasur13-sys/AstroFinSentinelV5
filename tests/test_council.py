@@ -144,9 +144,7 @@ class TestAstroCouncil:
             AGENT_FACTORIES["macro"](vix=15, dxy=100, geopolitical=0.0),
             AGENT_FACTORIES["technical"](rsi=30, macd_bullish=True, price=100),
             AGENT_FACTORIES["sentiment"](vix=60, fear_greed=60, news_score=0.3),
-            AGENT_FACTORIES["optionsflow"](
-                predicted_return=0.0, ul_trailing=500000, gamma_exp=0.1, unusual=False
-            ),
+            AGENT_FACTORIES["optionsflow"](predicted_return=0.0, ul_trailing=500000, gamma_exp=0.1, unusual=False),
             AGENT_FACTORIES["astro"](
                 price=100,
                 predicted_return=0.02,

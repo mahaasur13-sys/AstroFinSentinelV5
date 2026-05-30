@@ -161,7 +161,7 @@ def roundtrip(args):
         yaml_file = d / "agent.yaml"
         if yaml_file.exists():
             try:
-                data = yaml.safe_load(yaml_file.read_text())
+                yaml.safe_load(yaml_file.read_text())
                 has_soul = (d / "SOUL.md").exists()
                 has_rules = (d / "RULES.md").exists()
                 has_duties = (d / "DUTIES.md").exists()

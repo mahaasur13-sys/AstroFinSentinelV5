@@ -4,7 +4,6 @@ FIXED (audit 15.05.2026): Validates all inputs BEFORE they reach the orchestrato
 """
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, validator
 
@@ -30,24 +29,24 @@ class SentinelV5Request(BaseModel):
     symbol: str = Field(default="BTCUSDT", pattern=r"^[A-Z]{1,10}(USDT|USDC|BUSD)$")
     timeframe: Timeframe = Timeframe.SWING
     current_price: float = Field(default=0.0, ge=0.0)
-    birth_data: Optional[dict] = None
+    birth_data: dict | None = None
     include_technical: bool = True
     include_macro: bool = True
     include_astro: bool = True
     include_electional: bool = False
-    session_id: Optional[str] = None
+    session_id: str | None = None
     persist: bool = True
     thompson_k: int = Field(default=4, ge=1, le=10)
 
     @validator("user_query")
-    def validate_query(cls, v):
+    def validate_query(cls, v):  # noqa: N805
         """Query must not be empty or whitespace-only."""
         if not v or not v.strip():
             raise ValueError("Query cannot be empty")
         return v.strip()
 
     @validator("symbol")
-    def validate_symbol(cls, v):
+    def validate_symbol(cls, v):  # noqa: N805
         """Symbol must be uppercase and non-empty."""
         v = v.upper()
         if not v:

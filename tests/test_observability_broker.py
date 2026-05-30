@@ -1,7 +1,5 @@
 from unittest.mock import Mock, patch
 
-import pytest
-
 
 def test_broker_error_increments_counter():
     """При ошибке брокера счётчик astrofin_broker_errors_total увеличивается."""

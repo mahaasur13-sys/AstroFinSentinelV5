@@ -46,9 +46,7 @@ class TestValidAgentYaml:
                     "model": {"provider": "openai", "name": "gpt-4o-mini"},
                     "capabilities": ["analyze_market", "generate_signal"],
                     "tools": ["fetch_price", "calculate_indicators"],
-                    "rules": [
-                        "Always quantify uncertainty before reporting confidence level"
-                    ],
+                    "rules": ["Always quantify uncertainty before reporting confidence level"],
                     "output_schema": {
                         "signal": "LONG|SHORT|NEUTRAL",
                         "confidence": "0-100",
@@ -189,9 +187,7 @@ class TestInvalidAgentYaml:
         )
         result = validator.validate_file(agent_dir / "agent.yaml")
         assert result.valid is False
-        assert any(
-            "name" in e.path and "required" in e.message.lower() for e in result.errors
-        )
+        assert any("name" in e.path and "required" in e.message.lower() for e in result.errors)
 
     def test_invalid_name_uppercase(self, validator, tmp_agent_dir):
         agent_dir = tmp_agent_dir / "upper_name"
@@ -339,9 +335,7 @@ class TestInvalidAgentYaml:
     def test_invalid_yaml(self, validator, tmp_agent_dir):
         agent_dir = tmp_agent_dir / "bad_yaml"
         agent_dir.mkdir()
-        (agent_dir / "agent.yaml").write_text(
-            "  name: test\n    invalid: indentation\n"
-        )
+        (agent_dir / "agent.yaml").write_text("  name: test\n    invalid: indentation\n")
         result = validator.validate_file(agent_dir / "agent.yaml")
         assert result.valid is False
         assert any("yaml" in e.message.lower() for e in result.errors)
@@ -435,12 +429,8 @@ class TestDirectoryValidation:
 def test_print_report_quiet(capsys):
     v = AgentYamlValidator()
     report = ValidationReport(total=5, passed=4, failed=1, warning_count=3)
-    r1 = ValidationResult(
-        agent_name="good", file_path=Path("good/agent.yaml"), valid=True
-    )
-    r2 = ValidationResult(
-        agent_name="bad", file_path=Path("bad/agent.yaml"), valid=False
-    )
+    r1 = ValidationResult(agent_name="good", file_path=Path("good/agent.yaml"), valid=True)
+    r2 = ValidationResult(agent_name="bad", file_path=Path("bad/agent.yaml"), valid=False)
     r2.errors.append(
         ValidationIssue(
             path="name",

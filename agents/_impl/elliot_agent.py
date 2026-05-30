@@ -33,7 +33,7 @@ class ElliotAgent(BaseAgent[AgentResponse]):
         Analyze Elliott Wave structure.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
 
         price_data = await self._fetch_ohlcv(symbol, "1d", 120)
         if not price_data:
@@ -54,11 +54,7 @@ class ElliotAgent(BaseAgent[AgentResponse]):
         corrective = self._detect_corrective_phase(closes)
 
         # Elliott score
-        elliot_score = (
-            wave_count["score"] * 0.50
-            + fib_targets["score"] * 0.30
-            + corrective["score"] * 0.20
-        )
+        elliot_score = wave_count["score"] * 0.50 + fib_targets["score"] * 0.30 + corrective["score"] * 0.20
 
         if wave_count["suggestion"] == "long":
             signal = SignalDirection.LONG
@@ -164,9 +160,7 @@ class ElliotAgent(BaseAgent[AgentResponse]):
             "num_swings": num_swings,
         }
 
-    def _calculate_fib_targets(
-        self, wave_count: dict, highs: list, lows: list, closes: list
-    ) -> dict:
+    def _calculate_fib_targets(self, wave_count: dict, highs: list, lows: list, closes: list) -> dict:
         """
         Calculate Fibonacci retracement/extension targets.
         """

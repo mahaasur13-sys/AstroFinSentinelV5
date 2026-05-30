@@ -1,6 +1,3 @@
-import json
-import os
-
 from flask import Flask, jsonify, request
 
 from core.auth import require_api_key
@@ -27,8 +24,6 @@ def ab_compare():
         return jsonify({"status": "ERROR", "error": "sid_a and sid_b required"}), 400
 
     try:
-        from meta_rl.ab_testing import cohens_d, welch_t_test
-
         # здесь логика сравнения, возвращающая результат
         # для примера – заглушка
         result = {

@@ -6,9 +6,7 @@ sys.path.insert(0, str(ROOT))
 
 
 def test_metrics_server_exists():
-    assert (ROOT / "tools" / "metrics_server.py").exists(), (
-        "tools/metrics_server.py not found"
-    )
+    assert (ROOT / "tools" / "metrics_server.py").exists(), "tools/metrics_server.py not found"
 
 
 def test_metrics_are_registered():

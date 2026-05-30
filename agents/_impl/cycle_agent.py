@@ -38,7 +38,7 @@ class CycleAgent(BaseAgent[AgentResponse]):
         Analyze cycle position and predict next turning point.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
 
         price_data = await self._fetch_ohlcv(symbol, "1d", 120)
         if not price_data:
@@ -105,9 +105,7 @@ class CycleAgent(BaseAgent[AgentResponse]):
             data = resp.json()
             return [[float(x[4])] for x in data]  # close prices
         except Exception:
-            logger.warning(
-                f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}"
-            )
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}")
             return []
 
     def _find_dominant_cycle(self, data: list) -> dict:
@@ -130,10 +128,7 @@ class CycleAgent(BaseAgent[AgentResponse]):
             if period >= len(closes) // 2:
                 continue
             # Calculate autocorrelation at lag=period
-            corr_sum = sum(
-                (closes[i] - mean) * (closes[i - period] - mean)
-                for i in range(period, len(closes))
-            )
+            corr_sum = sum((closes[i] - mean) * (closes[i - period] - mean) for i in range(period, len(closes)))
             corr = corr_sum / var if var > 0 else 0
 
             if corr > best_corr:
@@ -161,7 +156,6 @@ class CycleAgent(BaseAgent[AgentResponse]):
 
         # Simple phase detection
         mid_point = (max(recent) + min(recent)) / 2
-        is_above_mid = newest > mid_point
 
         # Detect direction
         if newest > oldest:
@@ -184,9 +178,7 @@ class CycleAgent(BaseAgent[AgentResponse]):
 
         return {"name": phase_name, "direction": direction, "strength": strength}
 
-    def _predict_turning_point(
-        self, data: list, dominant_cycle: dict, cycle_phase: dict
-    ) -> dict:
+    def _predict_turning_point(self, data: list, dominant_cycle: dict, cycle_phase: dict) -> dict:
         """Predict next cycle turning point."""
         period = dominant_cycle["period"]
 
@@ -216,11 +208,11 @@ class CycleAgent(BaseAgent[AgentResponse]):
 
         # Jupiter cycle (12 years — check position in zodiac)
         jupiter = calculate_planet("jupiter", jd)
-        jupiter_sign = int(jupiter.longitude / 30)
+        int(jupiter.longitude / 30)
 
         # Saturn cycle (29 years)
         saturn = calculate_planet("saturn", jd)
-        saturn_sign = int(saturn.longitude / 30)
+        int(saturn.longitude / 30)
 
         # Cycle alignment scoring
         # Trine aspects (120°) are bullish for cycles

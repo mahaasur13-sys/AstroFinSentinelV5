@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from mas_factory.registry import get_registry
 from mas_factory.topology import (
@@ -49,10 +49,10 @@ class Intention:
     intent_type: str  # "analyze" | "compare" | "predict" | "backtest"
     symbol: str
     timeframe: str
-    keywords: List[str]
+    keywords: list[str]
     complexity: str  # "simple" | "moderate" | "complex"
-    required_capabilities: Set[str]
-    constraints: Dict[str, Any]
+    required_capabilities: set[str]
+    constraints: dict[str, Any]
     confidence_floor: int = 65
     max_agents: int = 8
 
@@ -86,7 +86,7 @@ class MASFactoryArchitect:
 
     def __init__(self):
         self.registry = get_registry()
-        self._topology_cache: Dict[str, Topology] = {}
+        self._topology_cache: dict[str, Topology] = {}
 
     def build(
         self,
@@ -158,13 +158,11 @@ class MASFactoryArchitect:
 
         return topology
 
-    def _parse_intention(
-        self, intention: str, symbol: str, timeframe: str, **kwargs
-    ) -> Intention:
+    def _parse_intention(self, intention: str, symbol: str, timeframe: str, **kwargs) -> Intention:
         """Parse natural language into structured Intention"""
         lower = intention.lower()
         keywords = []
-        required_capabilities: Set[str] = set()
+        required_capabilities: set[str] = set()
 
         # Detect intent type
         if any(w in lower for w in ["analyze", "analysis", "look at"]):
@@ -189,13 +187,9 @@ class MASFactoryArchitect:
             if timeframe == "INTRADAY":
                 required_capabilities.update(["technical_analysis", "price_action"])
             elif timeframe == "SWING":
-                required_capabilities.update(
-                    ["fundamental_analysis", "technical_analysis", "astro_timing"]
-                )
+                required_capabilities.update(["fundamental_analysis", "technical_analysis", "astro_timing"])
             else:
-                required_capabilities.update(
-                    ["fundamental_analysis", "macro_analysis", "sentiment"]
-                )
+                required_capabilities.update(["fundamental_analysis", "macro_analysis", "sentiment"])
 
         # Determine complexity
         complexity = (
@@ -227,7 +221,7 @@ class MASFactoryArchitect:
             max_agents=constraints["max_agents"],
         )
 
-    def _select_roles(self, intention: Intention) -> List[Role]:
+    def _select_roles(self, intention: Intention) -> list[Role]:
         """Select roles based on required capabilities"""
         all_roles = self.registry.get_all_roles()
         selected = []
@@ -263,9 +257,7 @@ class MASFactoryArchitect:
 
         return selected
 
-    def _build_connections(
-        self, roles: List[Role], intention: Intention
-    ) -> List[Connection]:
+    def _build_connections(self, roles: list[Role], intention: Intention) -> list[Connection]:
         """Build data flow connections between roles"""
         connections = []
 
@@ -315,9 +307,7 @@ class MASFactoryArchitect:
 
         return connections
 
-    def _build_switch_nodes(
-        self, roles: List[Role], intention: Intention
-    ) -> List[SwitchNode]:
+    def _build_switch_nodes(self, roles: list[Role], intention: Intention) -> list[SwitchNode]:
         """Build conditional routing nodes"""
         switch_nodes = []
 
@@ -334,7 +324,7 @@ class MASFactoryArchitect:
 
         return switch_nodes
 
-    def get_cached_topology(self, intention_hash: str) -> Optional[Topology]:
+    def get_cached_topology(self, intention_hash: str) -> Topology | None:
         """Retrieve cached topology by hash"""
         for cached in self._topology_cache.values():
             if cached.compute_hash() == intention_hash:
@@ -347,7 +337,7 @@ class MASFactoryArchitect:
 
 
 # Singleton
-_ARCHITECT: Optional[MASFactoryArchitect] = None
+_ARCHITECT: MASFactoryArchitect | None = None
 
 
 def get_architect() -> MASFactoryArchitect:

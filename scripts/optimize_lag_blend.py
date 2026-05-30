@@ -28,7 +28,6 @@ import os
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -59,7 +58,7 @@ class BlendResult:
     blend: float
     reversals: int
     stability: float
-    sharpe: Optional[float]
+    sharpe: float | None
     mae: float
 
 
@@ -100,10 +99,7 @@ def generate_demo_data(n: int = 500, seed: int = 42) -> pd.DataFrame:
         }
     )
 
-    logger.info(
-        f"[Demo] Generated {n} rows, "
-        f"reversals in raw: {sum(np.abs(np.diff(np.sign(raw - 50))) > 0)}"
-    )
+    logger.info(f"[Demo] Generated {n} rows, reversals in raw: {sum(np.abs(np.diff(np.sign(raw - 50))) > 0)}")
 
     return df
 
@@ -117,9 +113,7 @@ def load_data(path: str) -> pd.DataFrame:
     required = {"timestamp", "raw_confidence"}
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"Missing required columns: {missing}. Found: {list(df.columns)}"
-        )
+        raise ValueError(f"Missing required columns: {missing}. Found: {list(df.columns)}")
 
     if len(df) < 50:
         logger.warning(f"Only {len(df)} rows — statistics may be unreliable.")
@@ -134,7 +128,7 @@ def load_data(path: str) -> pd.DataFrame:
 # ─── Metrics Computation ───────────────────────────────────────────────────────
 
 
-def compute_reversals(adjusted: List[float]) -> int:
+def compute_reversals(adjusted: list[float]) -> int:
     """
     Count sign reversals relative to neutral level 50.
 
@@ -151,7 +145,7 @@ def compute_reversals(adjusted: List[float]) -> int:
     return reversals
 
 
-def compute_stability(adjusted: List[float]) -> float:
+def compute_stability(adjusted: list[float]) -> float:
     """
     Compute stability score = -std(diff), where diff = adj[i] - adj[i-1].
 
@@ -164,7 +158,7 @@ def compute_stability(adjusted: List[float]) -> float:
     return -float(np.std(diffs))
 
 
-def compute_sharpe(df: pd.DataFrame, adjusted: List[float]) -> Optional[float]:
+def compute_sharpe(df: pd.DataFrame, adjusted: list[float]) -> float | None:
     """
     Compute Sharpe ratio if PnL column is available.
 
@@ -193,7 +187,7 @@ def compute_sharpe(df: pd.DataFrame, adjusted: List[float]) -> Optional[float]:
     return round(sharpe, 4)
 
 
-def compute_mae(raw_list: List[int], adjusted: List[float]) -> float:
+def compute_mae(raw_list: list[int], adjusted: list[float]) -> float:
     """Mean Absolute Error between raw and adjusted."""
     arr = np.array(adjusted[: len(raw_list)])
     raw_arr = np.array(raw_list)
@@ -208,7 +202,7 @@ def evaluate_blend(
     df: pd.DataFrame,
     window_size: int = DEFAULT_WINDOW_SIZE,
     adaptive_enabled: bool = False,
-) -> Tuple[int, float, Optional[float], float]:
+) -> tuple[int, float, float | None, float]:
     """
     Simulate LagWindow with a fixed blend value and compute metrics.
 
@@ -227,7 +221,6 @@ def evaluate_blend(
         )
         # Override the instance blend (the class uses a module-level constant in add())
         # We need to patch at class level
-        original_class_mature = LagWindow.__init__.__defaults__
 
         adjusted_list = []
         raw_list = df["raw_confidence"].tolist()
@@ -254,14 +247,14 @@ def run_optimization(
     blend_min: float,
     blend_max: float,
     blend_step: float,
-) -> Tuple[List[BlendResult], BlendResult]:
+) -> tuple[list[BlendResult], BlendResult]:
     """
     Grid-search over blend values and find the optimal one.
     """
     blend_values = np.arange(blend_min, blend_max + blend_step / 2, blend_step)
     blend_values = np.round(blend_values, 2)
 
-    results: List[BlendResult] = []
+    results: list[BlendResult] = []
 
     for blend in blend_values:
         reversals, stability, sharpe, mae = evaluate_blend(
@@ -283,21 +276,16 @@ def run_optimization(
     # Select optimal
     if metric == "reversals":
         best = min(results, key=lambda r: r.reversals)
-        maximize = False
     elif metric == "stability":
         best = max(results, key=lambda r: r.stability)
-        maximize = True
     elif metric == "sharpe":
         # Filter out None sharpe values
         valid = [r for r in results if r.sharpe is not None]
         if not valid:
             raise ValueError("Cannot optimize 'sharpe': PnL column missing or invalid.")
         best = max(valid, key=lambda r: r.sharpe)
-        maximize = True
     else:
-        raise ValueError(
-            f"Unknown metric: {metric}. Use: reversals, stability, sharpe."
-        )
+        raise ValueError(f"Unknown metric: {metric}. Use: reversals, stability, sharpe.")
 
     return results, best
 
@@ -305,7 +293,7 @@ def run_optimization(
 # ─── Output ────────────────────────────────────────────────────────────────────
 
 
-def print_table(results: List[BlendResult], best: BlendResult, metric: str):
+def print_table(results: list[BlendResult], best: BlendResult, metric: str):
     """Print ASCII table to console."""
     has_sharpe = any(r.sharpe is not None for r in results)
 
@@ -339,7 +327,7 @@ def print_table(results: List[BlendResult], best: BlendResult, metric: str):
 
 
 def save_json(
-    results: List[BlendResult],
+    results: list[BlendResult],
     best: BlendResult,
     metric: str,
     window_size: int,
@@ -353,11 +341,7 @@ def save_json(
         "window_size": window_size,
         "best_blend": best.blend,
         "best_value": (
-            best.reversals
-            if metric == "reversals"
-            else best.stability
-            if metric == "stability"
-            else best.sharpe
+            best.reversals if metric == "reversals" else best.stability if metric == "stability" else best.sharpe
         ),
         "results": [asdict(r) for r in results],
     }
@@ -368,9 +352,7 @@ def save_json(
     logger.info(f"Saved: {output_path}")
 
 
-def plot_results(
-    results: List[BlendResult], best: BlendResult, metric: str, output_path: str
-):
+def plot_results(results: list[BlendResult], best: BlendResult, metric: str, output_path: str):
     """Plot metric vs blend and save as PNG."""
     try:
         import matplotlib.pyplot as plt
@@ -394,9 +376,7 @@ def plot_results(
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(blends[: len(values)], values, "b-o", linewidth=2, markersize=5)
-    ax.axvline(
-        x=best.blend, color="r", linestyle="--", label=f"Optimal blend={best.blend:.2f}"
-    )
+    ax.axvline(x=best.blend, color="r", linestyle="--", label=f"Optimal blend={best.blend:.2f}")
     ax.scatter(
         [best.blend],
         [best_val],
@@ -433,9 +413,7 @@ def parse_args():
         default=None,
         help="Path to CSV file with columns: timestamp, raw_confidence, true_direction, pnl (optional).",
     )
-    parser.add_argument(
-        "--demo", action="store_true", help="Use synthetic demo data (500 rows)."
-    )
+    parser.add_argument("--demo", action="store_true", help="Use synthetic demo data (500 rows).")
     parser.add_argument(
         "--metric",
         type=str,
@@ -473,9 +451,7 @@ def parse_args():
         default="logs/blend_results.json",
         help="Output JSON path. Default: logs/blend_results.json",
     )
-    parser.add_argument(
-        "--plot", action="store_true", help="Generate and save PNG plot."
-    )
+    parser.add_argument("--plot", action="store_true", help="Generate and save PNG plot.")
     parser.add_argument(
         "--update-env",
         action="store_true",
@@ -529,15 +505,9 @@ def main():
     # Summary
     metric_key = args.metric
     best_val = (
-        best.reversals
-        if args.metric == "reversals"
-        else best.stability
-        if args.metric == "stability"
-        else best.sharpe
+        best.reversals if args.metric == "reversals" else best.stability if args.metric == "stability" else best.sharpe
     )
-    print(
-        f"Optimal blend for metric '{args.metric}': {best.blend} ({metric_key}={best_val})"
-    )
+    print(f"Optimal blend for metric '{args.metric}': {best.blend} ({metric_key}={best_val})")
 
 
 if __name__ == "__main__":

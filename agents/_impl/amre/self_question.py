@@ -5,7 +5,7 @@ Meta-questioning: agent reflects on whether its own questions are good enough.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ─── Question Outcome Tracking ──────────────────────────────────────────────────
 
@@ -26,11 +26,11 @@ class SQResult:
     """Result of self-questioning pass."""
 
     question: str
-    answer: Optional[str]
+    answer: str | None
     passed: bool
     confidence_adjustment: int
-    meta_question: Optional[str] = None  # ATOM-016: meta-level reflection
-    meta_confidence: Optional[int] = None  # How confident we are in our own questions
+    meta_question: str | None = None  # ATOM-016: meta-level reflection
+    meta_confidence: int | None = None  # How confident we are in our own questions
 
 
 class SelfQuestioningEngine:
@@ -62,11 +62,11 @@ class SelfQuestioningEngine:
     def __init__(self):
         self.questions = list(self.CORE_QUESTIONS)
         self.meta_questions = list(self.META_QUESTIONS)
-        self.question_history: List[QuestionOutcome] = []
-        self.question_scores: Dict[str, float] = {q: 1.0 for q in self.CORE_QUESTIONS}
+        self.question_history: list[QuestionOutcome] = []
+        self.question_scores: dict[str, float] = dict.fromkeys(self.CORE_QUESTIONS, 1.0)
         self.total_asked = 0
 
-    def ask(self, signals: List[Any], state: Any = None) -> SQResult:
+    def ask(self, signals: list[Any], state: Any = None) -> SQResult:
         """
         Ask the most relevant question based on current context.
         Returns SQResult with self-question + meta-question (ATOM-016).
@@ -91,7 +91,7 @@ class SelfQuestioningEngine:
             meta_confidence=meta_adjustment,
         )
 
-    def _select_question(self, signals: List[Any], state: Any) -> str:
+    def _select_question(self, signals: list[Any], state: Any) -> str:
         """Select the question with best historical accuracy."""
         if not self.question_history:
             return self.questions[self.total_asked % len(self.questions)]
@@ -106,7 +106,7 @@ class SelfQuestioningEngine:
         )
         return candidates[0]
 
-    def _answer(self, question: str, signals: List[Any], state: Any) -> tuple:
+    def _answer(self, question: str, signals: list[Any], state: Any) -> tuple:
         """Answer the selected question."""
 
         # Extract signal/dict attributes safely
@@ -156,7 +156,7 @@ class SelfQuestioningEngine:
 
         return "Question processed", 0
 
-    def _meta_question(self, signals: List[Any], state: Any) -> tuple:
+    def _meta_question(self, signals: list[Any], state: Any) -> tuple:
         """
         ATOM-016: Meta-questioning — reflect on whether our questions are trustworthy.
         Returns (meta_question, meta_confidence: int).
@@ -166,14 +166,10 @@ class SelfQuestioningEngine:
         if not recent:
             return "No history yet — treating questions as untested", 50
 
-        recent_accuracy = sum(1 for o in recent if o.actual_outcome == "correct") / len(
-            recent
-        )
+        recent_accuracy = sum(1 for o in recent if o.actual_outcome == "correct") / len(recent)
 
         # Score the question bank based on recent accuracy
-        avg_score = sum(self.question_scores.values()) / max(
-            len(self.question_scores), 1
-        )
+        avg_score = sum(self.question_scores.values()) / max(len(self.question_scores), 1)
 
         if recent_accuracy < 0.4 or avg_score < 0.5:
             return (
@@ -219,7 +215,7 @@ class SelfQuestioningEngine:
             if q in self.questions:
                 self.questions.remove(q)
 
-    def improve_questions(self) -> Dict[str, Any]:
+    def improve_questions(self) -> dict[str, Any]:
         """
         ATOM-016: Meta-improvement — analyze question bank and propose improvements.
         Called periodically or on demand.
@@ -231,7 +227,7 @@ class SelfQuestioningEngine:
             }
 
         recent = self.question_history[-20:]
-        accuracy_by_q: Dict[str, List[str]] = {}
+        accuracy_by_q: dict[str, list[str]] = {}
         for o in recent:
             if o.question not in accuracy_by_q:
                 accuracy_by_q[o.question] = []
@@ -247,9 +243,7 @@ class SelfQuestioningEngine:
             }
 
         worst = sorted(question_performance.items(), key=lambda x: x[1]["accuracy"])[:2]
-        best = sorted(
-            question_performance.items(), key=lambda x: x[1]["accuracy"], reverse=True
-        )[:2]
+        best = sorted(question_performance.items(), key=lambda x: x[1]["accuracy"], reverse=True)[:2]
 
         return {
             "status": "analyzed",
@@ -260,17 +254,11 @@ class SelfQuestioningEngine:
             ),
             "worst_questions": [{"question": q, **stats} for q, stats in worst],
             "best_questions": [{"question": q, **stats} for q, stats in best],
-            "questions_to_evict": [
-                q for q, s in self.question_scores.items() if s < 0.3
-            ],
-            "recommended_new_questions": self._propose_new_questions(
-                question_performance
-            ),
+            "questions_to_evict": [q for q, s in self.question_scores.items() if s < 0.3],
+            "recommended_new_questions": self._propose_new_questions(question_performance),
         }
 
-    def _propose_new_questions(
-        self, performance: Dict[str, Dict[str, float]]
-    ) -> List[str]:
+    def _propose_new_questions(self, performance: dict[str, dict[str, float]]) -> list[str]:
         """Propose new questions based on weaknesses in the current question bank."""
         proposals = []
 
@@ -278,18 +266,12 @@ class SelfQuestioningEngine:
         if low_acc:
             proposals.append("Am I confusing correlation with causation here?")
 
-        hard_cases = [
-            o
-            for o in self.question_history
-            if o.was_hard and o.actual_outcome == "incorrect"
-        ]
+        hard_cases = [o for o in self.question_history if o.was_hard and o.actual_outcome == "incorrect"]
         if len(hard_cases) > 3:
             proposals.append("Is this a repeat of a previously failed pattern?")
 
         if len(self.questions) < 5:
-            proposals.append(
-                "Is my uncertainty estimate realistic given the data quality?"
-            )
+            proposals.append("Is my uncertainty estimate realistic given the data quality?")
             proposals.append("Should I wait for more data before acting?")
 
         return proposals[:3]
@@ -299,12 +281,10 @@ class SelfQuestioningEngine:
 # PHASE 4: SelfQ Triple Trigger (ATOM-KARL-015)
 # ============================================================================
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 # Feature flag (можно переопределить через env)
-SELFQ_TRIPLE_TRIGGER_ENABLED = (
-    os.getenv("SELFQ_TRIPLE_TRIGGER_ENABLED", "true").lower() == "true"
-)
+SELFQ_TRIPLE_TRIGGER_ENABLED = os.getenv("SELFQ_TRIPLE_TRIGGER_ENABLED", "true").lower() == "true"
 
 # Конфигурируемые пороги (тоже через env)
 DISAGREEMENT_THRESHOLD = float(os.getenv("SELFQ_DISAGREEMENT_THRESHOLD", "0.35"))
@@ -312,12 +292,12 @@ OVERCONFIDENCE_THRESHOLD = float(os.getenv("SELFQ_OVERCONFIDENCE_THRESHOLD", "0.
 
 
 def should_trigger_self_questioning(
-    signals: List[Dict[str, Any]],
+    signals: list[dict[str, Any]],
     regime: str,
     final_confidence: float,
     disagreement_threshold: float = DISAGREEMENT_THRESHOLD,
     overconfidence_threshold: float = OVERCONFIDENCE_THRESHOLD,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Phase 4: SelfQ Triple Trigger — gate for Self-Questioning engine.
 

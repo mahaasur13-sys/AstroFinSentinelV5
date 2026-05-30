@@ -7,7 +7,6 @@ FAISS-backed semantic search with Ollama embeddings.
 import json
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 import faiss
 import numpy as np
@@ -93,7 +92,7 @@ class RAGRetriever:
     def retrieve(
         self,
         query: str,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         top_k: int = 5,
         min_score: float = 0.5,
     ) -> list[dict]:
@@ -130,7 +129,7 @@ class RAGRetriever:
             k = min(top_k, index.ntotal)
             scores, indices = index.search(q_vec.astype("float32"), k)
 
-            for score, idx in zip(scores[0], indices[0]):
+            for score, idx in zip(scores[0], indices[0], strict=False):
                 if idx < 0:
                     continue
                 chunk = chunks[idx]
@@ -184,7 +183,7 @@ class RAGRetriever:
 
 def retrieve_knowledge(
     query: str,
-    domain: Optional[str] = None,
+    domain: str | None = None,
     top_k: int = 5,
 ) -> str:
     """
@@ -235,6 +234,4 @@ if __name__ == "__main__":
     else:
         print("\n📊 Index stats:")
         for domain, stat in retriever.stats().items():
-            print(
-                f"  {domain:12s}: {stat['indexed_chunks']:3d} chunks  files={stat['files']}"
-            )
+            print(f"  {domain:12s}: {stat['indexed_chunks']:3d} chunks  files={stat['files']}")

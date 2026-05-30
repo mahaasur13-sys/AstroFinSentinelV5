@@ -4,7 +4,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .audit import get_audit_log
 
@@ -59,8 +59,8 @@ class ValidationState:
     position_pct: float
     confidence_boost: int
     regime: str
-    issues: List[str]
-    control_actions: List[ControlAction]
+    issues: list[str]
+    control_actions: list[ControlAction]
 
 
 @dataclass
@@ -76,7 +76,7 @@ class KPIControlState:
     oos_fail_rate: float
 
     # History
-    control_history: List[Dict[str, Any]]
+    control_history: list[dict[str, Any]]
 
     def to_dict(self) -> dict:
         return {
@@ -102,9 +102,9 @@ class OAPOptimizer:
     Превращает систему в self-regulating adaptive system.
     """
 
-    def __init__(self, config: Optional[OAPConfig] = None):
+    def __init__(self, config: OAPConfig | None = None):
         self.config = config or OAPConfig()
-        self.history: List[ValidationState] = []
+        self.history: list[ValidationState] = []
 
         # KPI Control State
         self.kpi_state = KPIControlState(
@@ -119,7 +119,7 @@ class OAPOptimizer:
 
     def validate_and_adjust(
         self,
-        amre_data: Dict[str, Any],
+        amre_data: dict[str, Any],
         base_confidence: int,
         base_position: float,
     ) -> ValidationState:
@@ -133,7 +133,7 @@ class OAPOptimizer:
         conf_boost = 0
         pos_adj = 1.0
         issues = []
-        control_actions: List[ControlAction] = []
+        control_actions: list[ControlAction] = []
 
         # OAP Validation Rules
         if uncertainty > self.config.uncertainty_threshold:
@@ -154,9 +154,7 @@ class OAPOptimizer:
         # Apply control loop adjustments
         control_actions = self._compute_control_actions(amre_data)
         for action in control_actions:
-            conf_boost, pos_adj = self._apply_control_action(
-                action, conf_boost, pos_adj, amre_data
-            )
+            conf_boost, pos_adj = self._apply_control_action(action, conf_boost, pos_adj, amre_data)
 
         final_conf = max(30, min(92, base_confidence + conf_boost))
         final_pos = min(self.config.max_position_pct, base_position * pos_adj)
@@ -178,9 +176,7 @@ class OAPOptimizer:
         self.history.append(state)
         return state
 
-    def _compute_control_actions(
-        self, amre_data: Dict[str, Any]
-    ) -> List[ControlAction]:
+    def _compute_control_actions(self, amre_data: dict[str, Any]) -> list[ControlAction]:
         """
         Вычисляет actions для KPI control loop.
 
@@ -189,7 +185,7 @@ class OAPOptimizer:
             if kpi["entropy"] < 0.3: boost_exploration()
             if kpi["oos_fail_rate"] > 0.4: tighten_grounding()
         """
-        actions: List[ControlAction] = []
+        actions: list[ControlAction] = []
 
         kpi = amre_data.get("kpi", {})
 
@@ -198,13 +194,9 @@ class OAPOptimizer:
         oos_fail_rate = kpi.get("oos_fail_rate", self.kpi_state.oos_fail_rate)
 
         # Update running averages
-        self.kpi_state.uncertainty_avg = (
-            self.kpi_state.uncertainty_avg * 0.9 + uncertainty * 0.1
-        )
+        self.kpi_state.uncertainty_avg = self.kpi_state.uncertainty_avg * 0.9 + uncertainty * 0.1
         self.kpi_state.entropy_avg = self.kpi_state.entropy_avg * 0.9 + entropy * 0.1
-        self.kpi_state.oos_fail_rate = (
-            self.kpi_state.oos_fail_rate * 0.9 + oos_fail_rate * 0.1
-        )
+        self.kpi_state.oos_fail_rate = self.kpi_state.oos_fail_rate * 0.9 + oos_fail_rate * 0.1
 
         # Control rules
         if uncertainty > self.config.uncertainty_high_threshold:
@@ -227,14 +219,12 @@ class OAPOptimizer:
         action: ControlAction,
         conf_boost: int,
         pos_adj: float,
-        amre_data: Dict[str, Any],
+        amre_data: dict[str, Any],
     ) -> tuple[int, float]:
         """Применяет control action к confidence и position"""
 
         if action == ControlAction.INCREASE_TTC_DEPTH:
-            self.kpi_state.current_ttc_depth = min(
-                5, self.kpi_state.current_ttc_depth + 1
-            )
+            self.kpi_state.current_ttc_depth = min(5, self.kpi_state.current_ttc_depth + 1)
             self.kpi_state.control_history.append(
                 {
                     "action": action.value,
@@ -244,14 +234,10 @@ class OAPOptimizer:
             )
 
         elif action == ControlAction.DECREASE_TTC_DEPTH:
-            self.kpi_state.current_ttc_depth = max(
-                1, self.kpi_state.current_ttc_depth - 1
-            )
+            self.kpi_state.current_ttc_depth = max(1, self.kpi_state.current_ttc_depth - 1)
 
         elif action == ControlAction.BOOST_EXPLORATION:
-            self.kpi_state.current_exploration_rate = min(
-                0.3, self.kpi_state.current_exploration_rate + 0.05
-            )
+            self.kpi_state.current_exploration_rate = min(0.3, self.kpi_state.current_exploration_rate + 0.05)
             conf_boost -= 5  # Lower confidence when exploring more
             self.kpi_state.control_history.append(
                 {
@@ -262,9 +248,7 @@ class OAPOptimizer:
             )
 
         elif action == ControlAction.TIGHTEN_GROUNDING:
-            self.kpi_state.current_grounding_strength = min(
-                1.0, self.kpi_state.current_grounding_strength + 0.1
-            )
+            self.kpi_state.current_grounding_strength = min(1.0, self.kpi_state.current_grounding_strength + 0.1)
             self.kpi_state.control_history.append(
                 {
                     "action": action.value,
@@ -284,8 +268,8 @@ class OAPOptimizer:
 
     def _determine_status(
         self,
-        issues: List[str],
-        control_actions: List[ControlAction],
+        issues: list[str],
+        control_actions: list[ControlAction],
     ) -> OptimizationStatus:
         """Определяет статус оптимизации"""
 
@@ -307,28 +291,22 @@ class OAPOptimizer:
         """Returns текущее состояние KPI control"""
         return self.kpi_state
 
-    def get_control_recommendations(self) -> List[str]:
+    def get_control_recommendations(self) -> list[str]:
         """Рекомендации для control loop"""
         recs = []
 
         if self.kpi_state.uncertainty_avg > self.config.uncertainty_high_threshold:
-            recs.append(
-                f"Consider increasing TTC depth (current: {self.kpi_state.current_ttc_depth})"
-            )
+            recs.append(f"Consider increasing TTC depth (current: {self.kpi_state.current_ttc_depth})")
 
         if self.kpi_state.entropy_avg < self.config.entropy_low_threshold:
-            recs.append(
-                f"Consider boosting exploration (current: {self.kpi_state.current_exploration_rate:.2f})"
-            )
+            recs.append(f"Consider boosting exploration (current: {self.kpi_state.current_exploration_rate:.2f})")
 
         if self.kpi_state.oos_fail_rate > self.config.oos_fail_high_threshold:
-            recs.append(
-                f"Consider tightening grounding (current: {self.kpi_state.current_grounding_strength:.2f})"
-            )
+            recs.append(f"Consider tightening grounding (current: {self.kpi_state.current_grounding_strength:.2f})")
 
         return recs
 
-    def sync_with_audit(self) -> Dict[str, Any]:
+    def sync_with_audit(self) -> dict[str, Any]:
         """
         Синхронизирует KPI state с данными из Audit Log.
         Вызывается периодически для корректировки.
@@ -343,13 +321,9 @@ class OAPOptimizer:
 
         # OOS fail rate
         high_conf_decisions = [r for r in recent if r.confidence_final >= 70]
-        oos_fails = [
-            r for r in high_conf_decisions if r.kpi_snapshot.oos_fail_rate > 0.5
-        ]
+        oos_fails = [r for r in high_conf_decisions if r.kpi_snapshot.oos_fail_rate > 0.5]
 
-        new_oos_fail_rate = (
-            len(oos_fails) / len(high_conf_decisions) if high_conf_decisions else 0
-        )
+        new_oos_fail_rate = len(oos_fails) / len(high_conf_decisions) if high_conf_decisions else 0
 
         # Entropy (из variance confidence)
         confs = [r.confidence_final for r in recent]
@@ -358,9 +332,7 @@ class OAPOptimizer:
         entropy = statistics.stdev(confs) / 100 if len(confs) > 1 else 0
 
         # Apply corrections
-        self.kpi_state.oos_fail_rate = (
-            self.kpi_state.oos_fail_rate * 0.7 + new_oos_fail_rate * 0.3
-        )
+        self.kpi_state.oos_fail_rate = self.kpi_state.oos_fail_rate * 0.7 + new_oos_fail_rate * 0.3
         self.kpi_state.entropy_avg = self.kpi_state.entropy_avg * 0.7 + entropy * 0.3
 
         return {
@@ -375,7 +347,7 @@ class OAPOptimizer:
 # Global singleton
 # =============================================================================
 
-_OAP_OPTIMIZER: Optional[OAPOptimizer] = None
+_OAP_OPTIMIZER: OAPOptimizer | None = None
 
 
 def get_oap_optimizer() -> OAPOptimizer:

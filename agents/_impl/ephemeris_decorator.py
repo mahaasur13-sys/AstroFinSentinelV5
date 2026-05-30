@@ -3,7 +3,8 @@ require_ephemeris decorator and ephemeris utilities.
 """
 
 import functools
-from typing import Callable, ParamSpec, TypeVar
+from collections.abc import Callable
+from typing import ParamSpec, TypeVar
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -35,8 +36,7 @@ def require_ephemeris(func: Callable[P, T]) -> Callable[P, T]:
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if not HAS_SWISS_EPHEMERIS:
             raise EphemerisUnavailableError(
-                f"Agent '{args[0].__class__.__name__}' requires Swiss Ephemeris. "
-                f"Install with: pip install pyswisseph"
+                f"Agent '{args[0].__class__.__name__}' requires Swiss Ephemeris. Install with: pip install pyswisseph"
             )
         return await func(*args, **kwargs)
 

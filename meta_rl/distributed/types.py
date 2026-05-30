@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,4 +19,4 @@ class WorkerResult:
     strategy_id: str
     fitness: float
     metrics: dict
-    error: Optional[str] = None
+    error: str | None = None

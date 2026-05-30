@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +79,7 @@ class MetaRLPersistence:
                     "parent_ids": list(getattr(scored, "parent_ids", [])),
                     "reward": float(getattr(scored, "reward", 0.0)),
                     "reward_history": list(getattr(scored, "reward_history", [])),
-                    "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0)
-                    if ev
-                    else 0.0,
+                    "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0) if ev else 0.0,
                     "sharpe": getattr(ev, "sharpe", 0.0) if ev else 0.0,
                     "max_drawdown": getattr(ev, "max_drawdown", 1.0) if ev else 1.0,
                     "trades": getattr(ev, "trades", 0) if ev else 0,
@@ -93,15 +91,13 @@ class MetaRLPersistence:
             )
 
             path.write_text(dj(records), encoding="utf-8")
-            logger.debug(
-                f"[META-RL-PERSIST] Saved strategy {scored.id[:8]} → {path.name}"
-            )
+            logger.debug(f"[META-RL-PERSIST] Saved strategy {scored.id[:8]} → {path.name}")
             return True
         except Exception as e:
             logger.warning(f"[META-RL-PERSIST] save_scored_strategy failed: {e}")
             return False
 
-    def load_scored_strategies(self, session_id: str) -> List[Dict[str, Any]]:
+    def load_scored_strategies(self, session_id: str) -> list[dict[str, Any]]:
         """Load all scored strategy records for a session."""
         path = SESSIONS / f"{session_id}_strategies.json"
         if not path.exists():
@@ -109,12 +105,10 @@ class MetaRLPersistence:
         try:
             return dl(path.read_text())
         except Exception as e:
-            logger.warning(
-                f"[META-RL-PERSIST] load_scored_strategies({session_id}) failed: {e}"
-            )
+            logger.warning(f"[META-RL-PERSIST] load_scored_strategies({session_id}) failed: {e}")
             return []
 
-    def save_session_metadata(self, session_id: str, metadata: Dict[str, Any]) -> bool:
+    def save_session_metadata(self, session_id: str, metadata: dict[str, Any]) -> bool:
         """Save arbitrary metadata for a session."""
         try:
             path = SESSIONS / f"{session_id}_meta.json"
@@ -129,7 +123,7 @@ class MetaRLPersistence:
             logger.warning(f"[META-RL-PERSIST] save_session_metadata failed: {e}")
             return False
 
-    def load_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def load_session_metadata(self, session_id: str) -> dict[str, Any] | None:
         """Load session metadata, returns None if not found."""
         path = SESSIONS / f"{session_id}_meta.json"
         if not path.exists():
@@ -139,7 +133,7 @@ class MetaRLPersistence:
         except Exception:
             return None
 
-    def list_sessions(self) -> List[str]:
+    def list_sessions(self) -> list[str]:
         """List all known meta_rl session IDs (JSON files + sentinel history_db)."""
         session_ids = set()
 
@@ -147,9 +141,7 @@ class MetaRLPersistence:
         try:
             for f in SESSIONS.iterdir():
                 if f.name.endswith("_strategies.json") or f.name.endswith("_meta.json"):
-                    sid = f.name.replace("_strategies.json", "").replace(
-                        "_meta.json", ""
-                    )
+                    sid = f.name.replace("_strategies.json", "").replace("_meta.json", "")
                     session_ids.add(sid)
         except Exception as e:
             logger.warning(f"[META-RL-PERSIST] list_sessions scan failed: {e}")
@@ -173,13 +165,11 @@ class MetaRLPersistence:
         """Save elite chromosomes (batch of save_scored_strategy)."""
         if not scored_strategies:
             return 0
-        count = sum(
-            1 for s in scored_strategies if self.save_scored_strategy(s, session_id)
-        )
+        count = sum(1 for s in scored_strategies if self.save_scored_strategy(s, session_id))
         logger.info(f"[META-RL-PERSIST] Saved {count} elite chromosomes → {session_id}")
         return count
 
-    def load_elite_chromosomes(self, session_id: str) -> List[Dict[str, Any]]:
+    def load_elite_chromosomes(self, session_id: str) -> list[dict[str, Any]]:
         """Alias for load_scored_strategies."""
         return self.load_scored_strategies(session_id)
 
@@ -215,7 +205,7 @@ class MetaRLPersistence:
             logger.warning(f"[META-RL-PERSIST] save_evolution_session failed: {e}")
             return False
 
-    def load_evolution_session(self, session_id: str) -> Optional[dict]:
+    def load_evolution_session(self, session_id: str) -> dict | None:
         """Load evolution session state (called from EvolutionEngine._load_session)."""
         try:
             path = SESSIONS / f"{session_id}_evolution.json"
@@ -228,7 +218,7 @@ class MetaRLPersistence:
 
     # ── Version management ───────────────────────────────────────────────────────
 
-    def save_version(self, strategies: List[Any], version_tag: str) -> bool:
+    def save_version(self, strategies: list[Any], version_tag: str) -> bool:
         """Save a frozen generation of strategies as a named version."""
         if not self.enabled:
             return False
@@ -255,9 +245,7 @@ class MetaRLPersistence:
                     "id": getattr(s, "id", ""),
                     "generation": getattr(s, "generation", 0),
                     "reward": getattr(s, "reward", 0.0),
-                    "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0)
-                    if ev
-                    else 0.0,
+                    "risk_adjusted_pnl": getattr(ev, "risk_adjusted_pnl", 0.0) if ev else 0.0,
                     "sharpe": getattr(ev, "sharpe", 0.0) if ev else 0.0,
                     "max_drawdown": getattr(ev, "max_drawdown", 1.0) if ev else 1.0,
                     "trades": getattr(ev, "trades", 0) if ev else 0,
@@ -281,7 +269,7 @@ class MetaRLPersistence:
         logger.info(f"[META-RL-PERSIST] Version {tag}: {len(records)} strategies saved")
         return True
 
-    def load_version(self, version_tag: str) -> List[Dict[str, Any]]:
+    def load_version(self, version_tag: str) -> list[dict[str, Any]]:
         """Load a frozen version by tag."""
         tag = str(version_tag).replace(" ", "_").replace("/", "_").replace(":", "-")
         path = VERSIONS / f"v_{tag}" / "strategies.json"
@@ -293,7 +281,7 @@ class MetaRLPersistence:
             logger.warning(f"[META-RL-PERSIST] load_version({tag}) failed: {e}")
             return []
 
-    def list_versions(self) -> List[str]:
+    def list_versions(self) -> list[str]:
         """List all available version tags."""
         idx = VERSIONS / "versions_index.json"
         try:
@@ -304,7 +292,7 @@ class MetaRLPersistence:
             pass
         return []
 
-    def compare_versions(self, va: str, vb: str) -> Dict[str, Any]:
+    def compare_versions(self, va: str, vb: str) -> dict[str, Any]:
         """Compare two versions by mean reward."""
         da = self.load_version(va)
         db = self.load_version(vb)
@@ -331,13 +319,13 @@ class MetaRLPersistence:
 
     # ── Cross-session summary ────────────────────────────────────────────────────
 
-    def get_sessions_summary(self) -> Dict[str, Any]:
+    def get_sessions_summary(self) -> dict[str, Any]:
         """Return aggregated stats across all meta_rl sessions."""
         try:
             sessions = self.list_sessions()
             total_strategies = 0
-            all_rewards: List[float] = []
-            gen_counts: Dict[int, int] = {}
+            all_rewards: list[float] = []
+            gen_counts: dict[int, int] = {}
 
             for sid in sessions:
                 records = self.load_scored_strategies(sid)
@@ -372,7 +360,7 @@ class MetaRLPersistence:
             }
 
 
-_persistence: Optional[MetaRLPersistence] = None
+_persistence: MetaRLPersistence | None = None
 
 
 def get_persistence() -> MetaRLPersistence:

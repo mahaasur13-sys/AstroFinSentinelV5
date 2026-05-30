@@ -1,7 +1,7 @@
 """meta_rl/strategy.py — Strategy type for Meta-RL (ATOM-META-RL-008)"""
 
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class Strategy:
@@ -11,15 +11,15 @@ class Strategy:
         self,
         name: str = "UnnamedStrategy",
         strategy_type: str = "ma_crossover",
-        parameters: Optional[Dict[str, Any]] = None,
-        assets: Optional[List[str]] = None,
+        parameters: dict[str, Any] | None = None,
+        assets: list[str] | None = None,
         timeframe: str = "1h",
         risk_profile: str = "medium",
         generation: int = 0,
-        parent_ids: Optional[List[str]] = None,
-        reward_history: Optional[List[float]] = None,
-        chromosome: Optional[Dict[str, Any]] = None,
-        id: Optional[str] = None,
+        parent_ids: list[str] | None = None,
+        reward_history: list[float] | None = None,
+        chromosome: dict[str, Any] | None = None,
+        id: str | None = None,
     ):
         self.id = id or str(uuid.uuid4())[:12]
         self.name = name
@@ -33,7 +33,7 @@ class Strategy:
         self.reward_history = reward_history or []
         self.chromosome = chromosome or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -49,7 +49,7 @@ class Strategy:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Strategy":
+    def from_dict(cls, data: dict[str, Any]) -> "Strategy":
         """Восстанавливает Strategy из словаря (для persistence)."""
         return cls(
             id=data.get("id", ""),

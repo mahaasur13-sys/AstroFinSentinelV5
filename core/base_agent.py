@@ -39,9 +39,7 @@ class AgentResponse:
 
     def to_dict(self) -> dict:
         # Handle both string signals (new) and enum signals (old)
-        signal_value = (
-            self.signal.value if hasattr(self.signal, "value") else self.signal
-        )
+        signal_value = self.signal.value if hasattr(self.signal, "value") else self.signal
         return {
             "agent_name": self.agent_name,
             "signal": signal_value,
@@ -82,7 +80,7 @@ class BaseAgent(ABC, Generic[T]):
 
         if instructions_path:
             try:
-                with open(instructions_path, "r", encoding="utf-8") as f:
+                with open(instructions_path, encoding="utf-8") as f:
                     self.instructions_md = f.read()
             except FileNotFoundError:
                 self.instructions_md = f"# {name}\n\nInstructions not found."
@@ -114,10 +112,7 @@ class BaseAgent(ABC, Generic[T]):
 
         lines = ["• RAG источники:"]
         for i, chunk in enumerate(chunks, 1):
-            lines.append(
-                f"  [{i}] {chunk['source']} "
-                f"(релевантность: {chunk['relevance_score']:.0%})"
-            )
+            lines.append(f"  [{i}] {chunk['source']} (релевантность: {chunk['relevance_score']:.0%})")
             # Add first 100 chars of content as preview
             lines.append(f"      → {chunk['title']}")
             preview = chunk["content"][:100].replace("\n", " ")

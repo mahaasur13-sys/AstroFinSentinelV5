@@ -2,7 +2,7 @@
 
 """Astronomically-informed reward for KARL trading decisions."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 from .trajectory import MarketState
 
@@ -84,7 +84,7 @@ def get_lunar_phase_score(moon_longitude: float) -> float:
     return scores.get(nature, 0.7)
 
 
-def get_planetary_aspect_score(aspects: List[Dict[str, Any]]) -> float:
+def get_planetary_aspect_score(aspects: list[dict[str, Any]]) -> float:
     if not aspects:
         return 1.0
     total_score = 0.0
@@ -117,10 +117,10 @@ def get_nakshatra_score(nakshatra_longitude: float) -> float:
 def compute_astro_reward(
     state: MarketState,
     moon_longitude: float,
-    aspects: List[Dict[str, Any]],
+    aspects: list[dict[str, Any]],
     nakshatra_longitude: float,
     base_reward: float,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     lunar_score = get_lunar_phase_score(moon_longitude)
     aspect_score = get_planetary_aspect_score(aspects)
     nakshatra_score = get_nakshatra_score(nakshatra_longitude)
@@ -157,9 +157,7 @@ def compute_astro_reward(
     }
 
 
-def get_astro_market_phase(
-    moon_longitude: float, sun_longitude: float = 0
-) -> Dict[str, Any]:
+def get_astro_market_phase(moon_longitude: float, sun_longitude: float = 0) -> dict[str, Any]:
     lunar_day = int(moon_longitude / 12) % 30
     if lunar_day < 5:
         phase, sentiment, momentum = "New Moon Cycle", "cautious", "building"
@@ -178,9 +176,5 @@ def get_astro_market_phase(
         "sentiment": sentiment,
         "momentum": momentum,
         "lunar_day": lunar_day,
-        "favorable_for": "LONG"
-        if "Waxing" in phase
-        else "SHORT"
-        if "Waning" in phase
-        else "NEUTRAL",
+        "favorable_for": "LONG" if "Waxing" in phase else "SHORT" if "Waning" in phase else "NEUTRAL",
     }

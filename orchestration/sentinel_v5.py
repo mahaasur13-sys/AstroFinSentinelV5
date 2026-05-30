@@ -9,7 +9,6 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from orchestration.tracing import tracer
 
@@ -38,7 +37,6 @@ from core.thompson import (
     AgentPool,
     get_thompson_sampler,
 )
-from orchestration.models import SentinelV5Request, Timeframe
 from orchestration.router import route_query
 
 try:
@@ -64,7 +62,7 @@ def _compute_oap_adjustments(oap_state, agents: list) -> dict:
         oap_score = 0.5 * entropy + 0.5 * max(0.0, sharpe)
         adjustment = (oap_score - 0.5) * 0.4
         logger.debug(f"[OAP] no per-agent stats — uniform adj={adjustment:+.3f}")
-        return {agent: adjustment for agent in agents}
+        return dict.fromkeys(agents, adjustment)
     for agent_name in agents:
         stats = agent_stats.get(agent_name)
         if stats is None:
@@ -82,9 +80,7 @@ def _compute_oap_adjustments(oap_state, agents: list) -> dict:
     return adjustments
 
 
-async def run_technical_flow(
-    state: dict, selected_agents: Optional[list] = None
-) -> dict:
+async def run_technical_flow(state: dict, selected_agents: list | None = None) -> dict:
     with tracer.start_as_current_span("run_technical_flow") as span:
         span.set_attribute("agents", str(selected_agents))
         pool_agents = selected_agents or TECHNICAL_POOL.agents
@@ -102,11 +98,9 @@ async def run_technical_flow(
             return {}
         results = await asyncio.gather(*tasks, return_exceptions=True)
         merged = {}
-        for name, r in zip(names, results):
+        for name, r in zip(names, results, strict=False):
             if isinstance(r, dict):
-                merged[f"{name.lower()}_signal"] = (
-                    r.get(f"{name.lower()}_signal") or list(r.values())[0]
-                )
+                merged[f"{name.lower()}_signal"] = r.get(f"{name.lower()}_signal") or list(r.values())[0]
             elif isinstance(r, Exception):
                 logger.error(f"[TechFlow] Agent {name} failed: {r}")
                 merged[f"{name.lower()}_signal"] = AgentResponse(
@@ -119,7 +113,7 @@ async def run_technical_flow(
         return merged
 
 
-async def run_astro_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
+async def run_astro_flow(state: dict, selected_agents: list | None = None) -> dict:
     with tracer.start_as_current_span("run_astro_flow") as span:
         span.set_attribute("agents", str(selected_agents))
         pool_agents = selected_agents or ASTRO_POOL.agents
@@ -127,14 +121,12 @@ async def run_astro_flow(state: dict, selected_agents: Optional[list] = None) ->
         return await run_astro_council(state)
 
 
-async def run_electoral_flow(
-    state: dict, selected_agents: Optional[list] = None
-) -> dict:
+async def run_electoral_flow(state: dict, selected_agents: list | None = None) -> dict:
     with tracer.start_as_current_span("run_electoral_flow"):
         return await run_electoral_agent(state)
 
 
-async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) -> dict:
+async def run_macro_flow(state: dict, selected_agents: list | None = None) -> dict:
     with tracer.start_as_current_span("run_macro_flow") as span:
         span.set_attribute("agents", str(selected_agents))
         pool_agents = selected_agents or MACRO_POOL.agents
@@ -158,13 +150,9 @@ async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) ->
             return {}
         results = await asyncio.gather(*tasks, return_exceptions=True)
         merged = {}
-        for name, r in zip(names, results):
+        for name, r in zip(names, results, strict=False):
             if isinstance(r, dict):
-                sig = (
-                    r.get(f"{name.lower()}_signal")
-                    or r.get("signal")
-                    or (list(r.values())[0] if r else None)
-                )
+                sig = r.get(f"{name.lower()}_signal") or r.get("signal") or (list(r.values())[0] if r else None)
                 merged[f"{name.lower()}_signal"] = sig
             elif isinstance(r, Exception):
                 logger.error(f"[MacroFlow] Agent {name} failed: {r}")
@@ -180,51 +168,48 @@ async def run_macro_flow(state: dict, selected_agents: Optional[list] = None) ->
 
 def _select_for_flow(
     pool: AgentPool,
-    excluded: Optional[list] = None,
-    k: Optional[int] = None,
-    oap_adjustments: Optional[dict] = None,
+    excluded: list | None = None,
+    k: int | None = None,
+    oap_adjustments: dict | None = None,
 ) -> list:
     adj = oap_adjustments if OAP_WEIGHTING_ENABLED else None
     sampler = get_thompson_sampler()
     if excluded:
-        selected = sampler.select_with_exclusions(
-            pool, excluded=excluded, k=k, oap_adjustments=adj
-        )
+        selected = sampler.select_with_exclusions(pool, excluded=excluded, k=k, oap_adjustments=adj)
     else:
         selected = sampler.select(pool, k=k, oap_adjustments=adj)
     return [name for name, _ in selected]
 
 
 async def _fetch_price(symbol: str, fallback_price: float = 50000.0) -> float:
-    import requests
+    import httpx
 
     with tracer.start_as_current_span("fetch_price") as span:
         span.set_attribute("symbol", symbol)
         span.set_attribute("fallback_price", fallback_price)
         max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-                resp = requests.get(url, timeout=5)
-                resp.raise_for_status()
-                data = resp.json()
-                price = float(data.get("price", 0))
-                span.set_attribute("http.status_code", resp.status_code)
-                if price > 0:
-                    logger.debug(f"[Price] {symbol} = {price}")
-                    return price
-                else:
-                    logger.warning(f"[Price] Invalid price for {symbol}: {price}")
-            except Exception as e:
-                logger.warning(
-                    f"[Price] Attempt {attempt + 1}/{max_retries} error: {e}"
-                )
-                span.set_attribute("error", str(e))
-            if attempt < max_retries - 1:
-                await asyncio.sleep(2**attempt)
-        logger.error(
-            f"[Price] All {max_retries} attempts failed for {symbol}, using fallback {fallback_price}"
-        )
+
+        async with httpx.AsyncClient() as client:
+            for attempt in range(max_retries):
+                try:
+                    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+                    resp = await client.get(url, timeout=5)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    price = float(data.get("price", 0))
+                    span.set_attribute("http.status_code", resp.status_code)
+                    if price > 0:
+                        logger.debug(f"[Price] {symbol} = {price}")
+                        return price
+                    else:
+                        logger.warning(f"[Price] Invalid price for {symbol}: {price}")
+                except Exception as e:
+                    logger.warning(f"[Price] Attempt {attempt + 1}/{max_retries} error: {e}")
+                    span.set_attribute("error", str(e))
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2**attempt)
+
+        logger.error(f"[Price] All {max_retries} attempts failed for {symbol}, using fallback {fallback_price}")
         span.set_attribute("fallback_used", True)
         return fallback_price
 
@@ -281,14 +266,10 @@ async def run_sentinel_v5(
             technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k)
             thompson_selections["technical"] = technical_selected
         if include_macro:
-            macro_selected = _select_for_flow(
-                MACRO_POOL, excluded=technical_selected, k=thompson_k
-            )
+            macro_selected = _select_for_flow(MACRO_POOL, excluded=technical_selected, k=thompson_k)
             thompson_selections["macro"] = macro_selected
         if include_astro:
-            astro_selected = _select_for_flow(
-                ASTRO_POOL, excluded=technical_selected, k=thompson_k
-            )
+            astro_selected = _select_for_flow(ASTRO_POOL, excluded=technical_selected, k=thompson_k)
             thompson_selections["astro"] = astro_selected
         if include_electional:
             electoral_selected = _select_for_flow(ELECTORAL_POOL, k=1)
@@ -300,15 +281,9 @@ async def run_sentinel_v5(
         with tracer.start_as_current_span("execute_flows"):
             flow_tasks = []
             if include_technical:
-                flow_tasks.append(
-                    run_technical_flow(state, selected_agents=technical_selected)
-                )
+                flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
             if include_macro:
-                flow_tasks.append(
-                    run_macro_flow(
-                        state, selected_agents=thompson_selections.get("macro", [])
-                    )
-                )
+                flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
             if include_astro:
                 flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
             if include_electional:
@@ -321,9 +296,7 @@ async def run_sentinel_v5(
                             if key.endswith("_signal") and value is not None:
                                 state["all_signals"].append(value)
                 if not state["all_signals"]:
-                    logger.warning(
-                        "[Sentinel] All agents failed — using SystemFallback"
-                    )
+                    logger.warning("[Sentinel] All agents failed — using SystemFallback")
                     fallback_response = AgentResponse(
                         agent_name="SystemFallback",
                         signal=SignalDirection.NEUTRAL,
@@ -354,9 +327,7 @@ async def run_sentinel_v5(
             },
             "thompson_selections": thompson_selections,
             "agent_count": len(state["all_signals"]),
-            "final_recommendation": synthesis_result.to_dict()
-            if synthesis_result
-            else None,
+            "final_recommendation": synthesis_result.to_dict() if synthesis_result else None,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -365,9 +336,7 @@ async def run_sentinel_v5(
                 save_session(final_output)
                 update_beliefs_from_session(final_output)
 
-        logger.info(
-            f"[Sentinel] Session {session_id} completed: {len(state['all_signals'])} signals"
-        )
+        logger.info(f"[Sentinel] Session {session_id} completed: {len(state['all_signals'])} signals")
         return final_output
 
 
@@ -437,24 +406,18 @@ async def run_sentinel_v5_karl(
         technical_selected: list = []
         astro_selected: list = []
 
-        oap_adjustments: Optional[dict] = None
+        oap_adjustments: dict | None = None
         if OAP_WEIGHTING_ENABLED:
             try:
                 oap_state = get_oap_optimizer().kpi_state
-                all_agents = (
-                    list(TECHNICAL_POOL.agents)
-                    + list(MACRO_POOL.agents)
-                    + list(ASTRO_POOL.agents)
-                )
+                all_agents = list(TECHNICAL_POOL.agents) + list(MACRO_POOL.agents) + list(ASTRO_POOL.agents)
                 oap_adjustments = _compute_oap_adjustments(oap_state, all_agents)
             except Exception as e:
                 logger.warning(f"[OAP] disabled due to error: {e}")
                 oap_adjustments = None
 
         if include_technical:
-            technical_selected = _select_for_flow(
-                TECHNICAL_POOL, k=thompson_k, oap_adjustments=oap_adjustments
-            )
+            technical_selected = _select_for_flow(TECHNICAL_POOL, k=thompson_k, oap_adjustments=oap_adjustments)
             thompson_selections["technical"] = technical_selected
         if include_macro:
             macro_selected = _select_for_flow(
@@ -482,15 +445,9 @@ async def run_sentinel_v5_karl(
         with tracer.start_as_current_span("execute_flows"):
             flow_tasks = []
             if include_technical:
-                flow_tasks.append(
-                    run_technical_flow(state, selected_agents=technical_selected)
-                )
+                flow_tasks.append(run_technical_flow(state, selected_agents=technical_selected))
             if include_macro:
-                flow_tasks.append(
-                    run_macro_flow(
-                        state, selected_agents=thompson_selections.get("macro", [])
-                    )
-                )
+                flow_tasks.append(run_macro_flow(state, selected_agents=thompson_selections.get("macro", [])))
             if include_astro:
                 flow_tasks.append(run_astro_flow(state, selected_agents=astro_selected))
             if include_electional:
@@ -529,9 +486,7 @@ async def run_sentinel_v5_karl(
                 synthesis_agent = SynthesisAgent()
                 synthesis_result = await synthesis_agent.run(state)
                 synthesis_result = (
-                    synthesis_result.to_dict()
-                    if hasattr(synthesis_result, "to_dict")
-                    else synthesis_result
+                    synthesis_result.to_dict() if hasattr(synthesis_result, "to_dict") else synthesis_result
                 )
                 amre_output = None
                 decision_record = None
@@ -564,9 +519,7 @@ async def run_sentinel_v5_karl(
                 save_session(final_output)
                 update_beliefs_from_session(final_output)
 
-        logger.info(
-            f"[KARL] Session {session_id} completed: {len(state['all_signals'])} signals"
-        )
+        logger.info(f"[KARL] Session {session_id} completed: {len(state['all_signals'])} signals")
         return final_output
 
 
@@ -607,9 +560,7 @@ if __name__ == "__main__":
 
         asyncio.run(
             run_sentinel_v5_mas(
-                user_query=" ".join(sys.argv[2:])
-                if len(sys.argv) > 2
-                else "Analyze BTC",
+                user_query=" ".join(sys.argv[2:]) if len(sys.argv) > 2 else "Analyze BTC",
                 symbol="BTCUSDT",
                 timeframe="SWING",
             )

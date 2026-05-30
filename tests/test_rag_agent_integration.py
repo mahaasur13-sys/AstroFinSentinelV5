@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection
 

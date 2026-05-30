@@ -4,10 +4,11 @@
 state → decision → reward_evaluation → buffer.add
 """
 
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, Generator, List, Optional
+from typing import Any
 
 from .replay_buffer import BufferEntry, ReplayBuffer, get_default_buffer
 from .trajectory import MarketState, compute_trajectory_metrics, trajectory_from_state
@@ -70,7 +71,7 @@ class BacktestResult:
     regime: BacktestRegime
 
     # Детали
-    steps: List[BacktestStep]
+    steps: list[BacktestStep]
 
     def to_dict(self) -> dict:
         return {
@@ -114,7 +115,7 @@ class ContinuousBacktest:
 
     def __init__(
         self,
-        buffer: Optional[ReplayBuffer] = None,
+        buffer: ReplayBuffer | None = None,
         horizon: int = 5,
         oos_ratio: float = 0.2,
         window_size: int = 100,
@@ -124,14 +125,14 @@ class ContinuousBacktest:
         self.oos_ratio = oos_ratio  # Доля OOS данных
         self.window_size = window_size  # Размер окна для rolling
 
-        self.results: List[BacktestResult] = []
-        self._q_star_history: List[float] = []
+        self.results: list[BacktestResult] = []
+        self._q_star_history: list[float] = []
 
     def run_on_data(
         self,
-        historical_data: List[Dict[str, Any]],
-        agent_fn: Callable[[MarketState], Dict[str, Any]],
-        regime_splitter: Optional[Callable[[float], str]] = None,
+        historical_data: list[dict[str, Any]],
+        agent_fn: Callable[[MarketState], dict[str, Any]],
+        regime_splitter: Callable[[float], str] | None = None,
     ) -> BacktestResult:
         """
         Запустить backtest на исторических данных.
@@ -149,7 +150,7 @@ class ContinuousBacktest:
         train_data = historical_data[split_idx:]
         oos_data = historical_data[:split_idx]
 
-        steps: List[BacktestStep] = []
+        steps: list[BacktestStep] = []
         q_star_initial = self._estimate_q_star()
 
         # Первая фаза: train (walk forward)
@@ -193,9 +194,7 @@ class ContinuousBacktest:
             state = self._build_state(bar, regime_splitter)
             decision = agent_fn(state)
 
-            reward_actual, reward_predicted = self._evaluate_reward(
-                historical_data, i, horizon=self.horizon
-            )
+            reward_actual, reward_predicted = self._evaluate_reward(historical_data, i, horizon=self.horizon)
 
             step_error = abs(reward_actual - reward_predicted)
             all_oos_rewards.append(reward_actual)
@@ -235,17 +234,13 @@ class ContinuousBacktest:
             sharpe_ratio=self._compute_sharpe(all_train_rewards),
             max_drawdown=self._compute_max_drawdown(all_train_rewards),
             total_return=sum(all_train_rewards),
-            avg_confidence=sum(s.confidence for s in steps) / len(steps)
-            if steps
-            else 0,
+            avg_confidence=sum(s.confidence for s in steps) / len(steps) if steps else 0,
             avg_error=sum(s.error for s in steps) / len(steps) if steps else 0,
             q_star_initial=q_star_initial,
             q_star_final=q_star_final,
             q_star_improvement=q_star_final - q_star_initial,
             oos_win_rate=len(oos_wins) / len(oos_steps) if oos_steps else 0,
-            oos_avg_error=sum(s.error for s in oos_steps) / len(oos_steps)
-            if oos_steps
-            else 0,
+            oos_avg_error=sum(s.error for s in oos_steps) / len(oos_steps) if oos_steps else 0,
             regime=BacktestRegime.WALK_FORWARD,
             steps=all_steps,
         )
@@ -257,9 +252,9 @@ class ContinuousBacktest:
 
     def run_rolling(
         self,
-        historical_data: List[Dict[str, Any]],
-        agent_fn: Callable[[MarketState], Dict[str, Any]],
-        regime_splitter: Optional[Callable[[float], str]] = None,
+        historical_data: list[dict[str, Any]],
+        agent_fn: Callable[[MarketState], dict[str, Any]],
+        regime_splitter: Callable[[float], str] | None = None,
     ) -> Generator[BacktestResult, None, None]:
         """
         Rolling backtest — окно двигается на 1 шаг за раз.
@@ -280,17 +275,17 @@ class ContinuousBacktest:
 
     def run_on_window(
         self,
-        window_data: List[Dict[str, Any]],
-        agent_fn: Callable[[MarketState], Dict[str, Any]],
-        regime_splitter: Optional[Callable[[float], str]] = None,
+        window_data: list[dict[str, Any]],
+        agent_fn: Callable[[MarketState], dict[str, Any]],
+        regime_splitter: Callable[[float], str] | None = None,
     ) -> BacktestResult:
         """Backtest на одном окне данных"""
         return self.run_on_data(window_data, agent_fn, regime_splitter)
 
     def _build_state(
         self,
-        bar: Dict[str, Any],
-        regime_splitter: Optional[Callable[[float], str]] = None,
+        bar: dict[str, Any],
+        regime_splitter: Callable[[float], str] | None = None,
     ) -> MarketState:
         """Build MarketState из одного бара данных"""
         price = bar.get("price", 0.0)
@@ -309,7 +304,7 @@ class ContinuousBacktest:
 
     def _evaluate_reward(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         current_idx: int,
         horizon: int,
     ) -> tuple[float, float]:
@@ -341,7 +336,7 @@ class ContinuousBacktest:
     def _add_to_buffer(
         self,
         state: MarketState,
-        decision: Dict[str, Any],
+        decision: dict[str, Any],
         reward: float,
     ):
         """Добавить опыт в replay buffer"""
@@ -374,7 +369,7 @@ class ContinuousBacktest:
 
         return sum(rewards) / len(rewards)
 
-    def _compute_sharpe(self, rewards: List[float]) -> float:
+    def _compute_sharpe(self, rewards: list[float]) -> float:
         if not rewards or len(rewards) < 2:
             return 0.0
 
@@ -386,7 +381,7 @@ class ContinuousBacktest:
 
         return mean / (variance**0.5)
 
-    def _compute_max_drawdown(self, rewards: List[float]) -> float:
+    def _compute_max_drawdown(self, rewards: list[float]) -> float:
         if not rewards:
             return 0.0
 
@@ -400,7 +395,7 @@ class ContinuousBacktest:
 
         return max_dd
 
-    def get_trajectory_insights(self) -> Dict[str, Any]:
+    def get_trajectory_insights(self) -> dict[str, Any]:
         """Анализ накопленных траекторий"""
         trajs = self.buffer.get_all_trajectories()
         if not trajs:
@@ -417,7 +412,7 @@ class ContinuousBacktest:
             "backtest_runs": len(self.results),
         }
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Общая статистика backtest"""
         if not self.results:
             return {"runs": 0}
@@ -449,8 +444,8 @@ def create_backtest_runner(
 
 
 def run_backtest_on_bars(
-    bars: List[Dict[str, Any]],
-    agent_fn: Callable[[MarketState], Dict[str, Any]],
+    bars: list[dict[str, Any]],
+    agent_fn: Callable[[MarketState], dict[str, Any]],
     horizon: int = 5,
 ) -> BacktestResult:
     """Quick backtest на барах"""

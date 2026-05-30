@@ -34,9 +34,7 @@ def explorer_tab() -> html.Div:
             dbc.Row(
                 [
                     dbc.Col(
-                        html.H4(
-                            "\U0001f9ac Strategy Explorer", className="mb-0 text-light"
-                        ),
+                        html.H4("\U0001f9ac Strategy Explorer", className="mb-0 text-light"),
                         width=6,
                     ),
                     dbc.Col(
@@ -84,9 +82,7 @@ def explorer_tab() -> html.Div:
                             dbc.Label("Strategy", size="sm"),
                             dcc.Dropdown(
                                 id="strategy-selector",
-                                options=[
-                                    {"label": "Select session first", "value": ""}
-                                ],
+                                options=[{"label": "Select session first", "value": ""}],
                                 value=None,
                                 placeholder="Select strategy...",
                                 clearable=True,
@@ -156,9 +152,7 @@ def explorer_tab() -> html.Div:
                         [
                             html.Div(
                                 id="strategy-id-display",
-                                children=html.Span(
-                                    "No strategy selected", className="text-muted small"
-                                ),
+                                children=html.Span("No strategy selected", className="text-muted small"),
                             ),
                         ],
                         width=4,
@@ -230,9 +224,7 @@ def explorer_tab() -> html.Div:
                                                                     "displayModeBar": False,
                                                                     "responsive": True,
                                                                 },
-                                                                style={
-                                                                    "height": "230px"
-                                                                },
+                                                                style={"height": "230px"},
                                                             ),
                                                         ]
                                                     ),
@@ -252,9 +244,7 @@ def explorer_tab() -> html.Div:
                                                                 [
                                                                     dbc.Col(
                                                                         [
-                                                                            html.Small(
-                                                                                "Reward"
-                                                                            ),
+                                                                            html.Small("Reward"),
                                                                             html.Br(),
                                                                             html.Span(
                                                                                 id="kpi-reward",
@@ -266,9 +256,7 @@ def explorer_tab() -> html.Div:
                                                                     ),
                                                                     dbc.Col(
                                                                         [
-                                                                            html.Small(
-                                                                                "Sharpe"
-                                                                            ),
+                                                                            html.Small("Sharpe"),
                                                                             html.Br(),
                                                                             html.Span(
                                                                                 id="kpi-sharpe",
@@ -285,9 +273,7 @@ def explorer_tab() -> html.Div:
                                                                 [
                                                                     dbc.Col(
                                                                         [
-                                                                            html.Small(
-                                                                                "Risk PnL"
-                                                                            ),
+                                                                            html.Small("Risk PnL"),
                                                                             html.Br(),
                                                                             html.Span(
                                                                                 id="kpi-risk-pnl",
@@ -299,9 +285,7 @@ def explorer_tab() -> html.Div:
                                                                     ),
                                                                     dbc.Col(
                                                                         [
-                                                                            html.Small(
-                                                                                "Trades"
-                                                                            ),
+                                                                            html.Small("Trades"),
                                                                             html.Br(),
                                                                             html.Span(
                                                                                 id="kpi-trades",
@@ -318,9 +302,7 @@ def explorer_tab() -> html.Div:
                                                                 [
                                                                     dbc.Col(
                                                                         [
-                                                                            html.Small(
-                                                                                "Win Rate"
-                                                                            ),
+                                                                            html.Small("Win Rate"),
                                                                             html.Br(),
                                                                             html.Span(
                                                                                 id="kpi-winrate",
@@ -332,9 +314,7 @@ def explorer_tab() -> html.Div:
                                                                     ),
                                                                     dbc.Col(
                                                                         [
-                                                                            html.Small(
-                                                                                "Max DD"
-                                                                            ),
+                                                                            html.Small("Max DD"),
                                                                             html.Br(),
                                                                             html.Span(
                                                                                 id="kpi-dd",

@@ -1,5 +1,3 @@
-import ast
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -12,10 +10,7 @@ def test_no_duplicate_agent_response_imports():
         if "venv" in py_file.parts or "__pycache__" in py_file.parts:
             continue
         content = py_file.read_text(errors="ignore")
-        if (
-            "from agents._impl.types import" in content
-            or "import agents._impl.types" in content
-        ):
+        if "from agents._impl.types import" in content or "import agents._impl.types" in content:
             # Проверяем, импортируется ли AgentResponse из дубликата
             if "AgentResponse" in content.split("import")[1]:
                 violations.append(str(py_file))

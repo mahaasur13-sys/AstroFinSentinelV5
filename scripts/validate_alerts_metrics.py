@@ -76,9 +76,7 @@ def main():
                 }:
                     continue
                 if metric not in KNOWN_METRICS:
-                    errors.append(
-                        f"{alert_name}: metric '{metric}' not in known metrics list"
-                    )
+                    errors.append(f"{alert_name}: metric '{metric}' not in known metrics list")
 
     if errors:
         print("ERROR: Alert rules reference unknown metrics:")

@@ -9,7 +9,6 @@ Clamp: all outputs in [-1, 1]
 """
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 from core.reward.astro_reward import compute_astro_reward
 from core.reward.ema import get_reward_ema
@@ -40,7 +39,7 @@ def compute_raw_reward(
     nakshatra: str = "neutral",
     rahu_kaal_active: bool = False,
     regime: str = "NORMAL",
-    aspects: List[str] = None,
+    aspects: list[str] = None,
     moon_sign: str = "",
     tithi: int = 0,
 ) -> float:
@@ -140,7 +139,7 @@ def compute_reward_pipeline(
     nakshatra: str = "neutral",
     rahu_kaal_active: bool = False,
     regime: str = "NORMAL",
-    aspects: List[str] = None,
+    aspects: list[str] = None,
     moon_sign: str = "",
     tithi: int = 0,
     alpha: float = 0.3,
@@ -210,12 +209,12 @@ def compute_reward_pipeline(
 
 
 def compute_agent_rewards(
-    agent_signals: List[Dict],
+    agent_signals: list[dict],
     price_change: float,
     symbol: str,
     regime: str = "NORMAL",
     alpha: float = 0.3,
-) -> Dict[str, RewardResult]:
+) -> dict[str, RewardResult]:
     """
     Compute per-agent smoothed rewards.
 

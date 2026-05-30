@@ -134,10 +134,8 @@ class TestConstraints:
         ]
         result = apply_pressure_field(agents, enabled=True)
 
-        for orig, upd in zip(agents, result):
-            assert orig.signal == upd.signal, (
-                f"Signal changed from {orig.signal} to {upd.signal}"
-            )
+        for orig, upd in zip(agents, result, strict=False):
+            assert orig.signal == upd.signal, f"Signal changed from {orig.signal} to {upd.signal}"
 
 
 class TestRegimeDiscount:
@@ -161,8 +159,7 @@ class TestRegimeDiscount:
 
         # A (EXTREME) должен усилиться МЕНЬШЕ чем B (NORMAL)
         assert abs(b_delta) >= abs(a_delta), (
-            f"NORMAL agent should have stronger influence boost, "
-            f"got B_delta={b_delta:.4f}, A_delta={a_delta:.4f}"
+            f"NORMAL agent should have stronger influence boost, got B_delta={b_delta:.4f}, A_delta={a_delta:.4f}"
         )
 
 

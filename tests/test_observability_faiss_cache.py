@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from knowledge.rag_retriever import RAGRetriever
 from tools.metrics_server import CACHE_HITS, CACHE_MISSES

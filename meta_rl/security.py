@@ -13,7 +13,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -31,8 +30,8 @@ class APIKeyConfig:
 
     exchange: str
     sandbox_mode: bool
-    api_key: Optional[str]
-    api_secret: Optional[str]
+    api_key: str | None
+    api_secret: str | None
     rate_limit_ms: int
     enable_rate_limit: bool
     is_production: bool  # True only when sandbox=False AND keys present

@@ -2,7 +2,6 @@
 Sentiment Agent — fear/greed and market sentiment analysis.
 """
 
-import json
 import logging
 
 import requests
@@ -32,7 +31,7 @@ class SentimentAgent(BaseAgent[AgentResponse]):
         Analyze market sentiment.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
 
         # Fetch multiple sentiment sources
         fear_greed = await self._fetch_fear_greed()
@@ -40,11 +39,7 @@ class SentimentAgent(BaseAgent[AgentResponse]):
         price_momentum = self._analyze_price_momentum(state)
 
         # Combine sentiment
-        sentiment_score = (
-            fear_greed["score"] * 0.40
-            + funding_rate["score"] * 0.30
-            + price_momentum["score"] * 0.30
-        )
+        sentiment_score = fear_greed["score"] * 0.40 + funding_rate["score"] * 0.30 + price_momentum["score"] * 0.30
 
         if sentiment_score >= 0.65:
             signal = SignalDirection.LONG
@@ -138,9 +133,7 @@ class SentimentAgent(BaseAgent[AgentResponse]):
 
             data = resp.json()
 
-            funding_rate = float(
-                data.get("result", {}).get("list", [{}])[0].get("fundingRate", 0.0)
-            )
+            funding_rate = float(data.get("result", {}).get("list", [{}])[0].get("fundingRate", 0.0))
 
             # Score logic
             if funding_rate > 0:
@@ -174,7 +167,7 @@ class SentimentAgent(BaseAgent[AgentResponse]):
         """
         Analyze price momentum as sentiment proxy.
         """
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
         price_data = state.get("_price_data", [])
 
         if len(price_data) < 20:

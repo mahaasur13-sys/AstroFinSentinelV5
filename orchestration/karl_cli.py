@@ -3,7 +3,6 @@
 import asyncio
 import sys
 import threading
-from datetime import datetime
 from pathlib import Path
 
 try:
@@ -48,8 +47,8 @@ def print_decision_rich(record, amre, synth):
         return print_decision_ascii(record, amre, synth)
     action = record.get("final_action", synth.get("signal", "NEUTRAL"))
     confidence = record.get("confidence_final", synth.get("confidence", 50))
-    regime = record.get("regime", "NORMAL")
-    price = record.get("price", 0)
+    record.get("regime", "NORMAL")
+    record.get("price", 0)
     decision_id = record.get("decision_id", "N/A")
     action_color = {
         "LONG": "green",
@@ -57,9 +56,7 @@ def print_decision_rich(record, amre, synth):
         "NEUTRAL": "yellow",
         "AVOID": "bold red",
     }.get(action, "white")
-    action_icon = {"LONG": "📈", "SHORT": "📉", "NEUTRAL": "⏸", "AVOID": "🚫"}.get(
-        action, "❓"
-    )
+    action_icon = {"LONG": "📈", "SHORT": "📉", "NEUTRAL": "⏸", "AVOID": "🚫"}.get(action, "❓")
     main = Text()
     main.append(f"  {action_icon} ACTION  ", style=f"bold {action_color}")
     main.append(f"  CONF={confidence:3}  ", style="bold white")
@@ -133,17 +130,13 @@ def cli():
 @click.argument("query", default="Analyze BTC")
 @click.option("--symbol", default="BTCUSDT")
 @click.option("--timeframe", default="SWING")
-@click.option(
-    "--with-metrics", is_flag=True, help="Start Prometheus /metrics server on port 9091"
-)
+@click.option("--with-metrics", is_flag=True, help="Start Prometheus /metrics server on port 9091")
 def analyze(query, symbol, timeframe, with_metrics):
     """Run a trading analysis"""
     if with_metrics:
         from tools.metrics_server import run_server
 
-        t = threading.Thread(
-            target=run_server, kwargs={"port": 9091, "host": "0.0.0.0"}, daemon=True
-        )
+        t = threading.Thread(target=run_server, kwargs={"port": 9091, "host": "0.0.0.0"}, daemon=True)
         t.start()
         click.echo("Metrics server started on 0.0.0.0:9091")
 

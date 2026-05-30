@@ -47,9 +47,7 @@ class ScoredStrategy:
         object.__setattr__(self, "evaluation", evaluation)
         object.__setattr__(self, "generation", generation)
         object.__setattr__(self, "parent_ids", parent_ids)
-        object.__setattr__(
-            self, "reward_history", reward_history if reward_history is not None else []
-        )
+        object.__setattr__(self, "reward_history", reward_history if reward_history is not None else [])
         object.__setattr__(self, "id", id if id else str(uuid.uuid4())[:12])
         # Use property setter to auto-append to history
         object.__setattr__(self, "_reward", 0.0)
@@ -76,9 +74,7 @@ class ScoredStrategy:
     def __eq__(self, other) -> bool:
         if not isinstance(other, ScoredStrategy):
             return False
-        return object.__getattribute__(self, "id") == object.__getattribute__(
-            other, "id"
-        )
+        return object.__getattribute__(self, "id") == object.__getattribute__(other, "id")
 
     def to_dict(self) -> dict:
         return {
@@ -96,7 +92,7 @@ class ScoredStrategy:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "ScoredStrategy":
+    def from_dict(cls, d: dict) -> ScoredStrategy:
         """Deserialize a dict back into a ScoredStrategy.
 
         Uses GeneratedStrategy.from_dict() internally so no external
@@ -115,18 +111,11 @@ class ScoredStrategy:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"[META-RL-SERIAL] Strategy reconstruction failed: {strat_err}, "
-                f"using fresh random strategy"
-            )
+            logger.warning(f"[META-RL-SERIAL] Strategy reconstruction failed: {strat_err}, using fresh random strategy")
             strategy = GeneratedStrategy(random_chromosome(), generation=1)
 
         eval_dict = d.get("evaluation", {})
-        evaluation = (
-            EvaluationResult.from_dict(eval_dict)
-            if eval_dict
-            else EvaluationResult.fail()
-        )
+        evaluation = EvaluationResult.from_dict(eval_dict) if eval_dict else EvaluationResult.fail()
 
         return cls(
             id=d.get("id", ""),
@@ -209,9 +198,7 @@ class StrategyPool:
         """Return top-N strategies for breeding (parents for next generation)."""
         return self.top_k(n)
 
-    def diversity_filter(
-        self, candidates: list[ScoredStrategy]
-    ) -> list[ScoredStrategy]:
+    def diversity_filter(self, candidates: list[ScoredStrategy]) -> list[ScoredStrategy]:
         """
         Filter candidates to ensure chromosome diversity.
 
@@ -263,9 +250,7 @@ class StrategyPool:
         if not self._pool:
             return {"size": 0, "mean_reward": 0.0, "max_reward": 0.0, "min_reward": 0.0}
 
-        rewards = [
-            s.reward_history[-1] if s.reward_history else s.reward for s in self._pool
-        ]
+        rewards = [s.reward_history[-1] if s.reward_history else s.reward for s in self._pool]
         return {
             "size": len(self._pool),
             "mean_reward": float(np.mean(rewards)),

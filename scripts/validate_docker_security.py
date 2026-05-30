@@ -31,17 +31,13 @@ def main():
     if isinstance(grafana_env, list):
         grafana_env = {k: v for item in grafana_env for k, v in [item.split("=", 1)]}
     pass_val = grafana_env.get("GF_SECURITY_ADMIN_PASSWORD", "admin")
-    if pass_val == "admin" or "${GRAFANA_ADMIN_PASSWORD:-admin}" in str(
-        grafana.get("environment", "")
-    ):
+    if pass_val == "admin" or "${GRAFANA_ADMIN_PASSWORD:-admin}" in str(grafana.get("environment", "")):
         errors.append("Grafana: default password 'admin' is still configured")
 
     # 3. sslmode=disable anywhere (in environment or command)
     compose_str = yaml.dump(data)
     if "sslmode=disable" in compose_str:
-        errors.append(
-            "PostgreSQL connections: sslmode=disable found (should be require)"
-        )
+        errors.append("PostgreSQL connections: sslmode=disable found (should be require)")
 
     # 4. Monitoring ports should bind to 127.0.0.1
     for svc_name, svc in services.items():
@@ -56,9 +52,7 @@ def main():
                 or "9121" in port_str
             ):
                 if not port_str.startswith("127.0.0.1:"):
-                    errors.append(
-                        f"{svc_name}: port {port_str} is not bound to 127.0.0.1"
-                    )
+                    errors.append(f"{svc_name}: port {port_str} is not bound to 127.0.0.1")
 
     # 5. Services must drop all capabilities and disable privilege escalation
     for svc_name, svc in services.items():

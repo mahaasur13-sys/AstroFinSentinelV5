@@ -5,7 +5,7 @@ agents._impl.types — Unified types for AstroFin Sentinel v5.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class Signal(str, Enum):
@@ -38,4 +38,4 @@ class TradingSignal:
     confidence: float
     symbol: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)

@@ -2,7 +2,6 @@
 """Healthcheck для AstroFinSentinelV5 — проверка окружения и сервисов."""
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path

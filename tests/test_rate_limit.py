@@ -1,5 +1,4 @@
 import os
-import time
 
 from fastapi.testclient import TestClient
 
@@ -16,9 +15,7 @@ def test_rate_limit_too_many_requests():
     headers = {"X-API-Key": "test-key-123"}
     responses = [client.get("/api/ab/compare", headers=headers) for _ in range(11)]
     # Хотя бы последний должен быть 429
-    assert any(r.status_code == 429 for r in responses[-3:]), (
-        "No 429 response after exceeding limit"
-    )
+    assert any(r.status_code == 429 for r in responses[-3:]), "No 429 response after exceeding limit"
 
 
 def test_health_endpoint_not_limited():

@@ -39,7 +39,7 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
         Returns: LONG / NEUTRAL signal with confidence and reasoning.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
         timeframe = state.get("timeframe_requested", "SWING")
 
         # Fetch market data for pattern recognition
@@ -116,14 +116,9 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
-            return [
-                [float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])]
-                for x in data
-            ]
+            return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])] for x in data]
         except Exception:
-            logger.warning(
-                f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}"
-            )
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
             return []
 
     def _detect_bullish_patterns(self, data: list) -> dict:
@@ -196,9 +191,7 @@ class BullResearcherAgent(BaseAgent[AgentResponse]):
         if not swing_lows:
             return {"score": 0.5, "summary": "no clear support identified"}
 
-        nearest_support = max(
-            [s for s in swing_lows if s < current_price], default=lows[-5]
-        )
+        nearest_support = max([s for s in swing_lows if s < current_price], default=lows[-5])
 
         distance_pct = ((current_price - nearest_support) / current_price) * 100
 

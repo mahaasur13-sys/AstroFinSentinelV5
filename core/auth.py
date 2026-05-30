@@ -24,9 +24,7 @@ def require_api_key(func):
             return func(*args, **kwargs)
         key = request.headers.get("X-API-Key")
         if not key or not secrets.compare_digest(key, API_KEY):
-            logger.warning(
-                "auth.failed endpoint=%s remote=%s", request.path, request.remote_addr
-            )
+            logger.warning("auth.failed endpoint=%s remote=%s", request.path, request.remote_addr)
             return ({"error": "Unauthorized"}, 401)
         logger.debug("auth.success endpoint=%s", request.path)
         return func(*args, **kwargs)
@@ -40,8 +38,6 @@ async def fastapi_require_api_key(request: Request):
         return
     key = request.headers.get("X-API-Key")
     if not key or not secrets.compare_digest(key, API_KEY):
-        logger.warning(
-            "auth.failed endpoint=%s remote=%s", request.url.path, request.client.host
-        )
+        logger.warning("auth.failed endpoint=%s remote=%s", request.url.path, request.client.host)
         raise HTTPException(status_code=401, detail="Invalid API key")
     logger.debug("auth.success endpoint=%s", request.url.path)

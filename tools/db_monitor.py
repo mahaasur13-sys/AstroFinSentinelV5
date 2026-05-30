@@ -39,9 +39,7 @@ def get_counts():
                 """)
                 dist = dict(cur.fetchall())
             else:
-                cur.execute(
-                    "SELECT symbol, COUNT(*) FROM backtest_runs GROUP BY symbol"
-                )
+                cur.execute("SELECT symbol, COUNT(*) FROM backtest_runs GROUP BY symbol")
                 dist = dict(cur.fetchall())
             con.close()
             rows.append((name, count, dist))

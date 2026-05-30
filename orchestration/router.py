@@ -4,7 +4,6 @@ Routes user queries to appropriate specialist flows.
 """
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,15 +24,15 @@ class QueryType(Enum):
 class RouterOutput(BaseModel):
     query_type: QueryType
     symbols: list[str] = Field(default_factory=list)
-    timeframe: Optional[str] = None
+    timeframe: str | None = None
     include_technical: bool = True
     include_astro: bool = True
     include_electional: bool = False
-    birth_data: Optional[dict] = None
+    birth_data: dict | None = None
     confidence_threshold: float = 0.5
 
 
-def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput:
+def route_query(user_query: str, context: dict | None = None) -> RouterOutput:
     """
     Роутит пользовательский запрос в нужный тип.
 
@@ -96,7 +95,7 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
     # Determine query type
     has_electional = any(kw in query_lower for kw in electional_keywords)
     has_technical = any(kw in query_lower for kw in technical_keywords)
-    has_multiple_symbols = len(symbols) > 1
+    len(symbols) > 1
     is_market_scan = "сканиров" in query_lower or "scan" in query_lower
 
     # Determine timeframe BEFORE branching to avoid UnboundLocalError
@@ -135,9 +134,7 @@ def route_query(user_query: str, context: Optional[dict] = None) -> RouterOutput
             confidence_threshold=context.get("confidence_threshold", 0.5),
         )
     elif has_technical or symbols:
-        query_type = (
-            QueryType.SINGLE_SYMBOL if len(symbols) == 1 else QueryType.MULTI_SYMBOL
-        )
+        query_type = QueryType.SINGLE_SYMBOL if len(symbols) == 1 else QueryType.MULTI_SYMBOL
         include_technical = True
         include_astro = context.get("include_astro", True)
         include_electional = False

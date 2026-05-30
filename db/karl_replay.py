@@ -3,7 +3,7 @@ Stores KARL trajectories in PostgreSQL + TimescaleDB.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from db.models import KARLTrajectory
 from db.session import pg_session
@@ -15,10 +15,10 @@ class PostgresReplayBuffer:
 
     def add(
         self,
-        trajectory: Dict[str, Any],
-        metrics: Dict[str, Any],
+        trajectory: dict[str, Any],
+        metrics: dict[str, Any],
         outcome: float,
-        market_context: Dict[str, Any],
+        market_context: dict[str, Any],
     ) -> None:
         with pg_session() as s:
             traj = KARLTrajectory(
@@ -38,17 +38,12 @@ class PostgresReplayBuffer:
             )
             s.add(traj)
 
-    def get_all(self, limit: int = 1000) -> List[Dict]:
+    def get_all(self, limit: int = 1000) -> list[dict]:
         with pg_session() as s:
-            rows = (
-                s.query(KARLTrajectory)
-                .order_by(KARLTrajectory.created_at.desc())
-                .limit(limit)
-                .all()
-            )
+            rows = s.query(KARLTrajectory).order_by(KARLTrajectory.created_at.desc()).limit(limit).all()
             return [self._row_to_dict(r) for r in rows]
 
-    def get_by_symbol(self, symbol: str, limit: int = 100) -> List[Dict]:
+    def get_by_symbol(self, symbol: str, limit: int = 100) -> list[dict]:
         with pg_session() as s:
             rows = (
                 s.query(KARLTrajectory)
@@ -59,7 +54,7 @@ class PostgresReplayBuffer:
             )
             return [self._row_to_dict(r) for r in rows]
 
-    def get_similar(self, regime: str, action: str, limit: int = 10) -> List[Dict]:
+    def get_similar(self, regime: str, action: str, limit: int = 10) -> list[dict]:
         with pg_session() as s:
             rows = (
                 s.query(KARLTrajectory)
@@ -96,7 +91,7 @@ class PostgresReplayBuffer:
         }
 
 
-_PG_BUFFER: Optional[PostgresReplayBuffer] = None
+_PG_BUFFER: PostgresReplayBuffer | None = None
 
 
 def get_default_pg_buffer() -> PostgresReplayBuffer:

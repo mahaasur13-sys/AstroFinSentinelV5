@@ -6,7 +6,6 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class OrderType(Enum):
@@ -36,7 +35,7 @@ class Order:
     side: OrderSide
     order_type: OrderType
     quantity: float
-    price: Optional[float] = None
+    price: float | None = None
     status: OrderStatus = OrderStatus.PENDING
     filled_qty: float = 0.0
     avg_fill_price: float = 0.0
@@ -99,7 +98,7 @@ class BaseBroker(ABC):
         side: OrderSide,
         order_type: OrderType,
         quantity: float,
-        price: Optional[float] = None,
+        price: float | None = None,
     ) -> Order:
         """Place an order."""
         ...
@@ -110,7 +109,7 @@ class BaseBroker(ABC):
         ...
 
     @abstractmethod
-    def get_order_status(self, order_id: str) -> Optional[Order]:
+    def get_order_status(self, order_id: str) -> Order | None:
         """Get status of a specific order."""
         ...
 

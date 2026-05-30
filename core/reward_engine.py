@@ -54,7 +54,6 @@ class RewardEngine:
     ) -> RewardSignal:
         """Compute composite reward from trade outcome + astro factors."""
         pnl = outcome.pnl_pct
-        direction = outcome.direction
         position_pct = abs(outcome.position_pct)
 
         # Base PnL reward (signed — can be negative)
@@ -69,9 +68,7 @@ class RewardEngine:
         risk_penalty = self.risk_penalty_scale * (position_pct**2) * abs(pnl_reward)
 
         # Uncertainty penalty — penalize acting under high uncertainty
-        uncertainty_penalty = (
-            self.uncertainty_penalty_scale * uncertainty * abs(pnl_reward)
-        )
+        uncertainty_penalty = self.uncertainty_penalty_scale * uncertainty * abs(pnl_reward)
 
         total_reward = pnl_reward + astro_bonus - risk_penalty - uncertainty_penalty
 
@@ -98,13 +95,10 @@ class RewardEngine:
     ) -> list[RewardSignal]:
         """Compute rewards for a batch of trades."""
         return [
-            self.compute_reward(o, a, u)
-            for o, a, u in zip(outcomes, astro_alignments, uncertainties)
+            self.compute_reward(o, a, u) for o, a, u in zip(outcomes, astro_alignments, uncertainties, strict=False)
         ]
 
-    def discounted_reward(
-        self, rewards: list[RewardSignal], gamma: float = 0.95
-    ) -> float:
+    def discounted_reward(self, rewards: list[RewardSignal], gamma: float = 0.95) -> float:
         """Compute discounted cumulative reward."""
         total = 0.0
         for r in rewards:

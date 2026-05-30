@@ -61,9 +61,7 @@ class ResidualModel:
         except Exception:
             swiss_lon = kepler_lon
         delta = (swiss_lon - kepler_lon + 180) % 360 - 180
-        return ResidualCorrection(
-            body_lower, jd, kepler_lon, swiss_lon, delta, delta * 60.0
-        )
+        return ResidualCorrection(body_lower, jd, kepler_lon, swiss_lon, delta, delta * 60.0)
 
     def corrected_longitude(self, body: str, jd: float) -> float:
         return self.predict_correction(body, jd).swiss_lon_deg

@@ -1,7 +1,7 @@
 """mas_factory/adapters.py - Context adapters between agents"""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -11,26 +11,26 @@ class MessageFormat:
     sender: str
     recipient: str
     intent: str  # "request" | "response" | "query"
-    payload: Dict[str, Any]
-    metadata: Dict[str, Any]
+    payload: dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class ContextAdapter:
     """Base class for context transformations"""
 
-    def adapt(self, data: Any, context: Dict[str, Any]) -> Any:
+    def adapt(self, data: Any, context: dict[str, Any]) -> Any:
         raise NotImplementedError
 
 
 class PassthroughAdapter(ContextAdapter):
-    def adapt(self, data: Any, context: Dict[str, Any]) -> Any:
+    def adapt(self, data: Any, context: dict[str, Any]) -> Any:
         return data
 
 
 class ExtractSignalAdapter(ContextAdapter):
     """Extract only signal fields from agent output"""
 
-    def adapt(self, data: Any, context: Dict[str, Any]) -> Any:
+    def adapt(self, data: Any, context: dict[str, Any]) -> Any:
         if isinstance(data, dict):
             return {
                 "agent_name": data.get("agent_name", "unknown"),
@@ -44,7 +44,7 @@ class ExtractSignalAdapter(ContextAdapter):
 class MergeSignalsAdapter(ContextAdapter):
     """Merge multiple agent signals into consensus"""
 
-    def adapt(self, data: List[Any], context: Dict[str, Any]) -> Any:
+    def adapt(self, data: list[Any], context: dict[str, Any]) -> Any:
         if not isinstance(data, list):
             return data
 
@@ -73,7 +73,7 @@ class MergeSignalsAdapter(ContextAdapter):
 class AggregateConfidenceAdapter(ContextAdapter):
     """Aggregate confidence scores from multiple agents"""
 
-    def adapt(self, data: List[Any], context: Dict[str, Any]) -> Any:
+    def adapt(self, data: list[Any], context: dict[str, Any]) -> Any:
         if not isinstance(data, list):
             return {"confidence": 50, "count": 0}
 
@@ -88,11 +88,7 @@ class AggregateConfidenceAdapter(ContextAdapter):
                 if isinstance(data[i], dict)
             )
             total_weight = sum(weights.values())
-            avg_conf = (
-                weighted_sum / total_weight
-                if total_weight > 0
-                else sum(confs) / len(confs)
-            )
+            avg_conf = weighted_sum / total_weight if total_weight > 0 else sum(confs) / len(confs)
         else:
             avg_conf = sum(confs) / len(confs) if confs else 50
 
@@ -110,13 +106,9 @@ class FilterByConfidenceAdapter(ContextAdapter):
     def __init__(self, threshold: int = 50):
         self.threshold = threshold
 
-    def adapt(self, data: Any, context: Dict[str, Any]) -> Any:
+    def adapt(self, data: Any, context: dict[str, Any]) -> Any:
         if isinstance(data, list):
-            return [
-                d
-                for d in data
-                if isinstance(d, dict) and d.get("confidence", 0) >= self.threshold
-            ]
+            return [d for d in data if isinstance(d, dict) and d.get("confidence", 0) >= self.threshold]
         return data
 
 
@@ -137,15 +129,15 @@ class MessageBus:
     """Simple message bus for agent communication"""
 
     def __init__(self):
-        self._messages: List[MessageFormat] = []
+        self._messages: list[MessageFormat] = []
 
     def send(
         self,
         sender: str,
         recipient: str,
         intent: str,
-        payload: Dict[str, Any],
-        metadata: Optional[Dict] = None,
+        payload: dict[str, Any],
+        metadata: dict | None = None,
     ):
         msg = MessageFormat(
             sender=sender,
@@ -156,10 +148,10 @@ class MessageBus:
         )
         self._messages.append(msg)
 
-    def receive(self, recipient: str) -> List[MessageFormat]:
+    def receive(self, recipient: str) -> list[MessageFormat]:
         return [m for m in self._messages if m.recipient == recipient]
 
-    def broadcast(self, sender: str, intent: str, payload: Dict[str, Any]):
+    def broadcast(self, sender: str, intent: str, payload: dict[str, Any]):
         msg = MessageFormat(
             sender=sender,
             recipient="*",
@@ -176,7 +168,7 @@ class MessageBus:
 
 
 # Singleton message bus
-_BUS: Optional[MessageBus] = None
+_BUS: MessageBus | None = None
 
 
 def get_message_bus() -> MessageBus:

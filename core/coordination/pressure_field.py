@@ -11,7 +11,6 @@ Sandbox-безопасная версия: никаких embeddings, тольк
 """
 
 from dataclasses import dataclass, field
-from typing import List
 
 from core.coordination.constants import (
     PRESSURE_FIELD_ENABLED,
@@ -34,7 +33,7 @@ class AgentSignal:
     weight: float  # вес в гибридном сигнале
     regime: str = "NORMAL"
     uncertainty: float = 0.5
-    sources: List[str] = field(default_factory=list)
+    sources: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -96,12 +95,12 @@ def get_regime_multiplier(regime: str) -> float:
 
 
 def apply_pressure_field(
-    agents: List[AgentSignal],
+    agents: list[AgentSignal],
     k_neighbors: int = None,
     influence_strength: float = None,
     min_consensus_pct: float = None,
     enabled: bool = None,
-) -> List[AgentSignal]:
+) -> list[AgentSignal]:
     """
     Pressure Field Coordination (sandbox version).
 
@@ -225,9 +224,9 @@ def apply_pressure_field(
 
 
 def apply_pressure_field_with_metrics(
-    agents: List[AgentSignal],
+    agents: list[AgentSignal],
     **kwargs,
-) -> tuple[List[AgentSignal], dict]:
+) -> tuple[list[AgentSignal], dict]:
     """
     apply_pressure_field + возвращает метрики для аналитики.
 
@@ -246,12 +245,8 @@ def apply_pressure_field_with_metrics(
         "pressure_field_enabled": PRESSURE_FIELD_ENABLED,
         "agents_count": len(agents),
         "k_neighbors": kwargs.get("k_neighbors", PRESSURE_FIELD_K_NEIGHBORS),
-        "influence_strength": kwargs.get(
-            "influence_strength", PRESSURE_FIELD_INFLUENCE_STRENGTH
-        ),
-        "avg_delta": sum(abs(v) for v in deltas.values()) / len(deltas)
-        if deltas
-        else 0,
+        "influence_strength": kwargs.get("influence_strength", PRESSURE_FIELD_INFLUENCE_STRENGTH),
+        "avg_delta": sum(abs(v) for v in deltas.values()) / len(deltas) if deltas else 0,
         "max_delta": max(abs(v) for v in deltas.values()) if deltas else 0,
         "deltas": deltas,
     }

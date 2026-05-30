@@ -17,7 +17,6 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
-from typing import Tuple
 
 import joblib
 import numpy as np
@@ -37,7 +36,7 @@ def generate_training_data(
     jd_end: float = 2500000.0,
     n_samples: int = 500,
     bodies: list[str] | None = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Generate training data: (features, residuals_arcmin).
     """
@@ -80,9 +79,7 @@ def generate_training_data(
             cos_orb = math.cos(math.radians(mean_lon))
             is_saturn = 1.0 if body.lower() == "saturn" else 0.0
 
-            features_list.append(
-                [jd_norm, float(body_enc), sin_orb, cos_orb, is_saturn]
-            )
+            features_list.append([jd_norm, float(body_enc), sin_orb, cos_orb, is_saturn])
             residuals_list.append(residual_arcmin)
 
     return np.array(features_list), np.array(residuals_list)
@@ -105,9 +102,7 @@ def train_residual_model(X, y) -> object:
     model.fit(X, y)
 
     # Cross-validation RMSE
-    cv_scores = cross_val_score(
-        model, X, y, cv=5, scoring="neg_root_mean_squared_error"
-    )
+    cv_scores = cross_val_score(model, X, y, cv=5, scoring="neg_root_mean_squared_error")
     cv_rmse = -cv_scores.mean()
 
     print(f"\n  CV RMSE: {cv_rmse:.2f} arcmin")
@@ -125,10 +120,7 @@ def main():
     print("\n[1/4] Generating training data...")
     X, y = generate_training_data(n_samples=500)
     print(f"  Generated {len(X)} samples")
-    print(
-        f"  Residual stats (arcmin): mean={y.mean():.2f}, std={y.std():.2f}, "
-        f"min={y.min():.2f}, max={y.max():.2f}"
-    )
+    print(f"  Residual stats (arcmin): mean={y.mean():.2f}, std={y.std():.2f}, min={y.min():.2f}, max={y.max():.2f}")
 
     # Train model
     print("\n[2/4] Training RandomForestRegressor...")
@@ -137,7 +129,7 @@ def main():
     # Feature importance
     if hasattr(model, "feature_importances_"):
         print("\n[3/4] Feature importances:")
-        for name, imp in zip(FEATURE_NAMES, model.feature_importances_):
+        for name, imp in zip(FEATURE_NAMES, model.feature_importances_, strict=False):
             print(f"  {name:<20}: {imp:.4f}")
 
     # Save model

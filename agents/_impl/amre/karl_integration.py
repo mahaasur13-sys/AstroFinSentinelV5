@@ -5,7 +5,7 @@
 
 import hashlib
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .audit import (
     build_decision_record,
@@ -39,7 +39,7 @@ class DelistFallback:
     confidence_floor: int = 35
 
 
-def check_delisted_fallback(symbol: str) -> Optional[DelistFallback]:
+def check_delisted_fallback(symbol: str) -> DelistFallback | None:
     """Check if ticker is delisted or unsupported, return fallback config."""
     symbol_upper = symbol.upper()
 
@@ -93,21 +93,21 @@ def apply_fallback(state: dict, fallback: DelistFallback) -> dict:
 class AMREOutput:
     """Output from AMRE processing."""
 
-    uncertainty: Dict[str, float]
-    grounding: Dict[str, Any]
+    uncertainty: dict[str, float]
+    grounding: dict[str, Any]
     confidence_adjustment: int
     final_confidence: int
     reward_estimate: float
-    decision_record: Optional[Dict[str, Any]]
+    decision_record: dict[str, Any] | None
     passed: bool
-    issues: List[str]
-    delist_fallback: Optional[DelistFallback]
+    issues: list[str]
+    delist_fallback: DelistFallback | None
 
 
 def process_amre(
     state: dict,
-    signals: List[Any],
-    all_signals: List[Any],
+    signals: list[Any],
+    all_signals: list[Any],
 ) -> AMREOutput:
     """
     Run full AMRE post-processing on agent signals:
@@ -171,9 +171,7 @@ def process_amre(
         {
             "id": f"traj_{i}",
             "depth": i,
-            "action": signals[i].get("signal", "NEUTRAL")
-            if i < len(signals)
-            else "UNKNOWN",
+            "action": signals[i].get("signal", "NEUTRAL") if i < len(signals) else "UNKNOWN",
             "q_value": reward,
             "advantage": reward - 0.5,
             "uncertainty": uncertainty.get("total", 0.5),
@@ -185,12 +183,8 @@ def process_amre(
 
     ensemble_dicts = [
         {
-            "name": signals[i].get("agent_name", f"agent_{i}")
-            if i < len(signals)
-            else f"agent_{i}",
-            "signal": signals[i].get("signal", "NEUTRAL")
-            if i < len(signals)
-            else "NEUTRAL",
+            "name": signals[i].get("agent_name", f"agent_{i}") if i < len(signals) else f"agent_{i}",
+            "signal": signals[i].get("signal", "NEUTRAL") if i < len(signals) else "NEUTRAL",
             "confidence": signals[i].get("confidence", 50) if i < len(signals) else 50,
             "weight": signals[i].get("confidence", 50) / 100 if i < len(signals) else 0,
             "q_value": reward,
@@ -198,18 +192,16 @@ def process_amre(
         for i in range(min(5, len(signals)))
     ]
 
-    market_snapshot = _MS(
+    _MS(
         symbol=symbol,
         price=state.get("current_price", 0),
         regime=state.get("regime", "NORMAL"),
         volatility_score=uncertainty.get("aleatoric", 0.5),
     )
 
-    ensemble_selection = [
+    [
         _ES(
-            agent_name=signals[i].get("agent_name", f"agent_{i}")
-            if i < len(signals)
-            else f"agent_{i}",
+            agent_name=signals[i].get("agent_name", f"agent_{i}") if i < len(signals) else f"agent_{i}",
             weight=signals[i].get("confidence", 50) / 100 if i < len(signals) else 0,
             q_value=reward,
         )
@@ -276,7 +268,7 @@ def process_amre(
     )
 
 
-def get_karl_diagnostics() -> Dict[str, Any]:
+def get_karl_diagnostics() -> dict[str, Any]:
     """Get full KARL system diagnostics."""
     oap = get_oap_optimizer()
     return {

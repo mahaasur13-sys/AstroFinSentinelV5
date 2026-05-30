@@ -33,7 +33,7 @@ def safe_json(val):
         return val
     try:
         return json.loads(val)
-    except:
+    except Exception:
         return {}
 
 
@@ -44,11 +44,10 @@ def print_table(headers, rows, title=""):
         print("  (no data)")
         return
     col_widths = [
-        max(len(str(h)), max(len(str(r[i])) for r in rows)) if i < len(headers) else 10
-        for i, h in enumerate(headers)
+        max(len(str(h)), max(len(str(r[i])) for r in rows)) if i < len(headers) else 10 for i, h in enumerate(headers)
     ]
     sep = "  "
-    header_line = sep.join(f"{h:<w}" for h, w in zip(headers, col_widths))
+    header_line = sep.join(f"{h:<w}" for h, w in zip(headers, col_widths, strict=False))
     print(f"  {header_line}")
     print(f"  {'─' * len(header_line)}")
     for row in rows:

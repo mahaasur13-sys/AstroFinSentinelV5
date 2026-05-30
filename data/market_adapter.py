@@ -20,18 +20,12 @@ class MarketAdapter:
         self.source = source
         self._cache = {}
 
-    def fetch_ohlcv(
-        self, symbol: str, interval: str = "1h", limit: int = 100
-    ) -> list[OHLCV]:
+    def fetch_ohlcv(self, symbol: str, interval: str = "1h", limit: int = 100) -> list[OHLCV]:
         data = []
         now = datetime.utcnow()
         price = 100.0
         for i in range(limit):
-            ts = (
-                now - timedelta(hours=limit - i - 1)
-                if interval == "1h"
-                else now - timedelta(days=limit - i - 1)
-            )
+            ts = now - timedelta(hours=limit - i - 1) if interval == "1h" else now - timedelta(days=limit - i - 1)
             change = random.gauss(0, 0.02)
             o, c = price, price * (1 + change)
             h, l = (
@@ -59,17 +53,12 @@ class MarketAdapter:
         if not ohlcv_data:
             return {}
         closes = [d.close for d in ohlcv_data]
-        returns = [
-            (closes[i] - closes[i - 1]) / closes[i - 1] for i in range(1, len(closes))
-        ]
+        returns = [(closes[i] - closes[i - 1]) / closes[i - 1] for i in range(1, len(closes))]
         vol = [d.volume for d in ohlcv_data]
         mean_r = sum(returns) / len(returns) if returns else 0.0
         return {
             "returns_mean": mean_r,
-            "returns_std": (sum((r - mean_r) ** 2 for r in returns) / len(returns))
-            ** 0.5
-            if len(returns) > 1
-            else 0.0,
+            "returns_std": (sum((r - mean_r) ** 2 for r in returns) / len(returns)) ** 0.5 if len(returns) > 1 else 0.0,
             "volume_mean": sum(vol) / len(vol) if vol else 0.0,
             "latest_close": closes[-1],
             "latest_volume": vol[-1] if vol else 0.0,

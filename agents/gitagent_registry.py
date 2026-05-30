@@ -4,8 +4,9 @@ Output Adapter: единый нормализатор после registry.run().
 """
 
 import asyncio
+import builtins
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from integrations.gitagent.adapters.output_adapter import (
     NormalizedOutput,
@@ -18,7 +19,7 @@ logger = logging.getLogger("registry")
 # ─── Agent Registry ────────────────────────────────────────────────────────────
 
 # All agents with metadata
-AGENT_AGENTS: Dict[str, Dict] = {
+AGENT_AGENTS: dict[str, dict] = {
     # Astro Domain
     "AstroCouncil": {
         "name": "AstroCouncil",
@@ -258,10 +259,10 @@ class GitAgentRegistry:
 
     def list(
         self,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         karl_only: bool = False,
         ttc_only: bool = False,
-    ) -> List[str]:
+    ) -> list[str]:
         """List agents, optionally filtered."""
         agents = list(AGENT_AGENTS.keys())
 
@@ -274,10 +275,10 @@ class GitAgentRegistry:
 
         return sorted(agents)
 
-    def get_info(self, agent_name: str) -> Optional[Dict]:
+    def get_info(self, agent_name: str) -> dict | None:
         return AGENT_AGENTS.get(agent_name)
 
-    def validate(self, agent_name: str) -> Tuple[bool, str]:
+    def validate(self, agent_name: str) -> tuple[bool, str]:
         """Validate agent is properly configured."""
         info = AGENT_AGENTS.get(agent_name)
         if not info:
@@ -286,9 +287,7 @@ class GitAgentRegistry:
             return False, f"No path defined for {agent_name}"
         return True, "OK"
 
-    async def run(
-        self, agent_name: str, input_state: Dict[str, Any], use_ttc: bool = False
-    ) -> NormalizedOutput:
+    async def run(self, agent_name: str, input_state: dict[str, Any], use_ttc: bool = False) -> NormalizedOutput:
         """
         Run agent with unified output normalization.
         Automatically handles TTC fallback for non-TTC agents.
@@ -309,9 +308,7 @@ class GitAgentRegistry:
 
         if use_ttc and not supports_ttc:
             # TTC fallback: single-pass execution
-            logger.debug(
-                f"[Registry] {agent_name} doesn't support TTC, using single-pass"
-            )
+            logger.debug(f"[Registry] {agent_name} doesn't support TTC, using single-pass")
             raw_output = await self._single_pass(agent_name, input_state)
         elif use_ttc and supports_ttc:
             # Full TTC execution
@@ -322,7 +319,7 @@ class GitAgentRegistry:
         # ALWAYS normalize via output adapter
         return self.output_adapter.adapt(raw_output, agent_name, info)
 
-    async def _single_pass(self, agent_name: str, input_state: Dict) -> Dict[str, Any]:
+    async def _single_pass(self, agent_name: str, input_state: dict) -> dict[str, Any]:
         """Single-pass agent execution."""
         try:
             import importlib
@@ -340,9 +337,7 @@ class GitAgentRegistry:
                     instance = cls()
                     if hasattr(instance, "run"):
                         result = await instance.run(input_state)
-                        return (
-                            result.to_dict() if hasattr(result, "to_dict") else result
-                        )
+                        return result.to_dict() if hasattr(result, "to_dict") else result
                 return {
                     "signal": "NEUTRAL",
                     "confidence": 50,
@@ -373,9 +368,7 @@ class GitAgentRegistry:
                 "metadata": {"error": str(e)},
             }
 
-    async def _ttc_pass(
-        self, agent_name: str, input_state: Dict, k: int = 5
-    ) -> Dict[str, Any]:
+    async def _ttc_pass(self, agent_name: str, input_state: dict, k: int = 5) -> dict[str, Any]:
         """
         Multi-trajectory TTC execution.
         Returns aggregated result across k trajectories.
@@ -428,16 +421,16 @@ class GitAgentRegistry:
 
     async def run_all(
         self,
-        input_state: Dict[str, Any],
-        domain_filter: Optional[str] = None,
+        input_state: dict[str, Any],
+        domain_filter: str | None = None,
         use_ttc: bool = False,
-    ) -> List[NormalizedOutput]:
+    ) -> builtins.list[NormalizedOutput]:
         """Run all (or filtered) agents and normalize outputs."""
         agents = self.list(domain=domain_filter)
         tasks = [self.run(a, input_state, use_ttc=use_ttc) for a in agents]
         return await asyncio.gather(*tasks)
 
-    def weighted_consensus(self, outputs: List[NormalizedOutput]) -> Dict[str, Any]:
+    def weighted_consensus(self, outputs: builtins.list[NormalizedOutput]) -> dict[str, Any]:
         """Compute domain-weighted consensus signal."""
         weights = [self.get_info(o.agent_name).get("weight", 0.05) for o in outputs]
         return compute_weighted_signal(outputs, weights)
@@ -445,7 +438,7 @@ class GitAgentRegistry:
 
 # ─── Convenience Functions ──────────────────────────────────────────────────────
 
-_registry: Optional[GitAgentRegistry] = None
+_registry: GitAgentRegistry | None = None
 
 
 def get_registry() -> GitAgentRegistry:
@@ -455,15 +448,15 @@ def get_registry() -> GitAgentRegistry:
     return _registry
 
 
-def list_agents(**kwargs) -> List[str]:
+def list_agents(**kwargs) -> list[str]:
     return get_registry().list(**kwargs)
 
 
-def get_agent_info(name: str) -> Optional[Dict]:
+def get_agent_info(name: str) -> dict | None:
     return AGENT_AGENTS.get(name)
 
 
-def validate_agent(name: str) -> Tuple[bool, str]:
+def validate_agent(name: str) -> tuple[bool, str]:
     return get_registry().validate(name)
 
 

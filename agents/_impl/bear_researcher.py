@@ -39,7 +39,7 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         Returns: SHORT / NEUTRAL signal with confidence and reasoning.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
         timeframe = state.get("timeframe_requested", "SWING")
 
         price_data = await self._fetch_ohlcv(symbol, "1d", 60)
@@ -111,14 +111,9 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
             resp = requests.get(url, timeout=10)
             data = resp.json()
-            return [
-                [float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])]
-                for x in data
-            ]
+            return [[float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5])] for x in data]
         except Exception:
-            logger.warning(
-                f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}"
-            )
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
             return []
 
     def _detect_bearish_patterns(self, data: list) -> dict:
@@ -190,9 +185,7 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         if not swing_highs:
             return {"score": 0.5, "summary": "no clear resistance identified"}
 
-        nearest_resistance = min(
-            [r for r in swing_highs if r > current_price], default=highs[-5]
-        )
+        nearest_resistance = min([r for r in swing_highs if r > current_price], default=highs[-5])
 
         distance_pct = ((nearest_resistance - current_price) / current_price) * 100
 
@@ -203,9 +196,7 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         else:
             score = 0.45
 
-        summary = (
-            f"resistance at ${nearest_resistance:,.0f} ({distance_pct:.1f}% above)"
-        )
+        summary = f"resistance at ${nearest_resistance:,.0f} ({distance_pct:.1f}% above)"
 
         return {"score": min(score, 1.0), "summary": summary}
 

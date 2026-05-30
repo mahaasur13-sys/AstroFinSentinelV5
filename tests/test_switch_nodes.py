@@ -43,7 +43,7 @@ def test_uncertainty_switch_adds_grounding():
     # Evaluate condition
     condition_result = switch.evaluate_condition(context)
     print(f"  Condition 'uncertainty_total > 0.6': {condition_result}")
-    assert condition_result == True, "Condition should be True for uncertainty=0.75"
+    assert condition_result, "Condition should be True for uncertainty=0.75"
 
     # Apply change
     change = TopologyChange.create(
@@ -106,7 +106,7 @@ def test_bias_switch_adds_critic():
 
     condition_result = switch.evaluate_condition(context)
     print(f"  Condition 'bias_detected == True': {condition_result}")
-    assert condition_result == True, "Condition should be True when bias_detected=True"
+    assert condition_result, "Condition should be True when bias_detected=True"
 
     change = TopologyChange.create(
         action=SwitchAction.ADD_ROLE,
@@ -157,7 +157,7 @@ def test_oos_fail_tightens_policy():
 
     condition_result = switch.evaluate_condition(context)
     print(f"  Condition 'oos_fail_rate > 0.4': {condition_result}")
-    assert condition_result == True, "Condition should be True for oos_fail=0.55"
+    assert condition_result, "Condition should be True for oos_fail=0.55"
 
     # Apply tighten policy
     change = TopologyChange.create(
@@ -176,9 +176,7 @@ def test_oos_fail_tightens_policy():
     # All weights should be halved
     for role in new_topo.roles:
         orig = next(r for r in topo.roles if r.name == role.name)
-        assert abs(role.weight - orig.weight * 0.5) < 0.001, (
-            f"Weight for {role.name} should be halved"
-        )
+        assert abs(role.weight - orig.weight * 0.5) < 0.001, f"Weight for {role.name} should be halved"
 
     print("  ✅ PASSED: OOSFailSwitch tightens policy (weights halved)")
     return True
@@ -198,7 +196,6 @@ def test_rollback_on_error():
     )
 
     updater = TopologyUpdater(topo)
-    original_hash = topo.hash
 
     # Add a valid change
     valid_change = TopologyChange.create(
@@ -239,9 +236,7 @@ def test_rollback_on_error():
     print(f"  Current topology hash: {updater.current_topology.hash}")
     print(f"  Expected (after valid change): {new_topo.hash}")
 
-    assert updater.current_topology.hash == new_topo.hash, (
-        "Should be at valid state after rollback"
-    )
+    assert updater.current_topology.hash == new_topo.hash, "Should be at valid state after rollback"
 
     print("  ✅ PASSED: Rollback maintains valid state")
     return True

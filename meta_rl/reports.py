@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 from meta_rl.config import (
     HTML_REPORTS_ENABLED,
@@ -42,7 +42,7 @@ class HTMLReportGenerator:
         )
     """
 
-    def __init__(self, output_dir: Optional[str] = None, base_url: Optional[str] = ""):
+    def __init__(self, output_dir: str | None = None, base_url: str | None = ""):
         self.enabled = HTML_REPORTS_ENABLED
         self.output_dir = Path(output_dir or REPORTS_OUTPUT_DIR)
         self.base_url = base_url or REPORTS_BASE_URL
@@ -51,12 +51,12 @@ class HTMLReportGenerator:
     def generate(
         self,
         session_id: str,
-        history: List[Any],
-        elites: List[Any],
-        overfit_report: Optional[Any] = None,
-        karl_state: Optional[dict] = None,
+        history: list[Any],
+        elites: list[Any],
+        overfit_report: Any | None = None,
+        karl_state: dict | None = None,
         symbol: str = "BTC/USDT",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> str:
         """
         Generate HTML report for a completed evolution session.
@@ -122,9 +122,7 @@ class HTMLReportGenerator:
 
     def _format_overfit(self, report) -> str:
         if not report:
-            return (
-                "<tr><td colspan='4' class='text-muted'>No WFA data available</td></tr>"
-            )
+            return "<tr><td colspan='4' class='text-muted'>No WFA data available</td></tr>"
         try:
             flag = getattr(report, "overall_overfit_flag", False)
             splits = getattr(report, "overfit_splits", 0)
@@ -148,7 +146,7 @@ class HTMLReportGenerator:
         except Exception as e:
             return f"<tr><td colspan='4' class='text-muted'>WFA error: {e}</td></tr>"
 
-    def _format_karl(self, state: Optional[dict]) -> str:
+    def _format_karl(self, state: dict | None) -> str:
         if not state:
             return "<p class='text-muted'>No KARL state snapshot available</p>"
         try:
@@ -160,11 +158,9 @@ class HTMLReportGenerator:
         except Exception as e:
             return f"<p class='text-muted'>KARL state error: {e}</p>"
 
-    def _strategies_table(self, elites: List[Any]) -> str:
+    def _strategies_table(self, elites: list[Any]) -> str:
         if not elites:
-            return (
-                "<tr><td colspan='7' class='text-muted'>No elite strategies</td></tr>"
-            )
+            return "<tr><td colspan='7' class='text-muted'>No elite strategies</td></tr>"
         rows = ""
         for rank, e in enumerate(elites[:20], 1):
             ev = getattr(e, "evaluation", None)
@@ -178,7 +174,7 @@ class HTMLReportGenerator:
             rows += f"<td>{sharpe}</td><td>{wr}</td><td>{dd}</td><td>{trades}</td></tr>"
         return rows
 
-    def _history_rows(self, history: List[Any]) -> str:
+    def _history_rows(self, history: list[Any]) -> str:
         rows = ""
         for h in history[-50:]:  # last 50 gens
             gen = h.generation
@@ -189,7 +185,7 @@ class HTMLReportGenerator:
         return rows
 
 
-def _js_array(values: List[float]) -> str:
+def _js_array(values: list[float]) -> str:
     return "[" + ", ".join(str(v) for v in values) + "]"
 
 
@@ -341,10 +337,10 @@ new Chart(ctx, {{
 
 def generate_report(
     session_id: str,
-    history: List[Any],
-    elites: List[Any],
-    overfit_report: Optional[Any] = None,
-    karl_state: Optional[dict] = None,
+    history: list[Any],
+    elites: list[Any],
+    overfit_report: Any | None = None,
+    karl_state: dict | None = None,
     **kwargs,
 ) -> str:
     """Convenience function — generate HTML report."""

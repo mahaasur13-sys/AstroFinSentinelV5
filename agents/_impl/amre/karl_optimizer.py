@@ -5,8 +5,9 @@
 import asyncio
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -27,13 +28,7 @@ class KARLPerfProfile:
 
     @property
     def overhead_ms(self) -> float:
-        return (
-            self.uncertainty_ms
-            + self.grounding_ms
-            + self.reward_ms
-            + self.oap_ms
-            + self.audit_ms
-        )
+        return self.uncertainty_ms + self.grounding_ms + self.reward_ms + self.oap_ms + self.audit_ms
 
 
 class AsyncPipeline:
@@ -41,10 +36,10 @@ class AsyncPipeline:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._cache: Dict[str, tuple[Any, float]] = {}  # key -> (result, timestamp)
+        self._cache: dict[str, tuple[Any, float]] = {}  # key -> (result, timestamp)
         self._cache_ttl = 60.0  # seconds
 
-    def _get_cached(self, key: str) -> Optional[Any]:
+    def _get_cached(self, key: str) -> Any | None:
         with self._lock:
             if key in self._cache:
                 result, ts = self._cache[key]
@@ -62,8 +57,8 @@ class AsyncPipeline:
         uncertainty_fn: Callable,
         grounding_fn: Callable,
         reward_fn: Callable,
-        cache_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        cache_key: str | None = None,
+    ) -> dict[str, Any]:
         """Run uncertainty, grounding, reward in parallel."""
         # Check cache
         if cache_key:
@@ -110,7 +105,7 @@ class KARLOptimizer:
         self.pipeline = AsyncPipeline()
         self.ttc_depth = 3
         self.exploration_rate = 0.1
-        self._perf_history: List[KARLPerfProfile] = []
+        self._perf_history: list[KARLPerfProfile] = []
 
     def adjust_ttc_depth(self, entropy: float, oos_fail_rate: float) -> int:
         """Dynamically adjust TTC (Time To Commit) depth based on conditions."""
@@ -158,7 +153,7 @@ class KARLOptimizer:
             return 0.0
         return sum(p.overhead_pct for p in self._perf_history) / len(self._perf_history)
 
-    def get_optimization_report(self) -> Dict[str, Any]:
+    def get_optimization_report(self) -> dict[str, Any]:
         """Get current optimization report."""
         if not self._perf_history:
             return {"status": "no_data"}

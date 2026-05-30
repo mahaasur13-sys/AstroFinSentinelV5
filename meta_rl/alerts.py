@@ -17,7 +17,6 @@ All tokens configured via environment variables.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from meta_rl.config import (
     TELEGRAM_ALERTS_ENABLED,
@@ -45,8 +44,8 @@ class TelegramAlerter:
 
     def __init__(
         self,
-        bot_token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        bot_token: str | None = None,
+        chat_id: str | None = None,
         min_reward: float = TELEGRAM_MIN_REWARD_ALERT,
     ):
         self.enabled = TELEGRAM_ALERTS_ENABLED and bool(TELEGRAM_BOT_TOKEN)
@@ -102,7 +101,7 @@ class TelegramAlerter:
         strategy,
         reward: float,
         generation: int,
-        extra: Optional[str] = None,
+        extra: str | None = None,
     ) -> bool:
         """
         Alert when a strategy exceeds min_reward threshold.
@@ -158,11 +157,7 @@ class TelegramAlerter:
             best_sharpe = f"{getattr(ev, 'sharpe', 0):.3f}" if ev else "N/A"
             best_wr = f"{getattr(ev, 'win_rate', 0):.0%}" if ev else "N/A"
 
-        elapsed_str = (
-            f"{int(elapsed_seconds // 60)}m {int(elapsed_seconds % 60)}s"
-            if elapsed_seconds > 0
-            else "N/A"
-        )
+        elapsed_str = f"{int(elapsed_seconds // 60)}m {int(elapsed_seconds % 60)}s" if elapsed_seconds > 0 else "N/A"
 
         msg = (
             f"🏁 *Evolution Complete*\n"
@@ -233,7 +228,7 @@ class TelegramAlerter:
 
 # ── Convenience factory ─────────────────────────────────────────────────────────
 
-_alerter: Optional[TelegramAlerter] = None
+_alerter: TelegramAlerter | None = None
 
 
 def get_alerter() -> TelegramAlerter:
@@ -251,6 +246,4 @@ def send_reward_alert(strategy, reward: float, generation: int, **kwargs) -> boo
 
 def send_evolution_complete(history, best_strategy, session_id: str, **kwargs) -> bool:
     """Quick alert when evolution completes."""
-    return get_alerter().send_evolution_complete(
-        history, best_strategy, session_id, **kwargs
-    )
+    return get_alerter().send_evolution_complete(history, best_strategy, session_id, **kwargs)

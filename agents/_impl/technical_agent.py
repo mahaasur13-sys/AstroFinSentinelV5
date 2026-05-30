@@ -6,7 +6,7 @@ AstroFin Sentinel v5 — Technical Agent
 
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
@@ -31,7 +31,7 @@ class TechnicalAgent(BaseAgent):
         )
 
     @require_ephemeris
-    async def run(self, state: Dict[str, Any]) -> AgentResponse:
+    async def run(self, state: dict[str, Any]) -> AgentResponse:
         symbol = state.get("symbol", "BTCUSDT")
         current_price = state.get("current_price") or state.get("price") or 50000
         dt = state.get("datetime") or datetime.utcnow()
@@ -77,7 +77,7 @@ class TechnicalAgent(BaseAgent):
             },
         )
 
-    def _call_ephemeris(self, dt: datetime) -> Dict:
+    def _call_ephemeris(self, dt: datetime) -> dict:
         """Критичный вызов Swiss Ephemeris."""
         try:
             from core.ephemeris import (
@@ -127,12 +127,10 @@ class TechnicalAgent(BaseAgent):
             data = resp.json()
             return [[float(x[4]), float(x[5])] for x in data]  # [close, volume]
         except Exception:
-            logger.warning(
-                f"Failed to fetch OHLCV for {symbol} with interval {interval} and limit {limit}"
-            )
+            logger.warning(f"Failed to fetch OHLCV for {symbol} with interval {interval} and limit {limit}")
             return []
 
-    def _calculate_indicators(self, data: list, current_price: float) -> Dict:
+    def _calculate_indicators(self, data: list, current_price: float) -> dict:
         """Расчёт RSI, MACD, Bollinger."""
         indicators = {
             "rsi": 50.0,
@@ -199,7 +197,7 @@ class TechnicalAgent(BaseAgent):
             ema_val = (price - ema_val) * multiplier + ema_val
         return ema_val
 
-    def _calculate_technical_score(self, ind: Dict, eph: Dict) -> float:
+    def _calculate_technical_score(self, ind: dict, eph: dict) -> float:
         """
         Гибридный скоринг: 85% technical + 15% астрология.
         """
@@ -247,10 +245,10 @@ class TechnicalAgent(BaseAgent):
 
         return max(0, min(100, score + astro_bonus))
 
-    def _get_astro_influence(self, eph: Dict) -> str:
+    def _get_astro_influence(self, eph: dict) -> str:
         return f"Yoga: {eph.get('yoga', 'unknown')}, score: {eph.get('score', 50)}"
 
-    def _build_reasoning(self, ind: Dict, score: float) -> str:
+    def _build_reasoning(self, ind: dict, score: float) -> str:
         parts = []
         rsi = ind.get("rsi")
         if rsi:

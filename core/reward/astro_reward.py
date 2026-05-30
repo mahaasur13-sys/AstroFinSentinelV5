@@ -15,8 +15,6 @@ Signals:
 All clamped to [-1, 1].
 """
 
-from typing import List
-
 
 def compute_astro_reward(
     muhurta: str = "neutral",
@@ -24,7 +22,7 @@ def compute_astro_reward(
     nakshatra: str = "neutral",
     rahu_kaal_active: bool = False,
     regime: str = "NORMAL",
-    aspects: List[str] = None,
+    aspects: list[str] = None,
     moon_sign: str = "",
     tithi: int = 0,
 ) -> float:
@@ -121,7 +119,7 @@ def compute_astro_reward(
     # Strong signs for trading: Taurus, Cancer, Libra, Capricorn
     strong_moon = {"taurus", "cancer", "libra", "capricorn", "sagittarius"}
     # Weak signs: Aries, Scorpio, Aquarius (impulsive/volatile)
-    weak_moon = {"aries", "scorpio", "aquarius", "aries", "leo"}
+    weak_moon = {"aries", "scorpio", "aquarius", "leo"}
     if moon_sign.lower() in strong_moon:
         score += 0.05
     elif moon_sign.lower() in weak_moon:

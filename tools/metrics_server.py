@@ -12,12 +12,8 @@ BROKER_ERRORS = Counter("astrofin_broker_errors_total", "Broker API errors")
 OLLAMA_STATUS = Gauge("astrofin_ollama_available", "Ollama health check (1=up, 0=down)")
 CACHE_HITS = Counter("astrofin_cache_hits_total", "Cache hit count")
 CACHE_MISSES = Counter("astrofin_cache_misses_total", "Cache miss count")
-BACKTEST_REAL_RUNS = Counter(
-    "astrofin_backtest_real_runs_total", "Backtest runs with use_real_agents=True"
-)
-BACKTEST_SYNTHETIC_RUNS = Counter(
-    "astrofin_backtest_synthetic_runs_total", "Backtest runs with use_real_agents=False"
-)
+BACKTEST_REAL_RUNS = Counter("astrofin_backtest_real_runs_total", "Backtest runs with use_real_agents=True")
+BACKTEST_SYNTHETIC_RUNS = Counter("astrofin_backtest_synthetic_runs_total", "Backtest runs with use_real_agents=False")
 AGENT_SELECTION_COUNTS = Counter(
     "astrofin_agent_selection_total",
     "How many times each agent was selected by Thompson Sampling",
@@ -33,23 +29,13 @@ THOMPSON_PARAMS = Gauge(
     "Thompson Beta parameters per agent",
     ["agent_name", "param"],
 )
-RAG_RELEVANCE_SCORE = Gauge(
-    "astrofin_rag_relevance_avg", "Average relevance score of last RAG query"
-)
-RAG_CHUNK_COUNT = Gauge(
-    "astrofin_rag_chunk_count", "Number of chunks returned in the last RAG query"
-)
-RAG_QUERY_CACHE_HITS = Counter(
-    "astrofin_rag_query_cache_hits_total", "Number of RAG query cache hits"
-)
-RAG_QUERY_CACHE_MISSES = Counter(
-    "astrofin_rag_query_cache_misses_total", "Number of RAG query cache misses"
-)
+RAG_RELEVANCE_SCORE = Gauge("astrofin_rag_relevance_avg", "Average relevance score of last RAG query")
+RAG_CHUNK_COUNT = Gauge("astrofin_rag_chunk_count", "Number of chunks returned in the last RAG query")
+RAG_QUERY_CACHE_HITS = Counter("astrofin_rag_query_cache_hits_total", "Number of RAG query cache hits")
+RAG_QUERY_CACHE_MISSES = Counter("astrofin_rag_query_cache_misses_total", "Number of RAG query cache misses")
 
 # Новая метрика: длительность выполнения агента
-AGENT_DURATION = Histogram(
-    "astrofin_agent_duration_seconds", "Duration of agent execution", ["agent_name"]
-)
+AGENT_DURATION = Histogram("astrofin_agent_duration_seconds", "Duration of agent execution", ["agent_name"])
 
 
 async def metrics_handler(request):

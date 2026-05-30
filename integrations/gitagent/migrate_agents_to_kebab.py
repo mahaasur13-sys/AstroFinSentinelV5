@@ -14,9 +14,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from integrations.gitagent.validators.agent_validator import AgentYamlValidator
 
-BACKUP_DIR = Path(
-    "integrations/gitagent/exported_agents_backup"
-) / datetime.now().strftime("%Y-%m-%d_%H-%M")
+BACKUP_DIR = Path("integrations/gitagent/exported_agents_backup") / datetime.now().strftime("%Y-%m-%d_%H-%M")
 EXPORT_DIR = Path("integrations/gitagent")
 
 
@@ -57,9 +55,7 @@ def migrate_agent_package(pkg_dir: Path) -> bool:
     if "output_schema" not in data:
         data["output_schema"] = {}
     if "reasoning" not in data["output_schema"]:
-        data["output_schema"]["reasoning"] = (
-            "Detailed reasoning based on astro, fundamental and technical factors"
-        )
+        data["output_schema"]["reasoning"] = "Detailed reasoning based on astro, fundamental and technical factors"
 
     # Минимальные rules
     if not data.get("rules") or len(data["rules"]) < 1:
@@ -79,9 +75,7 @@ def main():
     print("🚀 Запуск миграции ATOM-VALIDATE-001 → kebab-case")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-    agent_dirs = [
-        d for d in EXPORT_DIR.iterdir() if d.is_dir() and (d / "agent.yaml").exists()
-    ]
+    agent_dirs = [d for d in EXPORT_DIR.iterdir() if d.is_dir() and (d / "agent.yaml").exists()]
 
     print(f"Найдено {len(agent_dirs)} пакетов агентов")
 

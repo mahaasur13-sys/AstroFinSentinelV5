@@ -4,7 +4,6 @@ from unittest.mock import patch
 import pytest
 
 # Импорт AstroCouncilAgent для проверки, что модуль доступен (patch использует строку)
-from agents._impl.astro_council.agent import AstroCouncilAgent
 from backtest.engine import BacktestEngine
 
 
@@ -26,9 +25,7 @@ async def test_use_real_agents_does_not_generate_synthetic_signals():
             },
         )()
 
-        result = await engine.run(
-            start_date="2025-01-01", end_date="2025-01-10", use_real_agents=True
-        )
+        result = await engine.run(start_date="2025-01-01", end_date="2025-01-10", use_real_agents=True)
 
         assert all("momentum=" not in t.signal_reasoning for t in result.trades), (
             "Real agents should not produce synthetic momentum signals"
@@ -78,9 +75,7 @@ async def test_both_modes_return_same_structure():
         )()
 
         result_real = await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
-        result_synth = await engine.run(
-            "2025-01-01", "2025-01-10", use_real_agents=False
-        )
+        result_synth = await engine.run("2025-01-01", "2025-01-10", use_real_agents=False)
 
     assert result_real is not None and result_synth is not None
     for field_name in [
@@ -112,7 +107,7 @@ async def test_macro_agent_called_in_real_mode():
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )()
-        result = await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
+        await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
         assert mock_run.called, "MacroAgent was not called"
 
 
@@ -134,7 +129,7 @@ async def test_astro_agent_called_in_real_mode():
                 },
             )()
         }
-        result = await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
+        await engine.run("2025-01-01", "2025-01-10", use_real_agents=True)
         assert mock_run.called, "AstroCouncilAgent was not called"
 
 
@@ -156,9 +151,7 @@ async def test_thompson_sampling_called_in_real_mode():
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             )()
-            result = await engine.run(
-                "2025-01-01", "2025-01-05", use_real_agents=True, use_thompson=True
-            )
+            await engine.run("2025-01-01", "2025-01-05", use_real_agents=True, use_thompson=True)
             assert mock_select.called, "ThompsonSampler.select was not called"
 
 
@@ -185,9 +178,7 @@ async def test_synthesis_agent_called_in_real_mode():
                 (),
                 {"signal": "NEUTRAL", "confidence": 50, "reasoning": "ok"},
             )()
-            result = await engine.run(
-                "2025-01-01", "2025-01-05", use_real_agents=True, use_synthesis=True
-            )
+            await engine.run("2025-01-01", "2025-01-05", use_real_agents=True, use_synthesis=True)
             assert mock_synth.called, "SynthesisAgent was not called"
 
 
@@ -207,7 +198,7 @@ async def test_sentiment_agent_called_in_real_mode():
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )()
-        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
         assert mock_run.called, "SentimentAgent was not called"
 
 
@@ -227,7 +218,7 @@ async def test_options_flow_agent_called_in_real_mode():
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )()
-        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
         assert mock_run.called, "OptionsFlowAgent was not called"
 
 
@@ -247,7 +238,7 @@ async def test_elliot_agent_called_in_real_mode():
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )()
-        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
         assert mock_run.called, "ElliotAgent was not called"
 
 
@@ -267,5 +258,5 @@ async def test_ml_predictor_agent_called_in_real_mode():
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )()
-        result = await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
+        await engine.run("2025-01-01", "2025-01-05", use_real_agents=True)
         assert mock_run.called, "MLPredictorAgent was not called"

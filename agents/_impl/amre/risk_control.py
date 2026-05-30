@@ -76,8 +76,7 @@ def apply_position_lag_risk(current_position_pct: float, position_lag: float) ->
     clipped = max(RISK_MIN_POSITION, min(RISK_MAX_POSITION, new_pos))
     if clipped != new_pos:
         logger.debug(
-            f"[RiskControl] clipped to [{RISK_MIN_POSITION}, {RISK_MAX_POSITION}]: "
-            f"{new_pos:.4f} → {clipped:.4f}"
+            f"[RiskControl] clipped to [{RISK_MIN_POSITION}, {RISK_MAX_POSITION}]: {new_pos:.4f} → {clipped:.4f}"
         )
     return clipped
 

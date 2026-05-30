@@ -8,7 +8,6 @@ import json
 import random
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -51,7 +50,7 @@ class OnlineTrainer:
 
     def __init__(
         self,
-        params: Optional[PolicyParams] = None,
+        params: PolicyParams | None = None,
         learning_rate: float = 0.01,
         gamma: float = 0.95,
         exploration_noise: float = 0.1,
@@ -88,8 +87,7 @@ class OnlineTrainer:
         """
         base = self.params.base_position_pct
         astro_adj = self.params.astro_position_scale * max(astro_alignment, 0)
-        uncertainty_adj = self.params.risk_position_scale * (1.0 - uncertainty)
-        uncertainty_cap = self.params.uncertainty_cap
+        self.params.risk_position_scale * (1.0 - uncertainty)
 
         # Skip if uncertainty too high
         if uncertainty > self.params.min_confidence_for_trade / 100:
@@ -102,13 +100,9 @@ class OnlineTrainer:
                 }
 
         # Regime-based risk multiplier
-        regime_mult = {"LOW": 1.0, "NORMAL": 0.75, "HIGH": 0.5, "EXTREME": 0.25}.get(
-            regime, 0.5
-        )
+        regime_mult = {"LOW": 1.0, "NORMAL": 0.75, "HIGH": 0.5, "EXTREME": 0.25}.get(regime, 0.5)
 
-        position = max(
-            0.0, base + astro_adj - self.params.risk_position_scale * uncertainty
-        )
+        position = max(0.0, base + astro_adj - self.params.risk_position_scale * uncertainty)
         position *= regime_mult
 
         # Exploration noise
@@ -167,9 +161,7 @@ class OnlineTrainer:
 
         # Baseline = exponential moving average of past rewards
         if self.state.reward_history:
-            baseline = sum(self.state.reward_history[-100:]) / min(
-                len(self.state.reward_history), 100
-            )
+            baseline = sum(self.state.reward_history[-100:]) / min(len(self.state.reward_history), 100)
         else:
             baseline = 0.0
 
@@ -186,17 +178,9 @@ class OnlineTrainer:
             # Gradient of position w.r.t. base_position_pct ≈ 1.0
             d_base += advantage * 1.0 * (1.0 if exp.reward > baseline else -1.0)
             # Gradient w.r.t. astro_position_scale
-            d_astro += (
-                advantage
-                * max(exp.astro_alignment, 0)
-                * (1.0 if exp.reward > baseline else -1.0)
-            )
+            d_astro += advantage * max(exp.astro_alignment, 0) * (1.0 if exp.reward > baseline else -1.0)
             # Gradient w.r.t. risk_position_scale (penalized by uncertainty)
-            d_risk += (
-                advantage
-                * (1.0 - exp.uncertainty)
-                * (1.0 if exp.reward > baseline else -1.0)
-            )
+            d_risk += advantage * (1.0 - exp.uncertainty) * (1.0 if exp.reward > baseline else -1.0)
 
         # Normalize gradients
         n = len(recent)
@@ -206,15 +190,9 @@ class OnlineTrainer:
 
         # Apply gradient ascent (maximize reward)
         old_base = self.params.base_position_pct
-        self.params.base_position_pct = max(
-            0.01, min(0.2, self.params.base_position_pct + lr * d_base)
-        )
-        self.params.astro_position_scale = max(
-            0.0, min(0.1, self.params.astro_position_scale + lr * d_astro)
-        )
-        self.params.risk_position_scale = max(
-            0.0, min(0.1, self.params.risk_position_scale + lr * d_risk)
-        )
+        self.params.base_position_pct = max(0.01, min(0.2, self.params.base_position_pct + lr * d_base))
+        self.params.astro_position_scale = max(0.0, min(0.1, self.params.astro_position_scale + lr * d_astro))
+        self.params.risk_position_scale = max(0.0, min(0.1, self.params.risk_position_scale + lr * d_risk))
 
         # Track best
         if mean_reward > self.state.best_reward:

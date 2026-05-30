@@ -1,9 +1,11 @@
+from meta_rl.strategy_evaluator import StrategyEvaluator  # F821 fix
+
 """meta_rl/basket.py -- ATOM-META-RL-010: Multi-symbol Basket Evaluation"""
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -18,7 +20,7 @@ MULTI_SYMBOL_ENABLED = True
 DEFAULT_BASKET = ["BTCUSDT", "ETHUSDT", "SPY"]
 
 
-def correlation_penalty_matrix(returns_dict: Dict[str, List[float]]) -> float:
+def correlation_penalty_matrix(returns_dict: dict[str, list[float]]) -> float:
     """
     Compute pairwise correlation penalty for a basket.
 
@@ -90,10 +92,10 @@ class BasketEvaluator:
 
     def __init__(
         self,
-        strategy_evaluator: Optional[StrategyEvaluator] = None,
-        backtest_adapter: Optional[BacktestEngineAdapter] = None,
-        risk_engine: Optional[RiskEngineV2] = None,
-        basket: Optional[List[str]] = None,
+        strategy_evaluator: StrategyEvaluator | None = None,
+        backtest_adapter: BacktestEngineAdapter | None = None,
+        risk_engine: RiskEngineV2 | None = None,
+        basket: list[str] | None = None,
     ):
         self.strategy_evaluator = strategy_evaluator or StrategyEvaluator()
         self.backtest_adapter = backtest_adapter
@@ -104,7 +106,7 @@ class BasketEvaluator:
     def evaluate_basket(
         self,
         strategy: Any,
-        market_data_dict: Dict[str, dict],
+        market_data_dict: dict[str, dict],
     ) -> BasketMetrics:
         """
         Evaluate a strategy across a basket of assets.
@@ -124,9 +126,9 @@ class BasketEvaluator:
             return self._single_symbol_fallback(strategy, market_data_dict)
 
         symbols = self.basket
-        symbol_metrics: Dict[str, SymbolMetrics] = {}
-        portfolio_returns: Dict[str, List[float]] = {}
-        equity_curves: Dict[str, np.ndarray] = {}
+        symbol_metrics: dict[str, SymbolMetrics] = {}
+        portfolio_returns: dict[str, list[float]] = {}
+        equity_curves: dict[str, np.ndarray] = {}
 
         for symbol in symbols:
             sym_data = market_data_dict.get(symbol)
@@ -169,9 +171,7 @@ class BasketEvaluator:
             )
 
         if not symbol_metrics:
-            logger.warning(
-                "[META-RL-BASKET] No valid metrics across basket, returning fail-safe"
-            )
+            logger.warning("[META-RL-BASKET] No valid metrics across basket, returning fail-safe")
             return BasketMetrics(symbols=symbols)
 
         # Aggregate portfolio equity curve
@@ -225,8 +225,8 @@ class BasketEvaluator:
 
     def _aggregate_equity_curves(
         self,
-        curves: Dict[str, np.ndarray],
-    ) -> Optional[np.ndarray]:
+        curves: dict[str, np.ndarray],
+    ) -> np.ndarray | None:
         """Aggregate multiple equity curves (equal weight, normalized)."""
         if not curves:
             return None
@@ -246,20 +246,16 @@ class BasketEvaluator:
     def _single_symbol_fallback(
         self,
         strategy: Any,
-        market_data_dict: Dict[str, dict],
+        market_data_dict: dict[str, dict],
     ) -> BasketMetrics:
         """Fallback when multi-symbol is disabled: evaluate first available symbol."""
-        logger.warning(
-            "[META-RL-BASKET] Multi-symbol disabled, using single-symbol fallback"
-        )
+        logger.warning("[META-RL-BASKET] Multi-symbol disabled, using single-symbol fallback")
 
         primary = self.basket[0] if self.basket else "BTCUSDT"
         sym_data = market_data_dict.get(primary, market_data_dict.get("BTCUSDT"))
 
         if sym_data is None:
-            logger.warning(
-                f"[META-RL-BASKET] No market data for {primary}, returning empty basket"
-            )
+            logger.warning(f"[META-RL-BASKET] No market data for {primary}, returning empty basket")
             return BasketMetrics(symbols=self.basket)
 
         eval_result = self.strategy_evaluator.evaluate(strategy, sym_data)

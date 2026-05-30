@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 
@@ -67,7 +66,7 @@ class BaseStrategy:
     def record_performance(self, record: PerformanceRecord):
         self._performance.append(record)
 
-    def avg_performance(self) -> Optional[PerformanceRecord]:
+    def avg_performance(self) -> PerformanceRecord | None:
         if not self._performance:
             return None
         records = self._performance

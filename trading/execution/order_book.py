@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -72,7 +71,7 @@ class OrderBookSimulator:
         self.adv = adv  # Average Daily Volume
         self.gamma = gamma  # impact nonlinearity
 
-    def build_snapshot(self, base_price: Optional[float] = None) -> OrderBookSnapshot:
+    def build_snapshot(self, base_price: float | None = None) -> OrderBookSnapshot:
         """Build an order book snapshot around base_price."""
         price = base_price or self.mid_price
         half_spread = self.spread_bps / 10000 * price / 2
@@ -97,7 +96,7 @@ class OrderBookSimulator:
         side: str,  # "buy" or "sell"
         qty: float,
         num_slices: int = 10,
-        base_price: Optional[float] = None,
+        base_price: float | None = None,
         time_horizon_minutes: float = 60.0,
     ) -> MarketImpactResult:
         """Estimate market impact using Almgren-Chriss model.
@@ -124,23 +123,21 @@ class OrderBookSimulator:
 
         # Temporary impact per slice (linear in slice size)
         temp_impact_bps = eta * (participation / num_slices) ** psi * 10000
-        temp_impact_cost = temp_impact_bps / 10000 * price
+        temp_impact_bps / 10000 * price
 
         # ── Permanent impact (information leakage) ───────────────────────────
         # Permanent impact = gamma * (v / ADV)
         gamma_perm = eta * 2  # permanent impact coefficient
         perm_impact_bps = gamma_perm * participation * 10000
-        perm_impact_cost = perm_impact_bps / 10000 * price
+        perm_impact_bps / 10000 * price
 
         # ── Spread cost ────────────────────────────────────────────────────
         spread_cost_bps = self.spread_bps / 2
-        spread_cost = spread_cost_bps / 10000 * price
+        spread_cost_bps / 10000 * price
 
         # ── Total ───────────────────────────────────────────────────────────
         total_bps = abs(temp_impact_bps) + abs(perm_impact_bps) + spread_cost_bps
-        total_cost = (
-            (total_bps / 10000) * price * slice_qty * num_slices / qty if qty else 0
-        )
+        total_cost = (total_bps / 10000) * price * slice_qty * num_slices / qty if qty else 0
         slippage_bps = abs(temp_impact_bps) + spread_cost_bps
 
         # ── Price after trade ───────────────────────────────────────────────
@@ -153,10 +150,7 @@ class OrderBookSimulator:
             base_price=price,
             slippage_bps=slippage_bps,
             slippage_cost=slippage_bps / 10000 * price * qty,
-            market_impact_cost=(abs(temp_impact_bps) + abs(perm_impact_bps))
-            / 10000
-            * price
-            * qty,
+            market_impact_cost=(abs(temp_impact_bps) + abs(perm_impact_bps)) / 10000 * price * qty,
             total_cost=total_cost if qty else 0,
             price_after_trade=round(price_after, 4),
             filled_qty=qty,
@@ -167,7 +161,7 @@ class OrderBookSimulator:
         self,
         side: str,
         qty: float,
-        base_price: Optional[float] = None,
+        base_price: float | None = None,
         流动性_factor: float = 1.0,
     ) -> tuple[float, float, float]:
         """Simulate executing a single slice against the order book.
@@ -220,11 +214,7 @@ class MarketImpactModel:
         self.volatility_bps = volatility_bps
         self.adv = adv
         self.eta = 0.5 * volatility_bps / 10000
-        self.gamma = (
-            self.eta * permanent_frac / (1 - permanent_frac)
-            if permanent_frac < 1
-            else self.eta
-        )
+        self.gamma = self.eta * permanent_frac / (1 - permanent_frac) if permanent_frac < 1 else self.eta
         self.spread_bps = spread_bps
 
     def estimate(self, side: str, qty: float, price: float) -> dict:
@@ -267,17 +257,12 @@ class MarketImpactModel:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"MarketImpactModel(vol={self.volatility_bps}bps, "
-            f"ADV={self.adv}, eta={self.eta:.4f})"
-        )
+        return f"MarketImpactModel(vol={self.volatility_bps}bps, ADV={self.adv}, eta={self.eta:.4f})"
 
 
 if __name__ == "__main__":
     print("=== OrderBookSimulator ===")
-    sim = OrderBookSimulator(
-        mid_price=50000, spread_bps=5, depth_per_level=500, adv=10000
-    )
+    sim = OrderBookSimulator(mid_price=50000, spread_bps=5, depth_per_level=500, adv=10000)
     book = sim.build_snapshot()
     print(f"  Mid price: {book.mid_price}, Spread: {book.spread:.2f}")
     print(f"  Top 3 bids: {[round(l.price, 2) for l in book.bids[:3]]}")

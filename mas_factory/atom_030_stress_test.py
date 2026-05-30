@@ -33,23 +33,23 @@ def test_switch_nodes():
     print("\n[TEST 1] Switch Node Types...")
 
     # UncertaintySwitch
-    unc = UncertaintySwitch(id="unc1")
+    UncertaintySwitch(id="unc1")
     print("  ✅ UncertaintySwitch created")
 
     # BiasSwitch
-    bias = BiasSwitch(id="bias1")
+    BiasSwitch(id="bias1")
     print("  ✅ BiasSwitch created")
 
     # RegimeSwitch
-    regime = RegimeSwitch(id="reg1")
+    RegimeSwitch(id="reg1")
     print("  ✅ RegimeSwitch created")
 
     # OOSFailSwitch
-    oos = OOSFailSwitch(id="oos1")
+    OOSFailSwitch(id="oos1")
     print("  ✅ OOSFailSwitch created")
 
     # LowConfidenceSwitch
-    conf = LowConfidenceSwitch(id="conf1")
+    LowConfidenceSwitch(id="conf1")
     print("  ✅ LowConfidenceSwitch created")
 
     print("  ✅ ALL Switch Node Types OK")
@@ -127,9 +127,7 @@ def test_topology_construction():
     assert len(topo.connections) == 5
 
     errors = topo.validate()
-    print(
-        f"  ✅ Topology: {len(topo.roles)} roles, {len(topo.switch_nodes)} switches, {len(topo.connections)} conns"
-    )
+    print(f"  ✅ Topology: {len(topo.roles)} roles, {len(topo.switch_nodes)} switches, {len(topo.connections)} conns")
     print(f"  ✅ Validation errors: {len(errors)}")
 
     return topo

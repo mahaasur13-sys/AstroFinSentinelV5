@@ -33,7 +33,7 @@ class GannAgent(BaseAgent[AgentResponse]):
         Analyze using Gann's mathematical techniques.
         """
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
 
         price_data = await self._fetch_ohlcv(symbol, "1d", 90)
         if not price_data:

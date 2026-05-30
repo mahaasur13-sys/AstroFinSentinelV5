@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 class StrategyEvaluator:
     def __init__(
         self,
-        backtest_adapter: Optional[BacktestEngineAdapter] = None,
+        backtest_adapter: BacktestEngineAdapter | None = None,
         risk_engine: Any = None,
         sanity_checker: Any = None,
         use_sanity_check: bool = True,

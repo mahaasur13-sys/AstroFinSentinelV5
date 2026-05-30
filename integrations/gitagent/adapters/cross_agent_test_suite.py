@@ -8,7 +8,7 @@ import hashlib
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add project root
 PROJECT_ROOT = str(Path(__file__).parent.parent.parent.parent)
@@ -184,7 +184,7 @@ SAME_INPUT = {
 # ─── Mock Output Generator ────────────────────────────────────────────────────
 
 
-def mock_agent_output(agent_name: str) -> Dict[str, Any]:
+def mock_agent_output(agent_name: str) -> dict[str, Any]:
     h = int(hashlib.md5(agent_name.encode()).hexdigest()[:8], 16)
     signals = ["BUY", "SELL", "NEUTRAL", "BUY", "NEUTRAL", "AVOID"]
     return {
@@ -205,7 +205,7 @@ class TestResult:
         passed: bool,
         duration_ms: float,
         details: str = "",
-        warnings: List[str] = None,
+        warnings: list[str] = None,
     ):
         self.name = name
         self.passed = passed
@@ -263,10 +263,7 @@ class CrossAgentTestSuite:
         import time
 
         start = time.time()
-        outputs = [
-            self.adapter.adapt(mock_agent_output(n), n, AGENT_AGENTS[n])
-            for n in self.all_agents[:14]
-        ]
+        outputs = [self.adapter.adapt(mock_agent_output(n), n, AGENT_AGENTS[n]) for n in self.all_agents[:14]]
         disagreement = detect_disagreement(outputs)
 
         # Safe access with defaults
@@ -298,10 +295,7 @@ class CrossAgentTestSuite:
         import time
 
         start = time.time()
-        karl_outputs = [
-            self.adapter.adapt(mock_agent_output(n), n, AGENT_AGENTS[n])
-            for n in self.karl_agents
-        ]
+        karl_outputs = [self.adapter.adapt(mock_agent_output(n), n, AGENT_AGENTS[n]) for n in self.karl_agents]
         confidences = [o.confidence for o in karl_outputs]
         spread = max(confidences) - min(confidences) if confidences else 0
         avg_conf = sum(confidences) / len(confidences) if confidences else 50
@@ -310,8 +304,7 @@ class CrossAgentTestSuite:
             "Level 3 — KARL Pipeline",
             karl_ready,
             (time.time() - start) * 1000,
-            f"{len(karl_outputs)}/{len(self.karl_agents)} KARL agents, "
-            f"avg_conf={avg_conf:.1f}, spread={spread}",
+            f"{len(karl_outputs)}/{len(self.karl_agents)} KARL agents, avg_conf={avg_conf:.1f}, spread={spread}",
             [] if karl_ready else [f"❌ Low spread: {spread}"],
         )
 
@@ -378,10 +371,7 @@ class CrossAgentTestSuite:
         import time
 
         start = time.time()
-        outputs = [
-            self.adapter.adapt(mock_agent_output(n), n, AGENT_AGENTS[n])
-            for n in self.all_agents[:14]
-        ]
+        outputs = [self.adapter.adapt(mock_agent_output(n), n, AGENT_AGENTS[n]) for n in self.all_agents[:14]]
         weights = [AGENT_AGENTS[n].get("weight", 0.05) for n in self.all_agents[:14]]
         # ── Weighted Signal Computation (regime-aware, uncertainty-aware) ──
         uncertainties = [0.0] * len(outputs)
@@ -392,22 +382,16 @@ class CrossAgentTestSuite:
                 uncertainties[i] += 0.1  # slight penalty for extreme confidence
 
         # Test NORMAL regime
-        result = compute_weighted_signal(
-            outputs, weights, regime="NORMAL", uncertainties=uncertainties
-        )
+        result = compute_weighted_signal(outputs, weights, regime="NORMAL", uncertainties=uncertainties)
         regime_results = {}
         regime_results["NORMAL"] = result
 
         # Test HIGH regime — should show regime penalty
-        result_high = compute_weighted_signal(
-            outputs, weights, regime="HIGH", uncertainties=uncertainties
-        )
+        result_high = compute_weighted_signal(outputs, weights, regime="HIGH", uncertainties=uncertainties)
         regime_results["HIGH"] = result_high
 
         # Test EXTREME regime — should show strong regime penalty
-        result_extreme = compute_weighted_signal(
-            outputs, weights, regime="EXTREME", uncertainties=uncertainties
-        )
+        result_extreme = compute_weighted_signal(outputs, weights, regime="EXTREME", uncertainties=uncertainties)
         regime_results["EXTREME"] = result_extreme
 
         all_passed = True
@@ -428,8 +412,7 @@ class CrossAgentTestSuite:
         )
         all_passed &= self._check(
             "effective_confidence < raw confidence",
-            regime_results["HIGH"]["avg_effective_confidence"]
-            <= regime_results["NORMAL"]["avg_confidence"],
+            regime_results["HIGH"]["avg_effective_confidence"] <= regime_results["NORMAL"]["avg_confidence"],
             True,
         )
 
@@ -476,9 +459,7 @@ async def main():
     print("=" * 70)
 
     suite = CrossAgentTestSuite()
-    print(
-        f"\n📋 Registry: {len(suite.all_agents)} agents, {len(suite.karl_agents)} KARL, {len(suite.ttc_agents)} TTC"
-    )
+    print(f"\n📋 Registry: {len(suite.all_agents)} agents, {len(suite.karl_agents)} KARL, {len(suite.ttc_agents)} TTC")
     print(f"📋 Test input: {SAME_INPUT['symbol']}\n")
 
     results = await suite.run_all()

@@ -160,7 +160,7 @@ class BradleyAgent(BaseAgent[AgentResponse]):
         jupiter = calculate_planet("jupiter", jd)
         saturn = calculate_planet("saturn", jd)
         uranus = calculate_planet("uranus", jd)
-        neptune = calculate_planet("neptune", jd)
+        calculate_planet("neptune", jd)
 
         # Check Jupiter-Saturn aspect (major cycle)
         js_angle = abs(jupiter.longitude - saturn.longitude) % 360

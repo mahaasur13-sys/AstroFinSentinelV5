@@ -1,3 +1,5 @@
+from mas_factory.registry import get_agent_runner  # F821 fix
+
 """mas_factory/engine.py — ATOM-R-033: Production Optimized MAS Factory Engine
 Optimizations:
 - LRU cache for Architect.build()
@@ -13,7 +15,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from mas_factory.architect import MASFactoryArchitect
 from mas_factory.registry import AgentRegistry, get_registry
@@ -42,17 +44,17 @@ class MASFactoryConfig:
 class ProductionMASEngine:
     def __init__(
         self,
-        config: Optional[MASFactoryConfig] = None,
-        registry: Optional[AgentRegistry] = None,
+        config: MASFactoryConfig | None = None,
+        registry: AgentRegistry | None = None,
     ):
         self.config = config or MASFactoryConfig()
         self.registry = registry or get_registry()
         self._architect = MASFactoryArchitect()
-        self._topology_cache: Dict[str, Topology] = {}
-        self._metrics: List[ExecutionMetrics] = []
+        self._topology_cache: dict[str, Topology] = {}
+        self._metrics: list[ExecutionMetrics] = []
         self._meta_questions_asked: int = 0
 
-    def _compute_cache_key(self, context: Dict[str, Any]) -> str:
+    def _compute_cache_key(self, context: dict[str, Any]) -> str:
         intention = context.get("intention", context.get("query_type", "ANALYZE"))
         symbol = context.get("symbol", "BTCUSDT")
         timeframe = context.get("timeframe", "SWING")
@@ -60,23 +62,17 @@ class ProductionMASEngine:
         return hashlib.md5(data.encode()).hexdigest()[:12]
 
     @lru_cache(maxsize=32)
-    def _build_cached(
-        self, cache_key: str, intention: str, symbol: str, timeframe: str
-    ) -> Optional[Topology]:
+    def _build_cached(self, cache_key: str, intention: str, symbol: str, timeframe: str) -> Topology | None:
         try:
-            return self._architect.build(
-                intention=intention, symbol=symbol, timeframe=timeframe
-            )
+            return self._architect.build(intention=intention, symbol=symbol, timeframe=timeframe)
         except Exception as e:
             logger.warning(f"Architect.build failed: {e}")
             return None
 
-    def build_topology(self, context: Dict[str, Any]) -> Optional[Topology]:
+    def build_topology(self, context: dict[str, Any]) -> Topology | None:
         if not self.config.enable_caching:
             return self._architect.build(
-                intention=context.get(
-                    "intention", context.get("query_type", "ANALYZE")
-                ),
+                intention=context.get("intention", context.get("query_type", "ANALYZE")),
                 symbol=context.get("symbol", "BTCUSDT"),
                 timeframe=context.get("timeframe", "SWING"),
             )
@@ -96,7 +92,7 @@ class ProductionMASEngine:
             self._topology_cache[cache_key] = topology
         return topology
 
-    async def execute_async(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_async(self, context: dict[str, Any]) -> dict[str, Any]:
         t0 = time.time()
         errors = 0
         cache_hit = False
@@ -125,9 +121,7 @@ class ProductionMASEngine:
 
             return {
                 "status": "success",
-                "topology_hash": topology.hash[:8]
-                if hasattr(topology, "hash")
-                else "unknown",
+                "topology_hash": topology.hash[:8] if hasattr(topology, "hash") else "unknown",
                 "result": result,
                 "metrics": {
                     "duration_ms": round(duration_ms, 2),
@@ -143,10 +137,10 @@ class ProductionMASEngine:
                 return await self._execute_fallback(context)
             return self._error_response(str(e), t0, 0, 1)
 
-    async def _execute_topology_async(
-        self, topology: Topology, context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_topology_async(self, topology: Topology, context: dict[str, Any]) -> dict[str, Any]:
         results = {}
+
+        errors = 0  # F821 fix
 
         async def run_role(role: Role) -> tuple:
             try:
@@ -177,16 +171,14 @@ class ProductionMASEngine:
             "timestamp": datetime.now().isoformat(),
         }
 
-    async def _apply_meta_questioning(
-        self, context: Dict[str, Any], topology: Topology
-    ) -> Dict[str, Any]:
+    async def _apply_meta_questioning(self, context: dict[str, Any], topology: Topology) -> dict[str, Any]:
         try:
             from agents._impl.meta_questioning import MetaQuestioningEngine
 
             meta = MetaQuestioningEngine()
 
             signals = context.get("signals", {})
-            uncertainty = context.get("uncertainty", {})
+            context.get("uncertainty", {})
 
             analysis = meta.analyze(signals=signals, context=context)
 
@@ -199,7 +191,7 @@ class ProductionMASEngine:
             logger.debug(f"Meta-questioning skipped: {e}")
             return context
 
-    async def _execute_fallback(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_fallback(self, context: dict[str, Any]) -> dict[str, Any]:
         return {
             "status": "fallback",
             "reason": "MAS engine error, using simple synthesis",
@@ -211,9 +203,7 @@ class ProductionMASEngine:
             "metrics": {"duration_ms": 0, "cache_hit": False, "errors": 1},
         }
 
-    def _error_response(
-        self, error: str, t0: float, nodes: int, errs: int
-    ) -> Dict[str, Any]:
+    def _error_response(self, error: str, t0: float, nodes: int, errs: int) -> dict[str, Any]:
         return {
             "status": "error",
             "error": error,
@@ -225,7 +215,7 @@ class ProductionMASEngine:
             },
         }
 
-    def run_sync(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def run_sync(self, context: dict[str, Any]) -> dict[str, Any]:
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -234,7 +224,7 @@ class ProductionMASEngine:
 
         return loop.run_until_complete(self.execute_async(context))
 
-    def get_metrics_summary(self) -> Dict[str, Any]:
+    def get_metrics_summary(self) -> dict[str, Any]:
         if not self._metrics:
             return {"total_runs": 0, "avg_duration_ms": 0, "cache_hit_rate": 0}
 

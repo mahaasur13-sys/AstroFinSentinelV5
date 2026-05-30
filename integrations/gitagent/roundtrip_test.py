@@ -63,9 +63,7 @@ for agent in AGENTS:
         files = list(full.iterdir())
 
         status = "✅" if has_soul and has_rules and has_duties else "⚠️"
-        print(
-            f"  {status} {agent:30s} {len(files):2d} files | SOUL={has_soul} RULES={has_rules} DUTIES={has_duties}"
-        )
+        print(f"  {status} {agent:30s} {len(files):2d} files | SOUL={has_soul} RULES={has_rules} DUTIES={has_duties}")
 
         engine = load_gitagent_as_masfactory(str(full))
         if engine:

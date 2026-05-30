@@ -14,8 +14,6 @@ Usage:
     )
 """
 
-from typing import List, Optional
-
 from core.idea_model import Idea, IdeaStatus
 
 # ─── Forward-declare to avoid circular import ─────────────────────────────────
@@ -29,7 +27,7 @@ class BufferEntry:
     def __init__(
         self,
         idea: Idea,
-        trajectory_id: Optional[str] = None,
+        trajectory_id: str | None = None,
         reward: float = 0.0,
         market_context: dict = None,
     ):
@@ -45,7 +43,7 @@ class BufferEntry:
 # Thin adapter that bridges Idea lifecycle → ReplayBuffer
 # The actual ReplayBuffer lives in replay_buffer.py
 
-_KARL_BUFFER: List[BufferEntry] = []
+_KARL_BUFFER: list[BufferEntry] = []
 
 
 def inject_idea_to_buffer(idea: Idea, market_context: dict = None) -> str:
@@ -92,12 +90,12 @@ def link_trajectory_to_idea(
     return False
 
 
-def get_buffer_entries_for_idea(idea_id: str) -> List[BufferEntry]:
+def get_buffer_entries_for_idea(idea_id: str) -> list[BufferEntry]:
     """Get all buffer entries linked to an Idea."""
     return [e for e in _KARL_BUFFER if e.idea_id == idea_id]
 
 
-def get_all_buffer_entries() -> List[BufferEntry]:
+def get_all_buffer_entries() -> list[BufferEntry]:
     """Get all buffer entries (for diagnostics)."""
     return list(_KARL_BUFFER)
 
@@ -187,9 +185,9 @@ def karl_evaluate_idea(
 
 
 def ideas_to_self_questioning_prompts(
-    ideas: List[Idea],
+    ideas: list[Idea],
     max_ideas: int = 5,
-) -> List[str]:
+) -> list[str]:
     """
     ATOM-R-041 + ATOM-016 bridge:
     Convert scored ideas into self-questioning prompts for synthesis.
@@ -202,8 +200,7 @@ def ideas_to_self_questioning_prompts(
     prompts = []
     for idea in scored[:max_ideas]:
         prompts.append(
-            f"Does this improve system performance? {idea.text} "
-            f"(source={idea.source}, category={idea.category})"
+            f"Does this improve system performance? {idea.text} (source={idea.source}, category={idea.category})"
         )
 
     return prompts

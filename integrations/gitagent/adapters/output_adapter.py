@@ -5,7 +5,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ class UnifiedOutputAdapter:
         self,
         raw_output: Any,
         agent_name: str,
-        agent_capabilities: Optional[dict] = None,
+        agent_capabilities: dict | None = None,
     ) -> NormalizedOutput:
         """
         Main entry point — convert any agent output to NormalizedOutput.
@@ -145,24 +145,13 @@ class UnifiedOutputAdapter:
         elif hasattr(raw_output, "__dict__"):
             data = vars(raw_output)
         else:
-            logger.warning(
-                f"[OutputAdapter] Unknown output type {type(raw_output)}: wrapping as NEUTRAL"
-            )
+            logger.warning(f"[OutputAdapter] Unknown output type {type(raw_output)}: wrapping as NEUTRAL")
             data = {}
 
         # ── Extract fields with fallbacks ────────────────────────────────────
-        raw_signal = (
-            data.get("signal")
-            or data.get("direction")
-            or data.get("action")
-            or "NEUTRAL"
-        )
-        raw_confidence = (
-            data.get("confidence") or data.get("score") or data.get("conf") or 50
-        )
-        reasoning = (
-            data.get("reasoning") or data.get("explanation") or data.get("text") or ""
-        )
+        raw_signal = data.get("signal") or data.get("direction") or data.get("action") or "NEUTRAL"
+        raw_confidence = data.get("confidence") or data.get("score") or data.get("conf") or 50
+        reasoning = data.get("reasoning") or data.get("explanation") or data.get("text") or ""
         metadata = data.get("metadata") or data.get("extra") or {}
 
         # ── Normalize ────────────────────────────────────────────────────────
@@ -175,9 +164,7 @@ class UnifiedOutputAdapter:
             if karl and confidence > 85 and signal == "NEUTRAL":
                 # Grounding: high confidence + NEUTRAL = suspicious
                 confidence = min(confidence, 75)
-                logger.debug(
-                    f"[OutputAdapter] Grounding: NEUTRAL+high_conf → {confidence}"
-                )
+                logger.debug(f"[OutputAdapter] Grounding: NEUTRAL+high_conf → {confidence}")
 
         # ── Reasoning cleanup ───────────────────────────────────────────────
         if isinstance(reasoning, list):
@@ -195,14 +182,14 @@ class UnifiedOutputAdapter:
 
     def adapt_many(
         self,
-        outputs: List[Any],
-        agent_names: List[str],
-        capabilities: Optional[List[dict]] = None,
-    ) -> List[NormalizedOutput]:
+        outputs: list[Any],
+        agent_names: list[str],
+        capabilities: list[dict] | None = None,
+    ) -> list[NormalizedOutput]:
         """Batch adapt — apply to list of (raw_output, agent_name)."""
         results = []
         caps = capabilities or [{}] * len(outputs)
-        for raw, name, cap in zip(outputs, agent_names, caps):
+        for raw, name, cap in zip(outputs, agent_names, caps, strict=False):
             try:
                 results.append(self.adapt(raw, name, cap))
             except Exception as e:
@@ -223,7 +210,7 @@ class UnifiedOutputAdapter:
 # ─── Batch Analysis Helpers ──────────────────────────────────────────────────
 
 
-def detect_disagreement(outputs: List[NormalizedOutput]) -> dict:
+def detect_disagreement(outputs: list[NormalizedOutput]) -> dict:
     """
     Detect conflicting signals across agents.
     Returns dict with disagreement metrics.
@@ -253,19 +240,15 @@ def detect_disagreement(outputs: List[NormalizedOutput]) -> dict:
         "neutral": neutral,
         "bullish_pct": round(bullish / total * 100, 1) if total else 0,
         "bearish_pct": round(bearish / total * 100, 1) if total else 0,
-        "consensus": "BULLISH"
-        if bullish > bearish * 2
-        else "BEARISH"
-        if bearish > bullish * 2
-        else "MIXED",
+        "consensus": "BULLISH" if bullish > bearish * 2 else "BEARISH" if bearish > bullish * 2 else "MIXED",
     }
 
 
 def compute_weighted_signal(
-    outputs: List[NormalizedOutput],
-    weights: List[float],
+    outputs: list[NormalizedOutput],
+    weights: list[float],
     regime: str = "NORMAL",
-    uncertainties: Optional[List[float]] = None,
+    uncertainties: list[float] | None = None,
 ) -> dict:
     """
     Compute regime-aware, uncertainty-weighted consensus signal.
@@ -302,7 +285,7 @@ def compute_weighted_signal(
     weight_sum = 0.0
     confidences = []
 
-    for out, w, unc in zip(outputs, weights, uncertainties):
+    for out, w, unc in zip(outputs, weights, uncertainties, strict=False):
         conf = out.confidence
         confidences.append(conf)
 
@@ -340,14 +323,8 @@ def compute_weighted_signal(
 
     avg_conf = sum(confidences) / len(confidences) if confidences else 50.0
     spread = max(confidences) - min(confidences) if confidences else 0.0
-    avg_eff_conf = (
-        sum(effective_confidences) / len(effective_confidences)
-        if effective_confidences
-        else 0.0
-    )
-    regime_penalty = (
-        1.0 - regime_mult
-    ) * 100  # 0 for NORMAL, 30 for HIGH, 60 for EXTREME
+    avg_eff_conf = sum(effective_confidences) / len(effective_confidences) if effective_confidences else 0.0
+    regime_penalty = (1.0 - regime_mult) * 100  # 0 for NORMAL, 30 for HIGH, 60 for EXTREME
 
     return {
         "weighted_score": round(weighted_score, 2),

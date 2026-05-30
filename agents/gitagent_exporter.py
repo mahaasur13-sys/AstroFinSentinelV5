@@ -339,7 +339,7 @@ def generate_prompt_md(agent: dict) -> str:
     name = agent["name"]
     domain = agent["domain"]
     caps = ", ".join(agent.get("capabilities", [])[:3])
-    outputs_desc = ", ".join(agent.get("outputs", []))
+    ", ".join(agent.get("outputs", []))
 
     return f"""# {name} — System Prompt
 
@@ -502,13 +502,9 @@ test_suite:
             cr = tc["expected"]["confidence_range"]
             tests_yaml += f"\n        confidence_range: [{cr[0]}, {cr[1]}]"
         elif "confidence_min" in tc["expected"]:
-            tests_yaml += (
-                f"\n        confidence_min: {tc['expected']['confidence_min']}"
-            )
+            tests_yaml += f"\n        confidence_min: {tc['expected']['confidence_min']}"
         elif "confidence_max" in tc["expected"]:
-            tests_yaml += (
-                f"\n        confidence_max: {tc['expected']['confidence_max']}"
-            )
+            tests_yaml += f"\n        confidence_max: {tc['expected']['confidence_max']}"
 
     tests_yaml += (
         """
@@ -646,17 +642,13 @@ def print_summary(results: dict, output_dir: Path):
 ║           ATOM-GITAGENT-004 — Export Summary              ║
 ╠══════════════════════════════════════════════════════════╣""")
 
-    print(
-        f"║  Exported:     {len(results['success']):>2} / {len(AGENTS)} agents                       ║"
-    )
+    print(f"║  Exported:     {len(results['success']):>2} / {len(AGENTS)} agents                       ║")
     print(f"║  Output:       {pkg_dir}                       ║")
     print("╠══════════════════════════════════════════════════════════╣")
 
     for agent_key in results["success"]:
         name = AGENTS[agent_key]["name"]
-        print(
-            f"║  ✅ {name:<30} {AGENTS[agent_key]['weight']:.0%} weight               ║"
-        )
+        print(f"║  ✅ {name:<30} {AGENTS[agent_key]['weight']:.0%} weight               ║")
 
     if results["failed"]:
         print("╠══════════════════════════════════════════════════════════╣")

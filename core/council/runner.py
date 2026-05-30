@@ -1,7 +1,6 @@
 """core/council/runner.py — AstroCouncil Runner"""
 
 from datetime import datetime
-from typing import Optional
 
 from core.council.agents import AGENT_FACTORIES
 from core.council.council import AstroCouncil
@@ -31,21 +30,15 @@ def run_council(
     saturn_long: float = 300.0,
     nakshatra: int = 14,
     choghadiya: str = "Shubh",
-    retrograde: Optional[list] = None,
+    retrograde: list | None = None,
 ) -> CouncilResult:
     council = AstroCouncil()
     members = [
-        AGENT_FACTORIES["fundamental"](
-            price=price, fair_value=fair_value, catalyst=catalyst
-        ),
-        AGENT_FACTORIES["quant"](
-            predicted_return=predicted_return, uncertainty=uncertainty
-        ),
+        AGENT_FACTORIES["fundamental"](price=price, fair_value=fair_value, catalyst=catalyst),
+        AGENT_FACTORIES["quant"](predicted_return=predicted_return, uncertainty=uncertainty),
         AGENT_FACTORIES["macro"](vix=vix, dxy=dxy, geopolitical=geopolitical),
         AGENT_FACTORIES["technical"](rsi=rsi, macd_bullish=macd_bullish, price=price),
-        AGENT_FACTORIES["sentiment"](
-            vix=vix, fear_greed=fear_greed, news_score=news_score
-        ),
+        AGENT_FACTORIES["sentiment"](vix=vix, fear_greed=fear_greed, news_score=news_score),
         AGENT_FACTORIES["optionsflow"](
             predicted_return=predicted_return,
             ul_trailing=ul_trailing,

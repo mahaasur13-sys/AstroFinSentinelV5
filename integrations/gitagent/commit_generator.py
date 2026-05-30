@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # Conventional Commits types
 COMMIT_TYPES = {
@@ -35,26 +35,26 @@ class FileChange:
     change_type: str  # added, modified, deleted, renamed
     additions: int = 0
     deletions: int = 0
-    old_path: Optional[str] = None
+    old_path: str | None = None
 
 
 @dataclass
 class ChangeSet:
     """Collection of changes for a commit."""
 
-    files: List[FileChange] = field(default_factory=list)
+    files: list[FileChange] = field(default_factory=list)
     branch: str = ""
     parent_commit: str = ""
     diff_content: str = ""
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         total_add = sum(f.additions for f in self.files)
         total_del = sum(f.deletions for f in self.files)
         change_types = {}
         for f in self.files:
             change_types[f.change_type] = change_types.get(f.change_type, 0) + 1
 
-        extensions: Dict[str, List[str]] = {}
+        extensions: dict[str, list[str]] = {}
         for f in self.files:
             ext = Path(f.path).suffix or "(no ext)"
             if ext not in extensions:
@@ -98,7 +98,7 @@ class CommitMessage:
         return msg
 
 
-def get_git_changes(ref: Optional[str] = None) -> ChangeSet:
+def get_git_changes(ref: str | None = None) -> ChangeSet:
     """Get list of changed files from git diff."""
     changeset = ChangeSet()
 
@@ -153,9 +153,7 @@ def get_git_changes(ref: Optional[str] = None) -> ChangeSet:
                 )
 
         # Get diff content for analysis
-        diff_result = subprocess.run(
-            ["git", "diff", "--cached", ref], capture_output=True, text=True, timeout=60
-        )
+        diff_result = subprocess.run(["git", "diff", "--cached", ref], capture_output=True, text=True, timeout=60)
         changeset.diff_content = diff_result.stdout[:5000]  # limit for performance
         changeset.parent_commit = ref or "HEAD"
 
@@ -171,7 +169,7 @@ def detect_scope(changeset: ChangeSet) -> str:
         return "core"
 
     # Analyze file paths
-    path_parts: List[Tuple[str, int]] = []
+    path_parts: list[tuple[str, int]] = []
     for f in changeset.files:
         parts = Path(f.path).parts
         if len(parts) > 1:
@@ -208,12 +206,11 @@ def detect_type(changeset: ChangeSet) -> str:
         "refactor": [r"refactor", r"rename", r"extract"],
     }
 
-    scores: Dict[str, int] = {t: 0 for t in patterns}
+    scores: dict[str, int] = dict.fromkeys(patterns, 0)
     scores["chore"] = 0
 
     for f in changeset.files:
         path = f.path.lower()
-        content_hints = ""
 
         # Content-based detection
         if "test" in path or "_test" in path:
@@ -292,13 +289,7 @@ def generate_body(changeset: ChangeSet, change_type: str) -> str:
     if summary["total_files"] <= 10:
         lines.append("### Изменённые файлы")
         for f in changeset.files:
-            sign = (
-                "+"
-                if f.change_type == "added"
-                else "-"
-                if f.change_type == "deleted"
-                else "~"
-            )
+            sign = "+" if f.change_type == "added" else "-" if f.change_type == "deleted" else "~"
             lines.append(f"- {sign} {f.path} (+{f.additions}/-{f.deletions})")
     else:
         lines.append(f"### Изменено файлов: {summary['total_files']}")
@@ -325,7 +316,7 @@ def generate_footer(changeset: ChangeSet) -> str:
     return "\n".join(lines)
 
 
-def _analyze_with_karl(changeset: ChangeSet) -> Dict[str, Any]:
+def _analyze_with_karl(changeset: ChangeSet) -> dict[str, Any]:
     """
     Phase 1 KARL analysis: assess complexity and risk of changes.
     Uses lightweight heuristics (full MASFactory would be too heavy for pre-commit).
@@ -347,21 +338,14 @@ def _analyze_with_karl(changeset: ChangeSet) -> Dict[str, Any]:
     core_files = [
         f
         for f in changeset.files
-        if any(
-            f.path.startswith(p)
-            for p in ["core/", "agents/", "orchestration/", "mas_factory/"]
-        )
+        if any(f.path.startswith(p) for p in ["core/", "agents/", "orchestration/", "mas_factory/"])
     ]
     if core_files:
         risk_score += 0.20
         factors.append(f"core_changes:{len(core_files)}")
 
     # Database changes = high risk
-    db_files = [
-        f
-        for f in changeset.files
-        if f.path.startswith("db/") or f.path.endswith(".sql")
-    ]
+    db_files = [f for f in changeset.files if f.path.startswith("db/") or f.path.endswith(".sql")]
     if db_files:
         risk_score += 0.25
         factors.append("db_changes")
@@ -370,10 +354,7 @@ def _analyze_with_karl(changeset: ChangeSet) -> Dict[str, Any]:
     security_files = [
         f
         for f in changeset.files
-        if any(
-            kw in f.path.lower()
-            for kw in ["auth", "token", "secret", "credential", "password"]
-        )
+        if any(kw in f.path.lower() for kw in ["auth", "token", "secret", "credential", "password"])
     ]
     if security_files:
         risk_score += 0.30
@@ -392,8 +373,8 @@ def _analyze_with_karl(changeset: ChangeSet) -> Dict[str, Any]:
 
 
 def generate_commit_message(
-    changes: Optional[Dict[str, Any]] = None,
-    ref: Optional[str] = None,
+    changes: dict[str, Any] | None = None,
+    ref: str | None = None,
 ) -> CommitMessage:
     """
     Generate a conventional commit message from git changes.
@@ -461,7 +442,7 @@ def generate_commit_message(
     )
 
 
-def preview_commit(ref: Optional[str] = None) -> str:
+def preview_commit(ref: str | None = None) -> str:
     """Generate and print a preview of the commit message."""
     msg = generate_commit_message(ref=ref)
     print("=" * 60)

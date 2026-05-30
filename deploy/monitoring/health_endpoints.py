@@ -2,13 +2,11 @@
 
 import os
 import time
-from typing import Dict
 
 import asyncpg
 import psutil
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import REGISTRY, generate_latest
 from pydantic import BaseModel
 
@@ -17,7 +15,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse, PlainTextResponse
 
-import tools.metrics_server
 from core.auth import fastapi_require_api_key
 
 # NEW: инициализируем лимитер (100 запросов в минуту глобально)
@@ -129,9 +126,7 @@ async def readiness_check():
 
 @app.get("/metrics")
 async def metrics_endpoint():
-    return PlainTextResponse(
-        content=generate_latest(REGISTRY).decode(), media_type="text/plain"
-    )
+    return PlainTextResponse(content=generate_latest(REGISTRY).decode(), media_type="text/plain")
 
 
 @app.get("/")
@@ -194,7 +189,7 @@ async def karl_metrics(request: Request):
             current_ttc_depth: int
             total_decisions: int
             avg_confidence: float
-            action_distribution: Dict[str, int]
+            action_distribution: dict[str, int]
             calibration_error: float
             slope: float
             intercept: float

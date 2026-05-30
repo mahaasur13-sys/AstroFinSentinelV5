@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 
 from tools.metrics_server import AGENT_SELECTION_COUNTS
 
@@ -15,9 +14,7 @@ def test_agent_selection_increments_counter():
         _select_for_flow(TECHNICAL_POOL, k=1)
 
     # Проверяем, что значение дочернего счётчика стало > 0
-    val = AGENT_SELECTION_COUNTS.labels(
-        agent_name="TechnicalAgent", pool="technical"
-    )._value.get()
+    val = AGENT_SELECTION_COUNTS.labels(agent_name="TechnicalAgent", pool="technical")._value.get()
     assert val > 0, f"Expected counter > 0, got {val}"
 
 
@@ -27,7 +24,6 @@ def test_signal_distribution_increments():
     from unittest.mock import patch
 
     from orchestration.sentinel_v5 import run_technical_flow
-    from tools.metrics_server import AGENT_SIGNAL_DISTRIBUTION
 
     # Мокаем run_market_analyst, чтобы вернуть LONG
     async def mock_run(state):
@@ -60,7 +56,5 @@ def test_thompson_params_gauge_updated():
         }
     )
 
-    alpha_val = THOMPSON_PARAMS.labels(
-        agent_name="TechnicalAgent", param="alpha"
-    )._value.get()
+    alpha_val = THOMPSON_PARAMS.labels(agent_name="TechnicalAgent", param="alpha")._value.get()
     assert alpha_val > 1.0, f"Expected alpha > 1.0, got {alpha_val}"

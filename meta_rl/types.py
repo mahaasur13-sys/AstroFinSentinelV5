@@ -1,7 +1,6 @@
 """Типы данных для meta_rl."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
 
 
 @dataclass
@@ -15,7 +14,7 @@ class EvaluationResult:
     avg_confidence: float = 0.0
     total_return_pct: float = 0.0
     score: float = 0.0
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
 
 
 @dataclass
@@ -40,8 +39,8 @@ class ScoredStrategy:
     fitness: float = 0.0
     generation: int = 0
     config: dict = field(default_factory=dict)
-    metrics: Optional[EvaluationResult] = None
-    metadata: Optional[dict] = None
+    metrics: EvaluationResult | None = None
+    metadata: dict | None = None
 
     def to_dict(self) -> dict:
         return {

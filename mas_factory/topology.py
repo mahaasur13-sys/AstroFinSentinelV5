@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class NodeType(Enum):
@@ -45,19 +45,15 @@ class ConditionEvaluator:
     }
 
     @classmethod
-    def evaluate(cls, condition: str, context: Dict[str, Any]) -> bool:
+    def evaluate(cls, condition: str, context: dict[str, Any]) -> bool:
         if not condition:
             return True
         try:
-            ns = {
-                k: v
-                for k, v in context.items()
-                if k in cls.SAFE_NAMES or k.startswith("_")
-            }
+            ns = {k: v for k, v in context.items() if k in cls.SAFE_NAMES or k.startswith("_")}
             ns["true"] = True
             ns["false"] = False
             return bool(eval(condition, {"__builtins__": {}}, ns))
-        except:
+        except Exception:
             return False
 
 
@@ -65,32 +61,24 @@ class ConditionEvaluator:
 class SwitchNode:
     id: str
     strategy: SwitchStrategy = SwitchStrategy.THOMPSON
-    condition: Optional[str] = None
-    candidates: List[str] = field(default_factory=list)
+    condition: str | None = None
+    candidates: list[str] = field(default_factory=list)
     k: int = 3
-    weights: Optional[Dict[str, float]] = None
-    true_branch: Optional[List[str]] = None
-    false_branch: Optional[List[str]] = None
-    action: Optional[SwitchAction] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    weights: dict[str, float] | None = None
+    true_branch: list[str] | None = None
+    false_branch: list[str] | None = None
+    action: SwitchAction | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def evaluate_condition(self, context: Dict[str, Any]) -> bool:
+    def evaluate_condition(self, context: dict[str, Any]) -> bool:
         return ConditionEvaluator.evaluate(self.condition, context)
 
-    def decide(self, context: Dict[str, Any]) -> List[str]:
+    def decide(self, context: dict[str, Any]) -> list[str]:
         if self.strategy == SwitchStrategy.THOMPSON:
             import random
 
-            scores = {
-                a: random.random() * (self.weights or {}).get(a, 1.0)
-                for a in self.candidates
-            }
-            return [
-                a
-                for a, _ in sorted(scores.items(), key=lambda x: x[1], reverse=True)[
-                    : self.k
-                ]
-            ]
+            scores = {a: random.random() * (self.weights or {}).get(a, 1.0) for a in self.candidates}
+            return [a for a, _ in sorted(scores.items(), key=lambda x: x[1], reverse=True)[: self.k]]
         return self.candidates[: self.k]
 
 
@@ -99,7 +87,7 @@ class Adapter:
     source: str
     target: str
     transform: str = "passthrough"
-    field_mapping: Dict[str, str] = field(default_factory=dict)
+    field_mapping: dict[str, str] = field(default_factory=dict)
 
     def apply(self, data: Any) -> Any:
         if self.transform == "passthrough":
@@ -121,10 +109,10 @@ class Role:
     name: str
     agent_type: str
     weight: float = 0.1
-    constraints: Dict[str, Any] = field(default_factory=dict)
-    capabilities: List[str] = field(default_factory=list)
-    inputs: List[str] = field(default_factory=list)
-    outputs: List[str] = field(default_factory=list)
+    constraints: dict[str, Any] = field(default_factory=dict)
+    capabilities: list[str] = field(default_factory=list)
+    inputs: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)
     timeout_ms: int = 30000
 
 
@@ -132,8 +120,8 @@ class Role:
 class Connection:
     from_node: str
     to_node: str
-    adapter: Optional[Adapter] = None
-    condition: Optional[str] = None
+    adapter: Adapter | None = None
+    condition: str | None = None
 
 
 @dataclass
@@ -152,9 +140,9 @@ class TopologyChange:
     triggered_by: str
     action: SwitchAction
     target: str
-    before: Dict[str, Any]
-    after: Dict[str, Any]
-    rollback_stack: List[Dict[str, Any]] = field(default_factory=list)
+    before: dict[str, Any]
+    after: dict[str, Any]
+    rollback_stack: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def create(
@@ -184,8 +172,8 @@ class TopologyVersion:
     version: str
     timestamp: str
     topology: "Topology"
-    changes: List[TopologyChange] = field(default_factory=list)
-    parent_version: Optional[str] = None
+    changes: list[TopologyChange] = field(default_factory=list)
+    parent_version: str | None = None
 
 
 @dataclass
@@ -194,27 +182,27 @@ class Topology:
     symbol: str
     timeframe: str
     version: str = "1.0"
-    roles: List[Role] = field(default_factory=list)
-    connections: List[Connection] = field(default_factory=list)
-    switch_nodes: List[SwitchNode] = field(default_factory=list)
+    roles: list[Role] = field(default_factory=list)
+    connections: list[Connection] = field(default_factory=list)
+    switch_nodes: list[SwitchNode] = field(default_factory=list)
     entry_point: str = "router"
     exit_point: str = "synthesis"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def get_role(self, name: str) -> Optional[Role]:
+    def get_role(self, name: str) -> Role | None:
         for r in self.roles:
             if r.name == name:
                 return r
         return None
 
-    def get_outgoing(self, node: str) -> List[Connection]:
+    def get_outgoing(self, node: str) -> list[Connection]:
         return [c for c in self.connections if c.from_node == node]
 
     @property
     def hash(self) -> str:
         return self.compute_hash()
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         node_ids = {r.name for r in self.roles} | {s.id for s in self.switch_nodes}
         special = {"input", "end"}
@@ -252,8 +240,8 @@ class Topology:
 class TopologyUpdater:
     def __init__(self, topology: Topology):
         self.current_topology = topology
-        self.versions: List[TopologyVersion] = []
-        self.change_history: List[TopologyChange] = []
+        self.versions: list[TopologyVersion] = []
+        self.change_history: list[TopologyChange] = []
         self._version_counter = 0
         self._init_version()
 
@@ -274,9 +262,7 @@ class TopologyUpdater:
     def apply_change(self, change: TopologyChange) -> Topology:
         try:
             new_topo = self._apply_change_internal(change)
-            print(
-                f"    [DEBUG] new_topo id={id(new_topo)}, roles={[r.name for r in new_topo.roles]}"
-            )
+            print(f"    [DEBUG] new_topo id={id(new_topo)}, roles={[r.name for r in new_topo.roles]}")
             self.versions.append(
                 TopologyVersion(
                     version=self._bump_version(),
@@ -364,7 +350,7 @@ class TopologyUpdater:
             self.change_history.pop()
             self.current_topology = self.versions[-1].topology
 
-    def get_change_summary(self) -> Dict[str, Any]:
+    def get_change_summary(self) -> dict[str, Any]:
         if not self.change_history:
             return {"total_changes": 0, "current_version": "v0"}
         return {

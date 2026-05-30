@@ -122,9 +122,7 @@ def main():
     from db.session import is_postgres_available
 
     if not is_postgres_available():
-        logger.error(
-            "PostgreSQL not available. Start it with: docker-compose up -d postgres"
-        )
+        logger.error("PostgreSQL not available. Start it with: docker-compose up -d postgres")
         sys.exit(1)
 
     logger.info("PostgreSQL: AVAILABLE")

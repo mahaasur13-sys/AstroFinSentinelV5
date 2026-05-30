@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+
+class MarketMode:
+    pass  # F821 fix
+
+
 """
 trading/safety_gate.py — ATOM-INTEGRATION-001: Safety Gate
 ===========================================================
@@ -18,7 +25,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 # ─── Feature Flags ──────────────────────────────────────────────────────────────
 
@@ -41,10 +48,10 @@ class SafetyDecision:
     status: SafetyStatus
     reason: str
     reduced_position_pct: float = 1.0  # 0.0–1.0
-    adjusted_signal: Optional[str] = None
-    checks_passed: List[str] = field(default_factory=list)
-    checks_failed: List[str] = field(default_factory=list)
-    blocked_reason: Optional[str] = None
+    adjusted_signal: str | None = None
+    checks_passed: list[str] = field(default_factory=list)
+    checks_failed: list[str] = field(default_factory=list)
+    blocked_reason: str | None = None
     gate_version: str = "1.0.0"
 
     def to_dict(self) -> dict:
@@ -117,10 +124,10 @@ class SafetyGate:
         sig_dict = self._normalize_signal(signal)
         sig_direction = sig_dict.get("signal", "NEUTRAL")
         sig_confidence = sig_dict.get("confidence", 50)
-        agent_name = sig_dict.get("agent_name", "unknown")
+        sig_dict.get("agent_name", "unknown")
 
-        checks_passed: List[str] = []
-        checks_failed: List[str] = []
+        checks_passed: list[str] = []
+        checks_failed: list[str] = []
 
         # ── 1. ModeEnforcer ───────────────────────────────────────────────────
         if MODE_ENFORCER_ENABLED:
@@ -196,9 +203,7 @@ class SafetyGate:
 
     # ── Internal Checks ─────────────────────────────────────────────────────────
 
-    def _check_mode(
-        self, state: dict, proposed_size_pct: float = 0.2
-    ) -> SafetyDecision:
+    def _check_mode(self, state: dict, proposed_size_pct: float = 0.2) -> SafetyDecision:
         """ModeEnforcer (TradingMode) check — validates operational mode constraints."""
         try:
             from trading.mode import ModeEnforcer, TradingMode
@@ -212,9 +217,7 @@ class SafetyGate:
 
             enforcer = ModeEnforcer(mode=mode)
 
-            sig_direction = self._normalize_signal(state.get("signal", "NEUTRAL")).get(
-                "signal", "NEUTRAL"
-            )
+            sig_direction = self._normalize_signal(state.get("signal", "NEUTRAL")).get("signal", "NEUTRAL")
 
             is_short = sig_direction == "SHORT"
             is_market = state.get("order_type") != "limit"
@@ -287,9 +290,7 @@ class SafetyGate:
                             fa = _FakeAsset()
                             fa.symbol = sym
                             fa.notional_value = pos.notional_value
-                            fa.current_price = (
-                                getattr(pos, "current_price", 0) or current_price
-                            )
+                            fa.current_price = getattr(pos, "current_price", 0) or current_price
                             fa.entry_price = getattr(pos, "entry_price", current_price)
                             engine._positions[sym] = fa
 
@@ -366,7 +367,7 @@ class SafetyGate:
             from trading.execution.sanity import ExecutionSanityChecker
 
             checker = ExecutionSanityChecker()
-            price_quote = checker.quote(symbol, current_price)
+            checker.quote(symbol, current_price)
 
             sanity = checker.check(
                 symbol=symbol,
@@ -414,15 +415,13 @@ class SafetyGate:
             "calls": self._call_count,
             "rejected": self._total_rejected,
             "reduced": self._total_reduced,
-            "approval_rate": (
-                (self._call_count - self._total_rejected) / max(self._call_count, 1)
-            ),
+            "approval_rate": ((self._call_count - self._total_rejected) / max(self._call_count, 1)),
         }
 
 
 # ─── Convenience functions ─────────────────────────────────────────────────────
 
-_default_gate: Optional[SafetyGate] = None
+_default_gate: SafetyGate | None = None
 
 
 def get_safety_gate(

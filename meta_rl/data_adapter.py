@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from data.market_adapter import OHLCV
 
 
-def ohlcv_to_strategy_format(ohlcv_data: List[OHLCV]) -> Dict[str, Any]:
+def ohlcv_to_strategy_format(ohlcv_data: list[OHLCV]) -> dict[str, Any]:
     """
     Convert List[OHLCV] → market_data dict for StrategyEvaluator.
 
@@ -29,7 +29,7 @@ def ohlcv_to_strategy_format(ohlcv_data: List[OHLCV]) -> Dict[str, Any]:
     }
 
 
-def market_data_to_ohlcv(market_data: Dict[str, Any]) -> List[OHLCV]:
+def market_data_to_ohlcv(market_data: dict[str, Any]) -> list[OHLCV]:
     """
     Reverse converter: market_data dict → List[OHLCV].
 
@@ -79,7 +79,7 @@ def denormalize_symbol(symbol: str) -> str:
     return symbol
 
 
-def validate_market_data(market_data: Dict[str, Any]) -> bool:
+def validate_market_data(market_data: dict[str, Any]) -> bool:
     """
     Validate market_data has required fields for StrategyEvaluator.
 

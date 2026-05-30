@@ -33,9 +33,7 @@ def mock_karl_dependencies():
         get_karl_diagnostics=MagicMock(),
         build_decision_record=MagicMock(),
         estimate_uncertainty=MagicMock(return_value={"total": 0.5}),
-        validate_with_grounding=MagicMock(
-            return_value={"passed": True, "confidence_adjustment": 0}
-        ),
+        validate_with_grounding=MagicMock(return_value={"passed": True, "confidence_adjustment": 0}),
         compute_trajectory_reward=MagicMock(return_value=0.6),
         create_backtest_runner=MagicMock(),
         SelfQuestioningEngine=MagicMock(),

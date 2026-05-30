@@ -1,6 +1,6 @@
 """mas_factory/registry.py - Agent Registry with capabilities"""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from mas_factory.topology import Role
 
@@ -224,20 +224,20 @@ class AgentRegistry:
     """Registry of available agents with capabilities and constraints"""
 
     def __init__(self):
-        self._roles: Dict[str, Role] = {}
+        self._roles: dict[str, Role] = {}
         for agent_type, role in AGENT_DEFINITIONS.items():
             self._roles[agent_type] = role
 
-    def get_role(self, agent_type: str) -> Optional[Role]:
+    def get_role(self, agent_type: str) -> Role | None:
         return self._roles.get(agent_type)
 
-    def get_all_roles(self) -> List[Role]:
+    def get_all_roles(self) -> list[Role]:
         return list(self._roles.values())
 
-    def get_by_capability(self, capability: str) -> List[Role]:
+    def get_by_capability(self, capability: str) -> list[Role]:
         return [r for r in self._roles.values() if capability in r.capabilities]
 
-    def get_pool(self, pool_name: str) -> List[Role]:
+    def get_pool(self, pool_name: str) -> list[Role]:
         """Get roles by pool category"""
         pools = {
             "fundamental": ["FundamentalAgent", "InsiderAgent"],
@@ -256,7 +256,7 @@ class AgentRegistry:
         """Register a new agent dynamically"""
         self._roles[agent_type] = role
 
-    def list_capabilities(self) -> List[str]:
+    def list_capabilities(self) -> list[str]:
         """List all unique capabilities"""
         caps = set()
         for role in self._roles.values():
@@ -265,7 +265,7 @@ class AgentRegistry:
 
 
 # Singleton
-_REGISTRY: Optional[AgentRegistry] = None
+_REGISTRY: AgentRegistry | None = None
 
 
 def get_registry() -> AgentRegistry:
@@ -280,7 +280,7 @@ class BasicAgentRunner:
     def __init__(self, agent_type: str):
         self.agent_type = agent_type
 
-    def run(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, context: dict[str, Any]) -> dict[str, Any]:
         return {"signal": "NEUTRAL", "confidence": 50, "agent": self.agent_type}
 
 

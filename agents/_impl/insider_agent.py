@@ -30,7 +30,7 @@ class InsiderAgent(BaseAgent[AgentResponse]):
     @require_ephemeris
     async def analyze(self, state: dict) -> AgentResponse:
         symbol = state.get("symbol", "BTCUSDT")
-        current_price = state.get("current_price", 50000)
+        state.get("current_price", 50000)
 
         # Fetch insider data (requires paid API for real data)
         insider_data = await self._fetch_insider_data(symbol)
@@ -76,10 +76,7 @@ class InsiderAgent(BaseAgent[AgentResponse]):
 
         confidence = int(sum(scores) / len(scores) * 100)
 
-        reasoning = (
-            f"Insider: {insider_analysis['summary']}. "
-            f"13F: {filings_analysis['summary']}"
-        )
+        reasoning = f"Insider: {insider_analysis['summary']}. 13F: {filings_analysis['summary']}"
 
         return AgentResponse(
             agent_name="InsiderAgent",

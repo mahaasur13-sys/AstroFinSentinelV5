@@ -11,7 +11,6 @@ AspectReport objects.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from core.ephemeris import PlanetPosition
 
@@ -86,10 +85,7 @@ class AspectReport:
         return [a for a in self.aspects if a.aspect_type == aspect_type]
 
     def has(self, aspect_type: AspectType, p1: str, p2: str) -> bool:
-        return any(
-            a.aspect_type == aspect_type and {a.planet1, a.planet2} == {p1, p2}
-            for a in self.aspects
-        )
+        return any(a.aspect_type == aspect_type and {a.planet1, a.planet2} == {p1, p2} for a in self.aspects)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -236,7 +232,7 @@ class AspectsEngine:
 
     def __init__(
         self,
-        orbs: Optional[dict[AspectType, float]] = None,
+        orbs: dict[AspectType, float] | None = None,
         include_minor: bool = False,
     ):
         self.orbs = orbs or _DEFAULT_ORBS.copy()
@@ -257,7 +253,7 @@ class AspectsEngine:
     def compute(
         self,
         positions: dict[str, PlanetPosition],
-        planets: Optional[list[str]] = None,
+        planets: list[str] | None = None,
     ) -> AspectReport:
         """
         Calculate aspects between specified planets.
@@ -298,7 +294,7 @@ class AspectsEngine:
                 diff = _angle_diff(pos1.longitude, pos2.longitude)
 
                 # Find nearest aspect type within orb
-                best_aspect: Optional[AspectType] = None
+                best_aspect: AspectType | None = None
                 best_delta = 360.0
                 for atype in self._aspect_types:
                     orb_limit = self.orbs.get(atype, 6.0)
@@ -351,7 +347,7 @@ class AspectsEngine:
 
 def calculate_aspects(
     positions: dict[str, PlanetPosition],
-    planets: Optional[list[str]] = None,
+    planets: list[str] | None = None,
     include_minor: bool = False,
 ) -> AspectReport:
     """

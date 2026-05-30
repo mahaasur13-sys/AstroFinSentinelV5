@@ -81,9 +81,7 @@ class AstroCouncil:
             f"  Consensus: {result.consensus:.0%}  W-signal: {result.weighted_signal:+.3f}",
         ]
         for m in sorted(result.members, key=lambda x: -x.weight):
-            lines.append(
-                f"  [{m.weight:.0%}] {m.name}: {m.vote.value} ({m.confidence:.0f}%)"
-            )
+            lines.append(f"  [{m.weight:.0%}] {m.name}: {m.vote.value} ({m.confidence:.0f}%)")
         if result.dissent:
             lines.append(f"  Dissent: {len(result.dissent)} disagree")
         return "\n".join(lines)

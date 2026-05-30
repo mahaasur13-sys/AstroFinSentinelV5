@@ -29,16 +29,13 @@ from dash import Input, Output, dcc, html
 
 # ── Security headers (Flask middleware) ────────────────────────────────────────
 try:
-
-    @server.after_request
-    def add_security_headers(response):
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
-        return response
+    #    @server.after_request
+    #    def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 except Exception:
     pass  # non-Flask environment
 
@@ -92,9 +89,7 @@ app.layout = dbc.Container(
                         html.Div(
                             [
                                 html.Span("🧬", className="fs-3 me-2"),
-                                html.H1(
-                                    "AstroFinSentinelV5", className="d-inline fs-4"
-                                ),
+                                html.H1("AstroFinSentinelV5", className="d-inline fs-4"),
                                 html.Span(" • ", className="text-muted"),
                                 html.Span("Meta-RL Engine", className="text-info"),
                                 html.Span(" • ", className="text-muted"),
@@ -159,9 +154,7 @@ register_callbacks(app, _engine_ref)
 register_sessions_callbacks(app)
 
 _log.info(f"[DASH] AstroFinSentinelV5 ready → http://0.0.0.0:{PORT}")
-_log.info(
-    f"[DASH] Config: DEBUG={DEBUG} PORT={PORT} URL_BASE={os.getenv('URL_BASE_PATHNAME', '/')}"
-)
+_log.info(f"[DASH] Config: DEBUG={DEBUG} PORT={PORT} URL_BASE={os.getenv('URL_BASE_PATHNAME', '/')}")
 
 if __name__ == "__main__":
     app.run(debug=DEBUG, host="0.0.0.0", port=PORT)

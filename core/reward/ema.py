@@ -7,7 +7,6 @@ Critical: first value seeds EMA (NOT 0).
 """
 
 from collections import defaultdict
-from typing import Dict, Optional
 
 
 class RewardEMA:
@@ -23,7 +22,7 @@ class RewardEMA:
     def __init__(self, alpha: float = 0.3):
         self.alpha = alpha
         # key → EMA value (starts as None = uninitialized)
-        self._state: Dict[str, Optional[float]] = defaultdict(lambda: None)
+        self._state: dict[str, float | None] = defaultdict(lambda: None)
 
     def update(self, key: str, value: float) -> float:
         """
@@ -47,7 +46,7 @@ class RewardEMA:
         v = self._state.get(key)
         return v if v is not None else 0.0
 
-    def reset(self, key: Optional[str] = None):
+    def reset(self, key: str | None = None):
         """Reset one key or all keys."""
         if key is None:
             self._state.clear()
@@ -57,7 +56,7 @@ class RewardEMA:
 
 # ─── Module-level singleton ───────────────────────────────────────────────────
 
-_REWARD_EMA: Optional[RewardEMA] = None
+_REWARD_EMA: RewardEMA | None = None
 
 
 def get_reward_ema() -> RewardEMA:

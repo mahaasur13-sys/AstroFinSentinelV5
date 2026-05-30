@@ -1,11 +1,8 @@
 import datetime
 import os
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
-from pathlib import Path
 
 from openai import OpenAI
 
@@ -93,9 +90,7 @@ def main():
 
     tickets = read_file(TICKETS_FILE)
     progress = read_file(PROGRESS_FILE)
-    instructions = (
-        read_file(INSTRUCTIONS_FILE) if os.path.exists(INSTRUCTIONS_FILE) else ""
-    )
+    instructions = read_file(INSTRUCTIONS_FILE) if os.path.exists(INSTRUCTIONS_FILE) else ""
 
     # Ищем первую невыполненную задачу
     match = re.search(r"^- \[ \] (.+?)$", tickets, re.MULTILINE)

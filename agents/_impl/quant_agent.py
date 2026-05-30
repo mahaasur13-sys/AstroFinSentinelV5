@@ -142,7 +142,7 @@ class QuantAgent(BaseAgent[AgentResponse]):
             return {"score": 0.5, "summary": "insufficient data"}
 
         mom_20 = (closes[-1] - closes[-20]) / closes[-20] if len(closes) >= 20 else 0
-        mom_10 = (closes[-1] - closes[-10]) / closes[-10] if len(closes) >= 10 else 0
+        (closes[-1] - closes[-10]) / closes[-10] if len(closes) >= 10 else 0
 
         # Normalize to 0-1
         mom_score = 0.5 + mom_20 * 2  # rough normalization

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -16,14 +17,14 @@ DRIFT_SCORE_MODERATE = 0.30
 DRIFT_SCORE_SEVERE = 0.50
 
 
-def load_session_records(session_id: str) -> List[Dict[str, Any]]:
+def load_session_records(session_id: str) -> list[dict[str, Any]]:
     """Load all decision records from a persisted session."""
     from meta_rl.persistence import get_persistence
 
     return get_persistence().load_scored_strategies(session_id)
 
 
-def load_all_records() -> List[Dict[str, Any]]:
+def load_all_records() -> list[dict[str, Any]]:
     """Load decision records from all sessions."""
     from meta_rl.persistence import get_persistence
 
@@ -37,8 +38,8 @@ def load_all_records() -> List[Dict[str, Any]]:
 
 def replay_session(
     session_id: str,
-    callback: Callable[[Dict[str, Any]], int],
-    records: Optional[List[Dict[str, Any]]] = None,
+    callback: Callable[[dict[str, Any]], int],
+    records: list[dict[str, Any]] | None = None,
 ) -> int:
     """Replay records from a session, calling callback for each.
 
@@ -67,20 +68,18 @@ class OAPDriftReport:
 
     session_id: str
     total_records: int
-    generations: List[int]
+    generations: list[int]
     mean_qstar: float
     std_qstar: float
     drift_score: float
     drift_severity: str
-    generation_qstar_trend: List[float]
+    generation_qstar_trend: list[float]
     is_overfitting: bool
-    overfitting_evidence: List[str]
-    recommendations: List[str]
+    overfitting_evidence: list[str]
+    recommendations: list[str]
 
 
-def analyze_oap_drift(
-    records: List[Dict[str, Any]], session_id: str = ""
-) -> OAPDriftReport:
+def analyze_oap_drift(records: list[dict[str, Any]], session_id: str = "") -> OAPDriftReport:
     """Analyze OAP drift from historical decision records.
 
     Computes:
@@ -126,7 +125,7 @@ def analyze_oap_drift(
     unique_gens = sorted(set(gens))
     gen_means = []
     for g in unique_gens:
-        g_rewards = [r for r, g_ in zip(rewards, gens) if g_ == g]
+        g_rewards = [r for r, g_ in zip(rewards, gens, strict=False) if g_ == g]
         if g_rewards:
             gen_means.append(float(np.mean(g_rewards)))
         else:
@@ -143,17 +142,12 @@ def analyze_oap_drift(
         if late > early and std_q > DRIFT_SCORE_MODERATE:
             is_overfitting = True
             overfitting_evidence.append(
-                f"Reward rising ({early:.3f} → {late:.3f}) "
-                f"with high variance (std={std_q:.3f})"
+                f"Reward rising ({early:.3f} → {late:.3f}) with high variance (std={std_q:.3f})"
             )
         if len(gen_means) >= 3:
-            recent_deltas = [
-                gen_means[i] - gen_means[i - 1] for i in range(1, len(gen_means))
-            ]
+            recent_deltas = [gen_means[i] - gen_means[i - 1] for i in range(1, len(gen_means))]
             if all(d > 0 for d in recent_deltas[-2:]) and std_q > DRIFT_SCORE_MILD:
-                overfitting_evidence.append(
-                    "Consecutive generation reward increases — possible memorization"
-                )
+                overfitting_evidence.append("Consecutive generation reward increases — possible memorization")
 
     if is_overfitting or severity in ("moderate", "severe"):
         recommendations.append("increase_mutation_rate")
@@ -182,7 +176,7 @@ def get_adaptive_params_from_drift(
     drift_report: OAPDriftReport,
     base_mutation: float = 0.15,
     base_crossover: float = 0.40,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """ATOM-META-RL-009: Convert OAP drift report to adaptive GA params.
 
     When drift is high:

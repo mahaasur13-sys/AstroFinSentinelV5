@@ -23,7 +23,7 @@ def safe_json_dump(data: Any, filepath: str, ensure_ascii: bool = False) -> bool
     except (TypeError, ValueError) as e:
         logger.error(f"[safe_json] Type/Value error dumping to {filepath}: {e}")
         return False
-    except IOError as e:
+    except OSError as e:
         logger.error(f"[safe_json] IO error writing {filepath}: {e}")
         return False
 
@@ -33,7 +33,7 @@ def safe_json_load(filepath: str, default: Any = None) -> Any:
     if default is None:
         default = {}
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read().strip()
             if not content:
                 logger.warning(f"[safe_json] Empty file: {filepath}")
@@ -42,7 +42,7 @@ def safe_json_load(filepath: str, default: Any = None) -> Any:
     except json.JSONDecodeError as e:
         logger.error(f"[safe_json] Corrupted JSON in {filepath}: {e}")
         return {"status": "corrupted", "error": str(e), "filepath": filepath}
-    except IOError as e:
+    except OSError as e:
         logger.error(f"[safe_json] Cannot read {filepath}: {e}")
         return {"status": "file_not_found", "error": str(e), "filepath": filepath}
     except Exception as e:
@@ -69,7 +69,7 @@ def safe_jsonl_append(record: Any, filepath: str) -> bool:
 def safe_jsonl_load(filepath: str) -> list:
     """Load all records from a JSONL file safely."""
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             lines = [l.strip() for l in f if l.strip()]
         records = []
         for i, line in enumerate(lines):
@@ -77,11 +77,9 @@ def safe_jsonl_load(filepath: str) -> list:
                 records.append(json.loads(line))
             except json.JSONDecodeError as e:
                 logger.warning(f"[safe_json] Corrupted line {i + 1} in {filepath}: {e}")
-                records.append(
-                    {"status": "corrupted_line", "line": i + 1, "raw": line[:100]}
-                )
+                records.append({"status": "corrupted_line", "line": i + 1, "raw": line[:100]})
         return records
-    except IOError:
+    except OSError:
         logger.info(f"[safe_json] JSONL file not found: {filepath}")
         return []
     except Exception as e:

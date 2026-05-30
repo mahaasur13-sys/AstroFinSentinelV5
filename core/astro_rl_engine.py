@@ -72,12 +72,7 @@ class AstroRLLoop:
         raw = (
             (1.0 if 0 <= moon <= 180 else -1.0) * 0.4
             + (1.0 if not (90 <= jup <= 270) else -0.5) * 0.3
-            + (
-                1.0
-                if (30 <= sat <= 60 or 150 <= sat <= 180 or 300 <= sat <= 330)
-                else -0.5
-            )
-            * 0.3
+            + (1.0 if (30 <= sat <= 60 or 150 <= sat <= 180 or 300 <= sat <= 330) else -0.5) * 0.3
             + (-0.3 if "M" in self.current_state.retrograde_mask else 0.0)
         )
         return max(-1.0, min(1.0, raw))
@@ -103,9 +98,7 @@ class AstroRLLoop:
         decision["state_hash"] = self.current_state.state_hash
         return decision
 
-    def record_and_update(
-        self, exit_price, entry_price, direction, position_pct, hold_hours
-    ):
+    def record_and_update(self, exit_price, entry_price, direction, position_pct, hold_hours):
         if self.current_state is None or self.trainer is None:
             return {"updated": False, "reason": "no_state_or_trainer"}
         pnl = (exit_price - entry_price) / entry_price * 100.0
@@ -155,9 +148,7 @@ class AstroRLLoop:
     def status(self):
         return {
             "total_states": len(self._state_history),
-            "total_experiences": self.trainer.state.total_experiences
-            if self.trainer
-            else 0,
+            "total_experiences": self.trainer.state.total_experiences if self.trainer else 0,
             "current_episode": self.trainer.state.episode if self.trainer else 0,
             "best_reward": self.trainer.state.best_reward if self.trainer else None,
         }
@@ -206,9 +197,7 @@ if __name__ == "__main__":
         )
         if day % 2 == 0:
             d = rl.decide(signal_strength=65.0, uncertainty=0.3, regime="NORMAL")
-            print(
-                f"    Decision: pos={d['position_pct']:.4f}  astro={d['astro_alignment']:+.3f}"
-            )
+            print(f"    Decision: pos={d['position_pct']:.4f}  astro={d['astro_alignment']:+.3f}")
             rl.record_and_update(
                 exit_price=102.0,
                 entry_price=100.0,

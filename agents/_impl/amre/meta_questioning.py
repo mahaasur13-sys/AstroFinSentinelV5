@@ -3,7 +3,7 @@ Self-Improvement: Agent generates + refines questions.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -29,8 +29,8 @@ class QuestionEvolution:
 
 class MetaQuestionBank:
     def __init__(self):
-        self.questions: List[MetaQuestion] = []
-        self.evolutions: List[QuestionEvolution] = []
+        self.questions: list[MetaQuestion] = []
+        self.evolutions: list[QuestionEvolution] = []
         self._init_default_questions()
 
     def _init_default_questions(self):
@@ -80,14 +80,14 @@ class MetaQuestionBank:
         ]
         self.questions.extend(defaults)
 
-    def get_applicable(self, context: Dict[str, Any]) -> List[MetaQuestion]:
+    def get_applicable(self, context: dict[str, Any]) -> list[MetaQuestion]:
         applicable = []
         for q in self.questions:
             if self._matches_condition(q, context):
                 applicable.append(q)
         return sorted(applicable, key=lambda x: x.weight, reverse=True)[:3]
 
-    def _matches_condition(self, q: MetaQuestion, ctx: Dict) -> bool:
+    def _matches_condition(self, q: MetaQuestion, ctx: dict) -> bool:
         cond = q.trigger_condition
         if not cond:
             return True
@@ -100,7 +100,7 @@ class MetaQuestionBank:
                         val_str = parts[1].strip()
                         try:
                             val = float(val_str)
-                        except:
+                        except Exception:
                             val = val_str.strip()
                         ctx_val = ctx.get(key)
                         if ctx_val is None:
@@ -108,11 +108,11 @@ class MetaQuestionBank:
                         if isinstance(ctx_val, str):
                             ctx_val = ctx_val.strip()
                         return eval(f"{ctx_val} {op} {val}", {"__builtins__": {}}, {})
-        except:
+        except Exception:
             pass
         return False
 
-    def refine_question(self, q_id: str, passed: bool, outcome: bool) -> Optional[str]:
+    def refine_question(self, q_id: str, passed: bool, outcome: bool) -> str | None:
         q = next((x for x in self.questions if x.id == q_id), None)
         if not q:
             return None
@@ -124,11 +124,7 @@ class MetaQuestionBank:
         if q.times_asked >= 5 and q.effectiveness_score > 0.8 and not outcome:
             refined = q.text.replace("!", "? (Double-check)")
             if refined != q.text:
-                self.evolutions.append(
-                    QuestionEvolution(
-                        q.text, refined, "High pass but poor outcome", passed, False
-                    )
-                )
+                self.evolutions.append(QuestionEvolution(q.text, refined, "High pass but poor outcome", passed, False))
                 q.text = refined
                 q.weight *= 0.9
                 return refined
@@ -138,12 +134,12 @@ class MetaQuestionBank:
 class MetaQuestioningEngine:
     def __init__(self):
         self.bank = MetaQuestionBank()
-        self.history: List[Dict] = []
+        self.history: list[dict] = []
 
-    def generate_questions(self, ctx: Dict) -> List[MetaQuestion]:
+    def generate_questions(self, ctx: dict) -> list[MetaQuestion]:
         return self.bank.get_applicable(ctx)
 
-    def ask(self, questions: List[MetaQuestion], state: Dict) -> List[Dict]:
+    def ask(self, questions: list[MetaQuestion], state: dict) -> list[dict]:
         answers = []
         for q in questions:
             a = self._answer_question(q, state)
@@ -158,7 +154,7 @@ class MetaQuestioningEngine:
             )
         return answers
 
-    def _answer_question(self, q: MetaQuestion, state: Dict) -> Dict:
+    def _answer_question(self, q: MetaQuestion, state: dict) -> dict:
         conf = state.get("confidence", 50)
         regime = state.get("regime", "NORMAL")
         if q.category == "calibration":
@@ -181,22 +177,20 @@ class MetaQuestioningEngine:
             return {"text": "Appropriate", "passed": True, "adjustment": 0}
         return {"text": "Processed", "passed": True, "adjustment": 0}
 
-    def evaluate(self, answers: List[Dict]) -> bool:
+    def evaluate(self, answers: list[dict]) -> bool:
         if not answers:
             return True
         return sum(1 for a in answers if a["passed"]) >= len(answers) / 2
 
-    def refine(
-        self, questions: List[MetaQuestion], answers: List[Dict], outcome: bool
-    ) -> List[str]:
+    def refine(self, questions: list[MetaQuestion], answers: list[dict], outcome: bool) -> list[str]:
         refinements = []
-        for q, a in zip(questions, answers):
+        for q, a in zip(questions, answers, strict=False):
             r = self.bank.refine_question(q.id, a["passed"], outcome)
             if r:
                 refinements.append(r)
         return refinements
 
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> dict:
         total = len(self.history)
         if total == 0:
             return {"total_sessions": 0}
@@ -209,7 +203,7 @@ class MetaQuestioningEngine:
         }
 
 
-_META_ENGINE: Optional[MetaQuestioningEngine] = None
+_META_ENGINE: MetaQuestioningEngine | None = None
 
 
 def get_meta_engine() -> MetaQuestioningEngine:

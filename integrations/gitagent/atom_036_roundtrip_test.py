@@ -57,9 +57,7 @@ def test_manifest_yaml(package_path: Path) -> bool:
     if not manifest.model:
         print("  ⚠️  No model config (optional)")
     else:
-        print(
-            f"  ✅ Model: {manifest.model.get('provider')}/{manifest.model.get('name')}"
-        )
+        print(f"  ✅ Model: {manifest.model.get('provider')}/{manifest.model.get('name')}")
 
     # Check workflows
     if manifest.workflows:
@@ -134,9 +132,7 @@ def test_roundtrip_export_import(agent_names: list, package_name: str) -> bool:
         # Import back
         engine = GitAgentToMASFactoryAdapter(str(pkg_path)).load()
         if engine is None:
-            print(
-                "  ⚠️  MASFactory engine not available (OK if MASFactory not installed)"
-            )
+            print("  ⚠️  MASFactory engine not available (OK if MASFactory not installed)")
             return True
 
         manifest = GitAgentManifest.from_yaml(pkg_path / "agent.yaml")

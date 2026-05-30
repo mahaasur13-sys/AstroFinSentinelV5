@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -31,8 +31,8 @@ class BacktestEngineAdapter:
 
     def __init__(
         self,
-        backtester: Optional[Backtester] = None,
-        sanity_checker: Optional[Any] = None,
+        backtester: Backtester | None = None,
+        sanity_checker: Any | None = None,
         use_sanity_check: bool = True,
     ):
         self.backtester = backtester or Backtester()
@@ -43,7 +43,7 @@ class BacktestEngineAdapter:
         self,
         strategy: Any,
         ohlcv: list,
-        market_data: Optional[dict] = None,
+        market_data: dict | None = None,
     ) -> EvaluationResult:
         """Run production backtest via Backtester.
 
@@ -79,9 +79,7 @@ class BacktestEngineAdapter:
             logger.warning(f"[META-RL-INTEGRATION] Backtester failed: {e}")
             return EvaluationResult.fail()
 
-    def _build_signals(
-        self, strategy: Any, ohlcv: list, market_data: Optional[dict]
-    ) -> list:
+    def _build_signals(self, strategy: Any, ohlcv: list, market_data: dict | None) -> list:
         """Build signals by calling strategy.evaluate() on each bar."""
         from strategies.base import Regime
 
@@ -90,11 +88,7 @@ class BacktestEngineAdapter:
         sym_data: dict = {}  # resolved per-symbol market metadata
 
         if market_data:
-            if (
-                "BTCUSDT" in market_data
-                or "ETHUSDT" in market_data
-                or "SPY" in market_data
-            ):
+            if "BTCUSDT" in market_data or "ETHUSDT" in market_data or "SPY" in market_data:
                 for sym in ("BTCUSDT", "ETHUSDT", "SPY"):
                     if sym in market_data and isinstance(market_data[sym], dict):
                         symbol = sym
@@ -172,7 +166,7 @@ class BacktestEngineAdapter:
             series.append((ts_int, close))
         return {symbol: series}
 
-    def _apply_sanity_check(self, result: Any, market_data: Optional[dict]) -> Any:
+    def _apply_sanity_check(self, result: Any, market_data: dict | None) -> Any:
         """Apply ExecutionSanityChecker to backtest result."""
         try:
             if not hasattr(self.sanity_checker, "validate"):
@@ -183,9 +177,7 @@ class BacktestEngineAdapter:
                 order_req = self._build_order_request(trade, market_data)
                 sanity = self.sanity_checker.validate(order_req, market_state)
                 if sanity.status.value == "REJECTED":
-                    logger.warning(
-                        f"[META-RL-INTEGRATION] Trade rejected by sanity: {sanity.reason}"
-                    )
+                    logger.warning(f"[META-RL-INTEGRATION] Trade rejected by sanity: {sanity.reason}")
             return result
         except Exception as e:
             logger.warning(f"[META-RL-INTEGRATION] Sanity check failed: {e}")
@@ -202,9 +194,7 @@ class BacktestEngineAdapter:
             total = len(trades)
             win_rate = winning / max(1, total)
 
-            equity_arr = (
-                np.array([eq for _, eq in equity_curve]) if equity_curve else None
-            )
+            equity_arr = np.array([eq for _, eq in equity_curve]) if equity_curve else None
             returns = (
                 np.diff(equity_arr) / equity_arr[:-1]
                 if equity_arr is not None and len(equity_arr) > 1
@@ -212,9 +202,7 @@ class BacktestEngineAdapter:
             )
             mean_ret = float(np.mean(returns)) if len(returns) > 0 else 0.0
             std_ret = float(np.std(returns)) if len(returns) > 0 else 0.01
-            sharpe = (
-                float((mean_ret / std_ret) * np.sqrt(252)) if std_ret > 1e-8 else 0.0
-            )
+            sharpe = float((mean_ret / std_ret) * np.sqrt(252)) if std_ret > 1e-8 else 0.0
 
             total_return_pct = summary.get("total_return_pct", 0.0)
             max_dd_pct = summary.get("max_drawdown_pct", 0.0)
@@ -283,7 +271,7 @@ class BacktestEngineAdapter:
                 return bar["dt"]
         return None
 
-    def _build_market_state(self, market_data: Optional[dict]):
+    def _build_market_state(self, market_data: dict | None):
         from trading.execution.sanity import MarketState
 
         if market_data is None:
@@ -308,7 +296,7 @@ class BacktestEngineAdapter:
             current_vol_regime=market_data.get("current_vol_regime", "NORMAL"),
         )
 
-    def _build_order_request(self, trade: Any, market_data: Optional[dict]):
+    def _build_order_request(self, trade: Any, market_data: dict | None):
         from trading.execution.sanity import OrderRequest
 
         return OrderRequest(
@@ -317,7 +305,5 @@ class BacktestEngineAdapter:
             qty=getattr(trade, "size", 0.0),
             price=getattr(trade, "entry_price", 0.0),
             order_type="MARKET",
-            slippage_bp_estimate=market_data.get("slippage_bp", 5.0)
-            if market_data
-            else 5.0,
+            slippage_bp_estimate=market_data.get("slippage_bp", 5.0) if market_data else 5.0,
         )

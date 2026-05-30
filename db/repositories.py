@@ -7,7 +7,7 @@ fall back gracefully to SQLite when not.
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def _l(text: str) -> Any:
         return []
 
 
-def _ld(text: str) -> Dict[str, Any]:
+def _ld(text: str) -> dict[str, Any]:
     try:
         return json.loads(text) if text else {}
     except (json.JSONDecodeError, TypeError):
@@ -64,7 +64,7 @@ if _BACKEND == "postgresql":
 
     class DecisionRecordRepository:
         @staticmethod
-        def save(record: Dict[str, Any]) -> str:
+        def save(record: dict[str, Any]) -> str:
             with pg_session() as s:
                 dr = KARLDecisionRecord(
                     decision_id=record["decision_id"],
@@ -84,9 +84,7 @@ if _BACKEND == "postgresql":
                     uncertainty_total=record.get("uncertainty_total", 0.5),
                     confidence_raw=record.get("confidence_raw", 50),
                     confidence_final=record.get("confidence_final", 50),
-                    confidence_adjustments_json=_d(
-                        record.get("confidence_adjustments", [])
-                    ),
+                    confidence_adjustments_json=_d(record.get("confidence_adjustments", [])),
                     final_action=record.get("final_action", "NEUTRAL"),
                     position_pct=record.get("position_pct", 0),
                     kpi_snapshot_json=_d(record.get("kpi_snapshot", {})),
@@ -96,18 +94,13 @@ if _BACKEND == "postgresql":
                 return record["decision_id"]
 
         @staticmethod
-        def get_recent(limit: int = 10) -> List[Dict]:
+        def get_recent(limit: int = 10) -> list[dict]:
             with pg_session() as s:
-                rows = (
-                    s.query(KARLDecisionRecord)
-                    .order_by(KARLDecisionRecord.created_at.desc())
-                    .limit(limit)
-                    .all()
-                )
+                rows = s.query(KARLDecisionRecord).order_by(KARLDecisionRecord.created_at.desc()).limit(limit).all()
                 return [_row_to_karl(r) for r in rows]
 
         @staticmethod
-        def get_by_symbol(symbol: str, limit: int = 100) -> List[Dict]:
+        def get_by_symbol(symbol: str, limit: int = 100) -> list[dict]:
             with pg_session() as s:
                 rows = (
                     s.query(KARLDecisionRecord)
@@ -119,7 +112,7 @@ if _BACKEND == "postgresql":
                 return [_row_to_karl(r) for r in rows]
 
         @staticmethod
-        def count_by_action() -> Dict[str, int]:
+        def count_by_action() -> dict[str, int]:
             with pg_session() as s:
                 from sqlalchemy import func
 
@@ -134,7 +127,7 @@ if _BACKEND == "postgresql":
                 return {str(r[0]): r[1] for r in rows}
 
         @staticmethod
-        def save_batch(records: List[Dict]) -> int:
+        def save_batch(records: list[dict]) -> int:
             with pg_session() as s:
                 for record in records:
                     dr = KARLDecisionRecord(
@@ -155,9 +148,7 @@ if _BACKEND == "postgresql":
                         uncertainty_total=record.get("uncertainty_total", 0.5),
                         confidence_raw=record.get("confidence_raw", 50),
                         confidence_final=record.get("confidence_final", 50),
-                        confidence_adjustments_json=_d(
-                            record.get("confidence_adjustments", [])
-                        ),
+                        confidence_adjustments_json=_d(record.get("confidence_adjustments", [])),
                         final_action=record.get("final_action", "NEUTRAL"),
                         position_pct=record.get("position_pct", 0),
                         kpi_snapshot_json=_d(record.get("kpi_snapshot", {})),
@@ -174,7 +165,7 @@ if _BACKEND == "postgresql":
             signal: str,
             confidence: int,
             reasoning: str,
-            metadata: Optional[Dict] = None,
+            metadata: dict | None = None,
         ) -> None:
             with pg_session() as s:
                 ag = AgentSignal(
@@ -188,7 +179,7 @@ if _BACKEND == "postgresql":
                 s.add(ag)
 
         @staticmethod
-        def get_by_session(session_id: str) -> List[Dict]:
+        def get_by_session(session_id: str) -> list[dict]:
             with pg_session() as s:
                 rows = (
                     s.query(AgentSignal)
@@ -208,7 +199,7 @@ if _BACKEND == "postgresql":
             speed: float,
             nakshatra: str,
             rashi: str,
-            metadata: Optional[Dict] = None,
+            metadata: dict | None = None,
         ) -> None:
             with pg_session() as s:
                 ap = AstroPosition(
@@ -224,13 +215,9 @@ if _BACKEND == "postgresql":
                 s.add(ap)
 
         @staticmethod
-        def get_by_session(session_id: str) -> List[Dict]:
+        def get_by_session(session_id: str) -> list[dict]:
             with pg_session() as s:
-                rows = (
-                    s.query(AstroPosition)
-                    .filter(AstroPosition.session_id == session_id)
-                    .all()
-                )
+                rows = s.query(AstroPosition).filter(AstroPosition.session_id == session_id).all()
                 return [_row_to_astro(r) for r in rows]
 
     class AuditLogRepository:
@@ -239,7 +226,7 @@ if _BACKEND == "postgresql":
             session_id: str,
             decision_id: str,
             action: str,
-            details: Optional[Dict] = None,
+            details: dict | None = None,
         ) -> None:
             with pg_session() as s:
                 al = AuditLogRecord(
@@ -251,14 +238,9 @@ if _BACKEND == "postgresql":
                 s.add(al)
 
         @staticmethod
-        def get_recent(limit: int = 100) -> List[Dict]:
+        def get_recent(limit: int = 100) -> list[dict]:
             with pg_session() as s:
-                rows = (
-                    s.query(AuditLogRecord)
-                    .order_by(AuditLogRecord.created_at.desc())
-                    .limit(limit)
-                    .all()
-                )
+                rows = s.query(AuditLogRecord).order_by(AuditLogRecord.created_at.desc()).limit(limit).all()
                 return [_row_to_audit(r) for r in rows]
 
 
@@ -270,7 +252,7 @@ else:
 
     class DecisionRecordRepository:
         @staticmethod
-        def save(record: Dict[str, Any]) -> str:
+        def save(record: dict[str, Any]) -> str:
             try:
                 save_session(record)
                 return record["decision_id"]
@@ -279,7 +261,7 @@ else:
                 return record["decision_id"]
 
         @staticmethod
-        def get_recent(limit: int = 10) -> List[Dict]:
+        def get_recent(limit: int = 10) -> list[dict]:
             try:
                 sessions = list_sessions(limit=limit)
                 return [s for s in sessions if "decision_id" in s]
@@ -287,7 +269,7 @@ else:
                 return []
 
         @staticmethod
-        def get_by_symbol(symbol: str, limit: int = 100) -> List[Dict]:
+        def get_by_symbol(symbol: str, limit: int = 100) -> list[dict]:
             try:
                 sessions = list_sessions(limit=limit)
                 return [s for s in sessions if s.get("symbol") == symbol]
@@ -295,11 +277,11 @@ else:
                 return []
 
         @staticmethod
-        def count_by_action() -> Dict[str, int]:
+        def count_by_action() -> dict[str, int]:
             return {}
 
         @staticmethod
-        def save_batch(records: List[Dict]) -> int:
+        def save_batch(records: list[dict]) -> int:
             for r in records:
                 DecisionRecordRepository.save(r)
             return len(records)
@@ -312,12 +294,12 @@ else:
             signal: str,
             confidence: int,
             reasoning: str,
-            metadata: Optional[Dict] = None,
+            metadata: dict | None = None,
         ) -> None:
             pass  # SQLite: signals stored inside session JSON
 
         @staticmethod
-        def get_by_session(session_id: str) -> List[Dict]:
+        def get_by_session(session_id: str) -> list[dict]:
             return []
 
     class AstroPositionRepository:
@@ -330,12 +312,12 @@ else:
             speed: float,
             nakshatra: str,
             rashi: str,
-            metadata: Optional[Dict] = None,
+            metadata: dict | None = None,
         ) -> None:
             pass
 
         @staticmethod
-        def get_by_session(session_id: str) -> List[Dict]:
+        def get_by_session(session_id: str) -> list[dict]:
             return []
 
     class AuditLogRepository:
@@ -344,12 +326,12 @@ else:
             session_id: str,
             decision_id: str,
             action: str,
-            details: Optional[Dict] = None,
+            details: dict | None = None,
         ) -> None:
             pass
 
         @staticmethod
-        def get_recent(limit: int = 100) -> List[Dict]:
+        def get_recent(limit: int = 100) -> list[dict]:
             return []
 
 
@@ -370,15 +352,9 @@ def _row_to_karl(r) -> dict:
         "q_values": _l(r.q_values_json),
         "q_star": float(r.q_star) if r.q_star else None,
         "advantage": float(r.advantage) if r.advantage else None,
-        "uncertainty_aleatoric": float(r.uncertainty_aleatoric)
-        if r.uncertainty_aleatoric
-        else None,
-        "uncertainty_epistemic": float(r.uncertainty_epistemic)
-        if r.uncertainty_epistemic
-        else None,
-        "uncertainty_total": float(r.uncertainty_total)
-        if r.uncertainty_total
-        else None,
+        "uncertainty_aleatoric": float(r.uncertainty_aleatoric) if r.uncertainty_aleatoric else None,
+        "uncertainty_epistemic": float(r.uncertainty_epistemic) if r.uncertainty_epistemic else None,
+        "uncertainty_total": float(r.uncertainty_total) if r.uncertainty_total else None,
         "confidence_raw": r.confidence_raw,
         "confidence_final": r.confidence_final,
         "confidence_adjustments": _l(r.confidence_adjustments_json),

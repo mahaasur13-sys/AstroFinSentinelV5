@@ -77,15 +77,10 @@ class RewardCalculator:
 
             # ── Hard constraints ──────────────────────────────────────────
             if result.trades < cfg.min_trades:
-                logger.debug(
-                    f"[META-RL] Reward=0: only {result.trades} trades "
-                    f"(min={cfg.min_trades})"
-                )
+                logger.debug(f"[META-RL] Reward=0: only {result.trades} trades (min={cfg.min_trades})")
                 return cfg.base_reward
 
-            if math.isnan(result.risk_adjusted_pnl) or math.isinf(
-                result.risk_adjusted_pnl
-            ):
+            if math.isnan(result.risk_adjusted_pnl) or math.isinf(result.risk_adjusted_pnl):
                 return cfg.base_reward
 
             # ── 1. Sharpe component ─────────────────────────────────────────
@@ -95,11 +90,7 @@ class RewardCalculator:
             pnl_comp = self._pnl_component(result.risk_adjusted_pnl)
 
             # ── 3. Drawdown penalty — ADJUSTED_DRAWDOWN (ATOM-META-RL-004) ──
-            adj_dd = (
-                result.adjusted_drawdown
-                if result.adjusted_drawdown is not None
-                else result.max_drawdown
-            )
+            adj_dd = result.adjusted_drawdown if result.adjusted_drawdown is not None else result.max_drawdown
             dd_penalty = self._drawdown_penalty(adj_dd)
 
             # ── 4. Execution cost penalty ───────────────────────────────────
@@ -189,17 +180,12 @@ class RewardCalculator:
         ATOM-META-RL-004: All pnl/dd values are risk-adjusted.
         """
         cfg = self.config
-        adj_dd = (
-            result.adjusted_drawdown
-            if result.adjusted_drawdown is not None
-            else result.max_drawdown
-        )
+        adj_dd = result.adjusted_drawdown if result.adjusted_drawdown is not None else result.max_drawdown
         return {
             "sharpe_comp": cfg.sharpe_weight * self._sharpe_component(result.sharpe),
             "pnl_comp": cfg.pnl_weight * self._pnl_component(result.risk_adjusted_pnl),
             "dd_penalty": self._drawdown_penalty(adj_dd),
-            "cost_penalty": cfg.execution_cost_weight
-            * self._execution_cost_penalty(result.execution_cost),
+            "cost_penalty": cfg.execution_cost_weight * self._execution_cost_penalty(result.execution_cost),
             "stability_bonus": self._stability_bonus(result),
             "risk_adj_pnl_used": result.risk_adjusted_pnl,
             "raw_pnl_available_but_not_used": result.pnl,

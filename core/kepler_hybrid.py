@@ -13,7 +13,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import joblib
 
@@ -56,7 +55,7 @@ class ResidualModel:
     ]
 
     def __init__(self):
-        self.model: Optional[object] = None
+        self.model: object | None = None
         self._loaded = False
 
     def _ensure_model(self):
@@ -78,9 +77,7 @@ class ResidualModel:
         jd_norm = (jd - 2451545.0) / 10000.0
         body_enc = {"earth": 0, "jupiter": 1, "saturn": 2}.get(body.lower(), -1)
         elements = OrbitalElementsDB[body.lower()]
-        mean_lon = (
-            elements.mean_longitude + elements.mean_motion * (jd - elements.epoch_jd)
-        ) % 360
+        mean_lon = (elements.mean_longitude + elements.mean_motion * (jd - elements.epoch_jd)) % 360
         sin_orb = math.sin(math.radians(mean_lon))
         cos_orb = math.cos(math.radians(mean_lon))
         is_saturn = 1.0 if body.lower() == "saturn" else 0.0
@@ -99,9 +96,7 @@ class ResidualModel:
         features = [self._features(jd, body)]
         try:
             pred = self.model.predict(features)[0]
-            conf = getattr(self.model, "predict_proba", lambda x: [[0.5, 0.5]])(
-                features
-            )[0]
+            conf = getattr(self.model, "predict_proba", lambda x: [[0.5, 0.5]])(features)[0]
             if hasattr(conf, "__len__") and len(conf) >= 2:
                 confidence = float(max(conf))
             else:
@@ -113,7 +108,7 @@ class ResidualModel:
 
 
 # Singleton instance
-_residual_model: Optional[ResidualModel] = None
+_residual_model: ResidualModel | None = None
 
 
 def get_residual_model() -> ResidualModel:
@@ -176,9 +171,7 @@ def print_hybrid_comparison(jd_start: float = 2451545.0, jd_end: float = 2460000
     import core.ephemeris as eph
 
     bodies = ["earth", "jupiter", "saturn"]
-    print(
-        f"\n{'BODY':<10} {'JD':>10} {'KEPLER':>8} {'CORRECTED':>10} {'CORR_ARCMIN':>12} {'METHOD'}"
-    )
+    print(f"\n{'BODY':<10} {'JD':>10} {'KEPLER':>8} {'CORRECTED':>10} {'CORR_ARCMIN':>12} {'METHOD'}")
     print("-" * 70)
 
     for body in bodies:
@@ -186,8 +179,8 @@ def print_hybrid_comparison(jd_start: float = 2451545.0, jd_end: float = 2460000
             h = hybrid_propagate(jd, body, use_ml=True)
             swiss = eph.calculate_planet(body, jd)
             swiss_lon = swiss.longitude % 360.0
-            delta_raw = (h.kepler_lon - swiss_lon + 180) % 360 - 180
-            delta_corr = (h.corrected_lon - swiss_lon + 180) % 360 - 180
+            (h.kepler_lon - swiss_lon + 180) % 360 - 180
+            (h.corrected_lon - swiss_lon + 180) % 360 - 180
             print(
                 f"{body:<10} {jd:>10.1f} "
                 f"{h.kepler_lon:>8.3f}° "

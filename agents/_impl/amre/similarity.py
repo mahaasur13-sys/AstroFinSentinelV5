@@ -1,7 +1,6 @@
 """amre/similarity.py — Trajectory similarity + Q* estimation"""
 
 import math
-from typing import List
 
 from .trajectory import MarketState, Trajectory
 
@@ -15,21 +14,19 @@ def trajectory_distance(t1: Trajectory, t2: Trajectory) -> float:
     return min(1.0, price_diff + regime_match)
 
 
-def is_similar_trajectory(
-    t1: Trajectory, t2: Trajectory, threshold: float = 0.3
-) -> bool:
+def is_similar_trajectory(t1: Trajectory, t2: Trajectory, threshold: float = 0.3) -> bool:
     return trajectory_distance(t1, t2) < threshold
 
 
-def jensen_shannon_divergence(p: List[float], q: List[float]) -> float:
+def jensen_shannon_divergence(p: list[float], q: list[float]) -> float:
     def kl(a, b):
-        return sum(x * math.log(x / max(y, 1e-10)) for x, y in zip(a, b) if x > 0)
+        return sum(x * math.log(x / max(y, 1e-10)) for x, y in zip(a, b, strict=False) if x > 0)
 
-    m = [(x + y) / 2 for x, y in zip(p, q)]
+    m = [(x + y) / 2 for x, y in zip(p, q, strict=False)]
     return 0.5 * kl(p, m) + 0.5 * kl(q, m)
 
 
-def estimate_q_star(rewards: List[float], method: str = "simple") -> float:
+def estimate_q_star(rewards: list[float], method: str = "simple") -> float:
     if not rewards:
         return 0.0
     if method == "simple":
@@ -58,34 +55,21 @@ def estimate_q_star(rewards: List[float], method: str = "simple") -> float:
     return 0.5
 
 
-def select_top_k_trajectories(
-    trajectories: List[Trajectory], k: int = 5
-) -> List[Trajectory]:
+def select_top_k_trajectories(trajectories: list[Trajectory], k: int = 5) -> list[Trajectory]:
     if len(trajectories) <= k:
         return trajectories
-    scored = [
-        (t, sum(s.confidence for s in t.steps) / max(len(t.steps), 1))
-        for t in trajectories
-    ]
+    scored = [(t, sum(s.confidence for s in t.steps) / max(len(t.steps), 1)) for t in trajectories]
     scored.sort(key=lambda x: x[1], reverse=True)
     return [t for t, _ in scored[:k]]
 
 
-def knn_q_star(
-    state: MarketState, buffer_trajectories: List[Trajectory], k: int = 5
-) -> float:
+def knn_q_star(state: MarketState, buffer_trajectories: list[Trajectory], k: int = 5) -> float:
     if not buffer_trajectories:
         return estimate_q_star([])
-    scored = [
-        (t, trajectory_distance(t, trajectory_from_state(state)))
-        for t in buffer_trajectories
-    ]
+    scored = [(t, trajectory_distance(t, trajectory_from_state(state))) for t in buffer_trajectories]
     scored.sort(key=lambda x: x[1])
     neighbors = [s for s, d in scored[:k]]
     if not neighbors:
         return 0.5
-    rewards = [
-        sum(st.confidence / 100.0 for st in t.steps) / max(len(t.steps), 1)
-        for t in neighbors
-    ]
+    rewards = [sum(st.confidence / 100.0 for st in t.steps) / max(len(t.steps), 1) for t in neighbors]
     return sum(rewards) / len(rewards)

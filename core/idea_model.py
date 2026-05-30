@@ -8,7 +8,6 @@
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
 
 
 class IdeaStatus(Enum):
@@ -38,12 +37,12 @@ class Idea:
     category: str
     status: str
     score: float
-    linked_trajectories: List[str] = field(default_factory=list)
+    linked_trajectories: list[str] = field(default_factory=list)
     impact_score: float = 0.0
     created_at: str = ""
-    tested_at: Optional[str] = None
-    evaluated_at: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    tested_at: str | None = None
+    evaluated_at: str | None = None
+    tags: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.created_at:
@@ -88,7 +87,7 @@ class Idea:
         ]
 
     def items(self):
-        return dict(zip(self.keys(), [getattr(self, k) for k in self.keys()]))
+        return dict(zip(self.keys(), [getattr(self, k) for k in self.keys()], strict=False))
 
     def stage(self) -> IdeaStage:
         if self.status == IdeaStatus.PROPOSED.value:

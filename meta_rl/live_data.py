@@ -20,7 +20,6 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 import numpy as np
 
@@ -119,9 +118,9 @@ class LiveDataProvider:
 
     def __init__(
         self,
-        sandbox: Optional[bool] = None,
+        sandbox: bool | None = None,
         symbol: str = "BTC/USDT",
-        exchange: Optional[str] = None,
+        exchange: str | None = None,
         rate_limit_ms: int = CCXT_RATE_LIMIT,
     ):
         self.sandbox = sandbox if sandbox is not None else CCXT_SANDBOX_MODE
@@ -141,7 +140,7 @@ class LiveDataProvider:
 
     def fetch_ohlcv(
         self,
-        symbol: Optional[str] = None,
+        symbol: str | None = None,
         interval: str = "1h",
         limit: int = 500,
     ) -> list[dict]:
@@ -195,12 +194,10 @@ class LiveDataProvider:
             return result
 
         except Exception as e:
-            logger.warning(
-                f"[LIVE-DATA] Fetch failed for {sym}: {e} — using sandbox fallback"
-            )
+            logger.warning(f"[LIVE-DATA] Fetch failed for {sym}: {e} — using sandbox fallback")
             return self._sandbox_ohlcv(sym, interval, limit)
 
-    def fetch_ticker(self, symbol: Optional[str] = None) -> dict:
+    def fetch_ticker(self, symbol: str | None = None) -> dict:
         """Fetch current ticker (last price, 24h change, etc.)."""
         sym = self.SYMBOLS.get(symbol or self.symbol, symbol or self.symbol)
 
@@ -234,7 +231,7 @@ class LiveDataProvider:
             logger.warning(f"[LIVE-DATA] Ticker fetch failed for {sym}: {e}")
             return {}
 
-    def get_latest_price(self, symbol: Optional[str] = None) -> float:
+    def get_latest_price(self, symbol: str | None = None) -> float:
         """Get latest close price (convenience method)."""
         bars = self.fetch_ohlcv(symbol, "1h", 1)
         return bars[-1]["close"] if bars else 0.0
@@ -355,7 +352,7 @@ class LiveDataProvider:
 
         ohlcv = []
         drift = 0.0  # starts neutral
-        regime_prob = np.random.random()
+        np.random.random()
 
         for i in range(limit):
             ts = int(now.timestamp()) - (limit - i) * dt_seconds
@@ -468,9 +465,7 @@ class LiveDataProvider:
 
 
 # Convenience factory
-def create_live_provider(
-    symbol: str = "BTC/USDT", sandbox: bool = None
-) -> LiveDataProvider:
+def create_live_provider(symbol: str = "BTC/USDT", sandbox: bool = None) -> LiveDataProvider:
     """Factory for LiveDataProvider with sensible defaults."""
     return LiveDataProvider(
         sandbox=sandbox if sandbox is not None else CCXT_SANDBOX_MODE,

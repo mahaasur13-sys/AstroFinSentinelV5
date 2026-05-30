@@ -19,7 +19,7 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -87,33 +87,25 @@ class LagWindow:
 
     def __init__(
         self,
-        adaptive_window_enabled: Optional[bool] = None,
-        base_window_size: Optional[int] = None,
-        min_window_size: Optional[int] = None,
-        max_window_size: Optional[int] = None,
-        volatility_low_threshold: Optional[float] = None,
-        volatility_high_threshold: Optional[float] = None,
+        adaptive_window_enabled: bool | None = None,
+        base_window_size: int | None = None,
+        min_window_size: int | None = None,
+        max_window_size: int | None = None,
+        volatility_low_threshold: float | None = None,
+        volatility_high_threshold: float | None = None,
     ):
         # Env-driven defaults with constructor overrides
         self.adaptive_enabled = (
-            adaptive_window_enabled
-            if adaptive_window_enabled is not None
-            else _env_bool("LAG_ADAPTIVE_WINDOW", "true")
+            adaptive_window_enabled if adaptive_window_enabled is not None else _env_bool("LAG_ADAPTIVE_WINDOW", "true")
         )
         self.base_window_size = (
-            base_window_size
-            if base_window_size is not None
-            else _env_int("LAG_BASE_WINDOW_SIZE", DEFAULT_BASE_WINDOW)
+            base_window_size if base_window_size is not None else _env_int("LAG_BASE_WINDOW_SIZE", DEFAULT_BASE_WINDOW)
         )
         self.min_window_size = (
-            min_window_size
-            if min_window_size is not None
-            else _env_int("LAG_MIN_WINDOW_SIZE", DEFAULT_MIN_WINDOW)
+            min_window_size if min_window_size is not None else _env_int("LAG_MIN_WINDOW_SIZE", DEFAULT_MIN_WINDOW)
         )
         self.max_window_size = (
-            max_window_size
-            if max_window_size is not None
-            else _env_int("LAG_MAX_WINDOW_SIZE", DEFAULT_MAX_WINDOW)
+            max_window_size if max_window_size is not None else _env_int("LAG_MAX_WINDOW_SIZE", DEFAULT_MAX_WINDOW)
         )
         self.vol_low = (
             volatility_low_threshold
@@ -129,9 +121,9 @@ class LagWindow:
         # Internal state
         self.window_size = self.base_window_size
         self.alpha: float = 2.0 / (self.window_size + 1)
-        self._ema: Optional[float] = None
+        self._ema: float | None = None
         self._count: int = 0
-        self._position_history: List[float] = []
+        self._position_history: list[float] = []
 
         logger.debug(
             f"[LagWindow] init: adaptive={self.adaptive_enabled} "
@@ -182,8 +174,8 @@ class LagWindow:
         self,
         confidence: int,
         position_pct: float = 0.0,
-        volatility: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        volatility: float | None = None,
+    ) -> dict[str, Any]:
         """
         Обработать новое значение confidence через EMA smoothing.
 
@@ -268,7 +260,7 @@ class LagWindow:
 
     # ─── Diagnostic getters ───────────────────────────────────────────────────
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """Вернуть текущее состояние для диагностики."""
         return {
             "ema": round(self._ema, 4) if self._ema is not None else None,
@@ -291,7 +283,7 @@ class LagWindow:
 
 # ─── Global singleton ─────────────────────────────────────────────────────────
 
-_LAG_WINDOW: Optional[LagWindow] = None
+_LAG_WINDOW: LagWindow | None = None
 
 
 def get_lag_window() -> LagWindow:

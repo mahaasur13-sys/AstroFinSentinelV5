@@ -19,7 +19,6 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -72,7 +71,7 @@ class CalibrationResult:
 
 def _mae_loss(elements: OrbitalElements, body: str, jd_samples: np.ndarray) -> float:
     """Mean Absolute Error between Kepler and SwissEph (geocentric) over JD samples."""
-    orbit = KeplerOrbit(elements)
+    KeplerOrbit(elements)
     total_error = 0.0
     n = 0
 
@@ -82,9 +81,7 @@ def _mae_loss(elements: OrbitalElements, body: str, jd_samples: np.ndarray) -> f
         # Keplerian mean longitude (degrees)
         mean_motion = elements.mean_motion  # deg/day
         epoch_jd = elements.epoch_jd
-        mean_lon_kepler = (
-            elements.mean_longitude + mean_motion * (jd - epoch_jd)
-        ) % 360.0
+        mean_lon_kepler = (elements.mean_longitude + mean_motion * (jd - epoch_jd)) % 360.0
 
         # Swiss Ephemeris geocentric longitude
         try:
@@ -112,7 +109,7 @@ def _gradient_free_step(
     body: str,
     jd_samples: np.ndarray,
     step_size: float = 0.01,
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> OrbitalElements:
     """
     Gradient-free parameter update: try small random perturbations in each
@@ -124,7 +121,7 @@ def _gradient_free_step(
     if rng is None:
         rng = np.random.default_rng()
 
-    orbit = KeplerOrbit(elements)
+    KeplerOrbit(elements)
     current_loss = _mae_loss(elements, body, jd_samples)
 
     # Key dimensions to perturb (normalized sensitivity)
@@ -267,7 +264,7 @@ class KeplerCalibrator:
             if new_mae < current_mae:
                 current_elements = new_elements
                 current_mae = new_mae
-                improvement = best_mae - new_mae
+                best_mae - new_mae
                 if new_mae < best_mae:
                     best_mae = new_mae
                     best_elements = new_elements
@@ -279,23 +276,16 @@ class KeplerCalibrator:
 
             # ── Logging every 10 episodes ───────────────────────────────────
             if ep % 10 == 0 or ep == 1:
-                print(
-                    f"  Ep {ep:3d}: MAE={current_mae:8.4f}° "
-                    f"(best={best_mae:.4f}°) reward={reward:+.6f}"
-                )
+                print(f"  Ep {ep:3d}: MAE={current_mae:8.4f}° (best={best_mae:.4f}°) reward={reward:+.6f}")
 
             # ── Convergence check ───────────────────────────────────────────
             if current_mae < self.convergence_threshold_deg and patience_counter >= 5:
                 converged = True
-                print(
-                    f"  ✅ Converged at episode {ep} (MAE < {self.convergence_threshold_deg}°)"
-                )
+                print(f"  ✅ Converged at episode {ep} (MAE < {self.convergence_threshold_deg}°)")
                 break
 
             if patience_counter >= self.patience:
-                print(
-                    f"  ⏹️  Early stop at episode {ep} (no improvement for {self.patience} steps)"
-                )
+                print(f"  ⏹️  Early stop at episode {ep} (no improvement for {self.patience} steps)")
                 break
 
         improvement_pct = ((original_mae - best_mae) / max(original_mae, 1e-9)) * 100

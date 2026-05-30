@@ -23,11 +23,7 @@ def julian_day_to_local_sidereal_time(jd: float, longitude: float) -> float:
     """Конверсия JD в местное звёздное время"""
     # Greenwich Sidereal Time
     T = (jd - 2451545.0) / 36525.0
-    GST = (
-        280.46061837
-        + 360.98564736629 * (jd - 2451545.0)
-        + T * T * (0.000387933 - T / 38710000.0)
-    )
+    GST = 280.46061837 + 360.98564736629 * (jd - 2451545.0) + T * T * (0.000387933 - T / 38710000.0)
     GST = GST % 360
     # Местное
     LST = (GST + longitude) % 360
@@ -76,9 +72,7 @@ def normalize_degrees(deg: float) -> float:
     return deg
 
 
-def calculate_ascendant(
-    local_sidereal_time: float, latitude: float, obliquity: float = 23.4393
-) -> float:
+def calculate_ascendant(local_sidereal_time: float, latitude: float, obliquity: float = 23.4393) -> float:
     """
     Расчёт Асцендента
 
@@ -111,9 +105,7 @@ def calculate_ascendant(
     return normalize_degrees(asc)
 
 
-def calculate_midheaven(
-    local_sidereal_time: float, obliquity: float = 23.4393
-) -> float:
+def calculate_midheaven(local_sidereal_time: float, obliquity: float = 23.4393) -> float:
     """
     Расчёт Середины Неба (MC)
 
@@ -130,9 +122,7 @@ def calculate_midheaven(
     obl_rad = math.radians(obliquity)
     lst_rad = math.radians(local_sidereal_time)
 
-    mc = math.degrees(
-        math.atan2(math.sin(lst_rad) * math.cos(obl_rad), math.cos(lst_rad))
-    )
+    mc = math.degrees(math.atan2(math.sin(lst_rad) * math.cos(obl_rad), math.cos(lst_rad)))
 
     return normalize_degrees(mc)
 

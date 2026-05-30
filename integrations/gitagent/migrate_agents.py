@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
@@ -113,7 +113,7 @@ DOMAIN_DEFAULTS = {
 DEFAULT_MODEL = {"provider": "openai", "name": "gpt-4o-mini", "temperature": 0.3}
 
 
-def infer_domain(name: str, data: Dict[str, Any]) -> str:
+def infer_domain(name: str, data: dict[str, Any]) -> str:
     if "domain" in data and data["domain"]:
         return data["domain"]
     name_lower = name.lower()
@@ -133,9 +133,7 @@ def infer_name(name_raw: Any) -> str:
     name = name_raw.lower()
     # Replace uppercase runs (like "MacroAgent") with snake_case
     # e.g. "MacroAgent" → "macro_agent", "MLPredictorAgent" → "ml_predictor_agent"
-    name = re.sub(
-        r"([A-Z]+(?=[A-Z][a-z])|[A-Z][a-z]+)", lambda m: m.group(1).lower(), name
-    )
+    name = re.sub(r"([A-Z]+(?=[A-Z][a-z])|[A-Z][a-z]+)", lambda m: m.group(1).lower(), name)
     name = re.sub(r"([A-Z]+)", lambda m: "_" + m.group(1).lower(), name)
     name = re.sub(r"_+", "_", name).strip("_")
     return name
@@ -151,7 +149,7 @@ def fix_sources(oschema: Any) -> Any:
     return oschema
 
 
-def migrate_agent(yaml_path: Path) -> Dict[str, Any]:
+def migrate_agent(yaml_path: Path) -> dict[str, Any]:
     """Load, migrate, and return agent data dict."""
     with open(yaml_path) as f:
         data = yaml.safe_load(f)
@@ -188,11 +186,7 @@ def migrate_agent(yaml_path: Path) -> Dict[str, Any]:
             content = duties_path.read_text()
             caps = re.findall(r"##?\s*(\w[\w\s]*?)(?:\n|$)", content[:500])
             if caps:
-                data["capabilities"] = [
-                    c.strip().lower().replace(" ", "_")
-                    for c in caps[:5]
-                    if len(c.strip()) > 3
-                ]
+                data["capabilities"] = [c.strip().lower().replace(" ", "_") for c in caps[:5] if len(c.strip()) > 3]
         if not data.get("capabilities"):
             data["capabilities"] = domain_defaults["capabilities"]
 
@@ -233,9 +227,7 @@ def migrate_agent(yaml_path: Path) -> Dict[str, Any]:
 
 def migrate_all():
     """Migrate all agent.yaml files in integrations/gitagent/."""
-    agent_dirs = [
-        d for d in BASE_DIR.iterdir() if d.is_dir() and (d / "agent.yaml").exists()
-    ]
+    agent_dirs = [d for d in BASE_DIR.iterdir() if d.is_dir() and (d / "agent.yaml").exists()]
     agent_dirs.sort()
 
     results = []

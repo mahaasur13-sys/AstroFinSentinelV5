@@ -14,7 +14,7 @@ Flow (conditional, не sequential):
 
 import asyncio
 from operator import add
-from typing import Annotated, List, Literal, Optional, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -36,33 +36,33 @@ class AgentState(TypedDict, total=False):
     query: str
     timeframe: str
     current_price: float
-    birth_data: Optional[dict]
+    birth_data: dict | None
     include_technical: bool
     include_astro: bool
     include_electoral: bool
-    query_type: Optional[str]  # ELECTIONAL_ONLY, TECHNICAL_ONLY, etc.
+    query_type: str | None  # ELECTIONAL_ONLY, TECHNICAL_ONLY, etc.
     include_electoral_only: bool  # True when router requests election-only flow
 
     # Thompson selection results per flow
     thompson_selections: dict
 
     # Agent results (None if flow skipped)
-    technical_result: Optional[dict]
-    astro_council_result: Optional[dict]
-    electoral_result: Optional[dict]
+    technical_result: dict | None
+    astro_council_result: dict | None
+    electoral_result: dict | None
 
     # Final synthesis
     synthesis_result: dict
-    final_recommendation: Optional[dict]
+    final_recommendation: dict | None
 
-    errors: Annotated[List[str], add]
+    errors: Annotated[list[str], add]
     session_id: str
     started_at: str
 
 
 # ─── Thompson + Belief helpers ─────────────────────────────────────────────────
 
-_sampler: Optional[ThompsonSampler] = None
+_sampler: ThompsonSampler | None = None
 
 
 def _sampler() -> ThompsonSampler:
@@ -91,11 +91,7 @@ def _pool_decide(pool: AgentPool, k_override: int = None) -> tuple[bool, list[st
     pool_agents = pool.agents
 
     # Resolve K: explicit arg > pool.k > default_k from sampler
-    k_resolved = (
-        k_override
-        if k_override is not None
-        else (pool.k if pool.k is not None else sampler.default_k)
-    )
+    k_resolved = k_override if k_override is not None else (pool.k if pool.k is not None else sampler.default_k)
     k = max(k_resolved, pool.min_select)
     k = min(k, len(pool_agents))
 
@@ -136,9 +132,7 @@ def _pool_decide(pool: AgentPool, k_override: int = None) -> tuple[bool, list[st
     selected = [name for name, _ in eligible[:k]]
 
     if below:
-        print(
-            f"[BeliefGuard] '{pool.name}' — filtered (low utility): {below} | selected: {selected}"
-        )
+        print(f"[BeliefGuard] '{pool.name}' — filtered (low utility): {below} | selected: {selected}")
 
     should_run = len(selected) >= pool.min_select
     return should_run, selected
@@ -171,7 +165,7 @@ def _run_technical_agents(state: AgentState, selected: list[str]) -> dict:
     results = asyncio.run(asyncio.gather(*tasks, return_exceptions=True))
 
     merged = {}
-    for name, r in zip(names, results):
+    for name, r in zip(names, results, strict=False):
         if isinstance(r, Exception):
             from agents.base_agent import AgentResponse, SignalDirection
 
@@ -185,9 +179,7 @@ def _run_technical_agents(state: AgentState, selected: list[str]) -> dict:
         elif hasattr(r, "model_dump"):  # AgentResponse Pydantic model
             merged[f"{name.lower()}_signal"] = r.model_dump()
         elif isinstance(r, dict):
-            merged[f"{name.lower()}_signal"] = r.get(f"{name.lower()}_signal") or (
-                list(r.values())[0] if r else {}
-            )
+            merged[f"{name.lower()}_signal"] = r.get(f"{name.lower()}_signal") or (list(r.values())[0] if r else {})
         else:
             merged[f"{name.lower()}_signal"] = {"signal": "NEUTRAL", "confidence": 0}
     return merged

@@ -7,7 +7,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # =============================================================================
 # ATOM-KARL-009: Full Decision Record
@@ -46,7 +46,7 @@ class TrajectoryScore:
     trajectory_id: str
     score: float
     regime: str
-    signals: List[str]
+    signals: list[str]
 
 
 @dataclass
@@ -101,13 +101,13 @@ class DecisionRecord:
     state_hash: str  # Хеш состояния для воспроизводимости
 
     # Траектории
-    top_trajectories: List[TrajectorySnapshot]
+    top_trajectories: list[TrajectorySnapshot]
 
     # Ансамбль
-    selected_ensemble: List[EnsembleMember]
+    selected_ensemble: list[EnsembleMember]
 
     # Q-values
-    q_values: List[float]
+    q_values: list[float]
     q_star: float
     advantage: float
 
@@ -119,7 +119,7 @@ class DecisionRecord:
     # Confidence
     confidence_raw: int
     confidence_final: int
-    confidence_adjustments: List[str]
+    confidence_adjustments: list[str]
 
     # Решение
     final_action: str  # LONG / SHORT / NEUTRAL
@@ -128,7 +128,7 @@ class DecisionRecord:
     # KPI
     kpi_snapshot: KPISnapshot
     # Метаданные
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     # Meta-RL → KARL: risk-adjusted PnL (ATOM-META-RL-005)
     risk_adjusted_pnl: float = 0.0
 
@@ -141,9 +141,7 @@ class DecisionRecord:
 
     def compute_hash(self) -> str:
         """Вычисляет хеш записи для верификации"""
-        key_data = (
-            f"{self.decision_id}:{self.state_hash}:{self.q_star}:{self.final_action}"
-        )
+        key_data = f"{self.decision_id}:{self.state_hash}:{self.q_star}:{self.final_action}"
         return hashlib.sha256(key_data.encode()).hexdigest()[:16]
 
     @classmethod
@@ -197,7 +195,7 @@ class MetaRLDecisionRecord:
 
     # ATOM-META-RL-005: Risk-adjusted PnL
     risk_adjusted_pnl: float
-    risk_adjustment_reason: Optional[str]
+    risk_adjustment_reason: str | None
 
     # Reward
     reward: float
@@ -208,7 +206,7 @@ class MetaRLDecisionRecord:
     symbol: str
 
     # Metadata
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
     def to_dict(self) -> dict:
         """Serialize to dict for storage."""
@@ -309,7 +307,7 @@ def record_meta_rl_decision(
     scored: Any,
     market_data: dict,
     session_id: str = "default",
-) -> Optional[MetaRLDecisionRecord]:
+) -> MetaRLDecisionRecord | None:
     """
     ATOM-META-RL-006: Factory — create and record a MetaRLDecisionRecord
     from a ScoredStrategy after evaluation.
@@ -340,9 +338,7 @@ def record_meta_rl_decision(
         # Extract strategy params
         if hasattr(scored.strategy, "chromosome"):
             params = scored.strategy.chromosome
-        elif hasattr(scored.strategy, "config") and hasattr(
-            scored.strategy.config, "params"
-        ):
+        elif hasattr(scored.strategy, "config") and hasattr(scored.strategy.config, "params"):
             params = scored.strategy.config.params
         else:
             params = {}
@@ -360,10 +356,7 @@ def record_meta_rl_decision(
 
         # Strategy metadata
         strategy_name = (
-            (
-                getattr(scored.strategy, "config", None)
-                and getattr(scored.strategy.config, "name", None)
-            )
+            (getattr(scored.strategy, "config", None) and getattr(scored.strategy.config, "name", None))
             or getattr(scored.strategy, "name", "unknown")
             or "unknown"
         )
@@ -419,10 +412,10 @@ class AuditLog:
     """Хранилище всех DecisionRecord с индексами для быстрого поиска"""
 
     def __init__(self):
-        self.records: List[DecisionRecord] = []
-        self._by_symbol: Dict[str, List[DecisionRecord]] = {}
-        self._by_regime: Dict[str, List[DecisionRecord]] = {}
-        self._by_action: Dict[str, List[DecisionRecord]] = {}
+        self.records: list[DecisionRecord] = []
+        self._by_symbol: dict[str, list[DecisionRecord]] = {}
+        self._by_regime: dict[str, list[DecisionRecord]] = {}
+        self._by_action: dict[str, list[DecisionRecord]] = {}
 
     def record(self, record: DecisionRecord):
         """Добавить запись решения"""
@@ -441,33 +434,31 @@ class AuditLog:
             self._by_action[record.final_action] = []
         self._by_action[record.final_action].append(record)
 
-    def get_recent(self, n: int = 10) -> List[DecisionRecord]:
+    def get_recent(self, n: int = 10) -> list[DecisionRecord]:
         return self.records[-n:]
 
-    def get_by_symbol(self, symbol: str) -> List[DecisionRecord]:
+    def get_by_symbol(self, symbol: str) -> list[DecisionRecord]:
         return self._by_symbol.get(symbol, [])
 
-    def get_by_regime(self, regime: str) -> List[DecisionRecord]:
+    def get_by_regime(self, regime: str) -> list[DecisionRecord]:
         return self._by_regime.get(regime, [])
 
-    def get_by_action(self, action: str) -> List[DecisionRecord]:
+    def get_by_action(self, action: str) -> list[DecisionRecord]:
         return self._by_action.get(action, [])
 
-    def find_by_state_hash(self, state_hash: str) -> Optional[DecisionRecord]:
+    def find_by_state_hash(self, state_hash: str) -> DecisionRecord | None:
         """Воспроизвести конкретное решение по хешу состояния"""
         for r in self.records:
             if r.state_hash == state_hash:
                 return r
         return None
 
-    def find_similar(
-        self, regime: str, action: str, n: int = 5
-    ) -> List[DecisionRecord]:
+    def find_similar(self, regime: str, action: str, n: int = 5) -> list[DecisionRecord]:
         """Найти похожие решения для анализа"""
         candidates = self._by_regime.get(regime, [])
         return [r for r in candidates if r.final_action == action][-n:]
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Статистика по всем решениям"""
         if not self.records:
             return {"total": 0, "avg_confidence": 0, "pass_rate": 0}
@@ -496,12 +487,10 @@ class AuditLog:
             "regime_distribution": regime_dist,
             "high_confidence_ratio": round(success_rate, 3),
             "avg_q_star": round(sum(r.q_star for r in self.records) / total, 4),
-            "avg_uncertainty": round(
-                sum(r.uncertainty_total for r in self.records) / total, 4
-            ),
+            "avg_uncertainty": round(sum(r.uncertainty_total for r in self.records) / total, 4),
         }
 
-    def analyze_drift(self) -> Dict[str, Any]:
+    def analyze_drift(self) -> dict[str, Any]:
         """Анализ OAP drift — деградирует ли система глобально"""
         if len(self.records) < 10:
             return {"status": "insufficient_data", "records": len(self.records)}
@@ -530,9 +519,7 @@ class AuditLog:
             "confidence_drift": round(drift_conf, 2),
             "q_star_drift": round(drift_q, 4),
             "uncertainty_drift": round(drift_unc, 4),
-            "recent_high_conf_pct": round(
-                len([r for r in q4 if r.confidence_final >= 70]) / len(q4), 3
-            ),
+            "recent_high_conf_pct": round(len([r for r in q4 if r.confidence_final >= 70]) / len(q4), 3),
         }
 
     def export_json(self) -> str:
@@ -550,7 +537,7 @@ class AuditLog:
 # Global singleton
 # =============================================================================
 
-_AUDIT_LOG: Optional[AuditLog] = None
+_AUDIT_LOG: AuditLog | None = None
 
 
 def get_audit_log() -> AuditLog:
@@ -580,18 +567,18 @@ def build_decision_record(
     timeframe: str,
     regime: str,
     state_hash: str,
-    top_trajectories: List[Dict],
-    selected_ensemble: List[Dict],
-    q_values: List[float],
+    top_trajectories: list[dict],
+    selected_ensemble: list[dict],
+    q_values: list[float],
     q_star: float,
-    uncertainty: Dict[str, float],
+    uncertainty: dict[str, float],
     confidence_raw: int,
     confidence_final: int,
-    confidence_adjustments: List[str],
+    confidence_adjustments: list[str],
     final_action: str,
     position_pct: float,
-    kpi_snapshot: Dict[str, float],
-    metadata: Optional[Dict[str, Any]] = None,
+    kpi_snapshot: dict[str, float],
+    metadata: dict[str, Any] | None = None,
     # ATOM-META-RL-005: Meta-RL → KARL flow
     risk_adjusted_pnl: float = 0.0,
 ) -> DecisionRecord:

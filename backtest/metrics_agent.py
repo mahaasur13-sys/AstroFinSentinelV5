@@ -19,7 +19,6 @@ import statistics
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 # ─── Dataclasses ───────────────────────────────────────────────────────────────
 
@@ -147,9 +146,7 @@ class MetricsDB:
             c.executescript(_SCHEMA)
             # Add timeframe column if missing ( preexisting DB)
             try:
-                c.execute(
-                    "ALTER TABLE backtest_runs ADD COLUMN timeframe TEXT NOT NULL DEFAULT 'SWING'"
-                )
+                c.execute("ALTER TABLE backtest_runs ADD COLUMN timeframe TEXT NOT NULL DEFAULT 'SWING'")
                 c.commit()
             except Exception:
                 pass
@@ -185,9 +182,9 @@ class MetricsDB:
         args.append(limit)
         with self._conn() as c:
             rows = c.execute(sql, args).fetchall()
-        return [BacktestRun(**dict(zip(cols, row))) for row in rows]
+        return [BacktestRun(**dict(zip(cols, row, strict=False))) for row in rows]
 
-    def summary(self, symbol: str = None, days: int = 90) -> Optional[MetricsSummary]:
+    def summary(self, symbol: str = None, days: int = 90) -> MetricsSummary | None:
         where = "WHERE created_at >= datetime('now', ?)"
         args = [f"-{days} days"]
         if symbol:
@@ -226,9 +223,7 @@ class MetricsDB:
             first_wr = statistics.mean(r.win_rate for r in first_half)
             second_wr = statistics.mean(r.win_rate for r in second_half)
             delta = second_wr - first_wr
-            trending = (
-                "improving" if delta > 2 else "declining" if delta < -2 else "stable"
-            )
+            trending = "improving" if delta > 2 else "declining" if delta < -2 else "stable"
         else:
             trending = "stable"
 
@@ -264,7 +259,7 @@ class MetricsDB:
 
 # ─── Singleton ────────────────────────────────────────────────────────────────
 
-_db: Optional[MetricsDB] = None
+_db: MetricsDB | None = None
 
 
 def _get_db() -> MetricsDB:
@@ -346,7 +341,7 @@ def record(
     return _get_db().save(run)
 
 
-def get_summary(symbol: str = None, days: int = 90) -> Optional[MetricsSummary]:
+def get_summary(symbol: str = None, days: int = 90) -> MetricsSummary | None:
     return _get_db().summary(symbol=symbol, days=days)
 
 

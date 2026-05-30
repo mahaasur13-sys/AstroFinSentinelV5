@@ -6,7 +6,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .trajectory import MarketState, Trajectory
 
@@ -25,9 +25,7 @@ class RewardState:
         self.count: int = 0
 
 
-def update_reward_ema(
-    previous: float, current: float, alpha: float = EMA_ALPHA
-) -> float:
+def update_reward_ema(previous: float, current: float, alpha: float = EMA_ALPHA) -> float:
     """
     EMA smoothing: new = alpha * current + (1 - alpha) * previous.
     α = 0.3 → responsive but not noisy.
@@ -42,11 +40,11 @@ def update_reward_ema(
 class CalibrationMetrics:
     """Tracks calibration quality of reward predictions."""
 
-    predictions: List[float]  # predicted rewards
-    actuals: List[float]  # actual outcomes
+    predictions: list[float]  # predicted rewards
+    actuals: list[float]  # actual outcomes
     n_samples: int
     calibration_error: float  # ECE (Expected Calibration Error)
-    reliability_diagram: List[Tuple[float, float]]  # (bin_center, accuracy)
+    reliability_diagram: list[tuple[float, float]]  # (bin_center, accuracy)
 
 
 class RewardCalibrator:
@@ -86,7 +84,7 @@ class RewardCalibrator:
 
         # Simple linear Platt on binned data
         bins = [[] for _ in range(self.n_bins)]
-        for p, a in zip(preds, acts):
+        for p, a in zip(preds, acts, strict=False):
             bin_idx = min(int(p * self.n_bins), self.n_bins - 1)
             bins[bin_idx].append((p, a))
 
@@ -106,7 +104,7 @@ class RewardCalibrator:
             n = len(bin_centers)
             sum_x = sum(bin_centers)
             sum_y = sum(bin_accs)
-            sum_xy = sum(c * a for c, a in zip(bin_centers, bin_accs))
+            sum_xy = sum(c * a for c, a in zip(bin_centers, bin_accs, strict=False))
             sum_xx = sum(c * c for c in bin_centers)
             denom = n * sum_xx - sum_x * sum_x
             if abs(denom) > 1e-9:
@@ -116,12 +114,12 @@ class RewardCalibrator:
 
         self._compute_ece(bin_centers, bin_accs)
 
-    def _compute_ece(self, bin_centers: List[float], bin_accs: List[float]):
+    def _compute_ece(self, bin_centers: list[float], bin_accs: list[float]):
         """Compute Expected Calibration Error."""
-        total = sum(abs(c - a) for c, a in zip(bin_centers, bin_accs) if c > 0)
+        total = sum(abs(c - a) for c, a in zip(bin_centers, bin_accs, strict=False) if c > 0)
         count = sum(1 for c in bin_centers if c > 0)
         self.metrics.calibration_error = total / count if count > 0 else 1.0
-        self.metrics.reliability_diagram = list(zip(bin_centers, bin_accs))
+        self.metrics.reliability_diagram = list(zip(bin_centers, bin_accs, strict=False))
 
     def calibrate(self, raw_reward: float) -> float:
         """Apply Platt scaling to raw reward prediction."""
@@ -134,7 +132,7 @@ class RewardCalibrator:
         except OverflowError:
             return 0.0 if z < 0 else 1.0
 
-    def get_calibration_report(self) -> Dict[str, Any]:
+    def get_calibration_report(self) -> dict[str, Any]:
         """Return calibration diagnostics."""
         if self.metrics.n_samples < 10:
             return {"status": "insufficient_data", "n": self.metrics.n_samples}
@@ -146,9 +144,7 @@ class RewardCalibrator:
             "slope": round(self.slope, 4),
             "intercept": round(self.intercept, 4),
             "reliability_diagram": [
-                {"bin": round(c, 3), "accuracy": round(a, 3)}
-                for c, a in self.metrics.reliability_diagram
-                if c > 0
+                {"bin": round(c, 3), "accuracy": round(a, 3)} for c, a in self.metrics.reliability_diagram if c > 0
             ],
         }
 
@@ -178,11 +174,9 @@ class FalseCorrelationDetector:
 
     def __init__(self, min_samples_for_trust: int = 20):
         self.min_samples = min_samples_for_trust
-        self.sample_history: List[Tuple[int, float]] = []  # (n_samples, reward)
+        self.sample_history: list[tuple[int, float]] = []  # (n_samples, reward)
 
-    def assess(
-        self, n_samples: int, raw_reward: float, regime: str
-    ) -> CorrelationPenalty:
+    def assess(self, n_samples: int, raw_reward: float, regime: str) -> CorrelationPenalty:
         """Assess whether reward is spurious and apply penalty."""
         self.sample_history.append((n_samples, raw_reward))
 
@@ -193,9 +187,7 @@ class FalseCorrelationDetector:
         if n_samples < self.min_samples and raw_reward > 0.7:
             lucky_factor = raw_reward * (1 - n_samples / self.min_samples)
             penalty += lucky_factor * 0.4
-            reasons.append(
-                f"lucky_streak: n={n_samples}<{self.min_samples}, reward={raw_reward:.3f}"
-            )
+            reasons.append(f"lucky_streak: n={n_samples}<{self.min_samples}, reward={raw_reward:.3f}")
 
         # Rule 2: Regime instability — reward swings wildly across recent samples
         if len(self.sample_history) >= 5:
@@ -218,12 +210,10 @@ class FalseCorrelationDetector:
                 # If more data → lower reward, suspicious
                 if late_avg < early_avg - 0.1 and raw_reward > 0.5:
                     penalty += 0.25
-                    reasons.append(
-                        f"sample_inverse: early={early_avg:.3f} > late={late_avg:.3f}"
-                    )
+                    reasons.append(f"sample_inverse: early={early_avg:.3f} > late={late_avg:.3f}")
 
         is_spurious = penalty > 0.3
-        adjusted = max(0.0, raw_reward - penalty)
+        max(0.0, raw_reward - penalty)
 
         return CorrelationPenalty(
             raw_reward=raw_reward,
@@ -251,7 +241,7 @@ class DrawdownTracker:
         self.dd_threshold = dd_threshold  # 15% drawdown triggers penalty
         self.peak = 0.0
         self.current = 0.0
-        self.trades: List[float] = []
+        self.trades: list[float] = []
 
     def add_trade(self, pnl_pct: float) -> DrawdownState:
         """Record a trade and compute drawdown state."""
@@ -267,7 +257,7 @@ class DrawdownTracker:
             in_drawdown=in_dd,
         )
 
-    def apply_penalty(self, reward: float) -> Tuple[float, Optional[str]]:
+    def apply_penalty(self, reward: float) -> tuple[float, str | None]:
         """Apply drawdown penalty to reward if in drawdown."""
         if not self.trades:
             return reward, None
@@ -281,9 +271,9 @@ class DrawdownTracker:
 # ─── Main Enhanced Reward Functions ─────────────────────────────────────────────
 
 # Global instances (shared across sessions for persistent calibration)
-_CALIBRATOR: Optional[RewardCalibrator] = None
-_CORRELATION_DETECTOR: Optional[FalseCorrelationDetector] = None
-_DD_TRACKER: Optional[DrawdownTracker] = None
+_CALIBRATOR: RewardCalibrator | None = None
+_CORRELATION_DETECTOR: FalseCorrelationDetector | None = None
+_DD_TRACKER: DrawdownTracker | None = None
 
 
 def get_calibrator() -> RewardCalibrator:
@@ -309,7 +299,7 @@ def get_dd_tracker() -> DrawdownTracker:
 
 def compute_trajectory_reward(
     state: MarketState,
-    signals: List[Any],
+    signals: list[Any],
     use_calibration: bool = True,
 ) -> float:
     """
@@ -372,7 +362,7 @@ def compute_trajectory_reward(
 
 
 def compute_reward_from_outcome(
-    trade: Dict[str, Any],
+    trade: dict[str, Any],
     apply_drawdown_penalty: bool = True,
 ) -> float:
     """
@@ -399,7 +389,7 @@ def compute_reward_from_outcome(
     return round(reward, 4)
 
 
-def get_reward_diagnostics() -> Dict[str, Any]:
+def get_reward_diagnostics() -> dict[str, Any]:
     """Get full reward system diagnostics for audit."""
     return {
         "calibration": get_calibrator().get_calibration_report(),
@@ -417,18 +407,18 @@ def get_reward_diagnostics() -> Dict[str, Any]:
 # ─── Backward Compatibility ─────────────────────────────────────────────────────
 
 
-def get_default_buffer() -> List[Trajectory]:
+def get_default_buffer() -> list[Trajectory]:
     return []
 
 
-_DEFAULT_BUFFER: Optional[List[Trajectory]] = None
+_DEFAULT_BUFFER: list[Trajectory] | None = None
 
 
-def get_global_buffer() -> Optional[List[Trajectory]]:
+def get_global_buffer() -> list[Trajectory] | None:
     global _DEFAULT_BUFFER
     return _DEFAULT_BUFFER
 
 
-def set_global_buffer(buffer: Optional[List[Trajectory]]):
+def set_global_buffer(buffer: list[Trajectory] | None):
     global _DEFAULT_BUFFER
     _DEFAULT_BUFFER = buffer

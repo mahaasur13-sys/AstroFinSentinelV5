@@ -9,13 +9,11 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 CACHE_DIR = Path.home() / ".cache" / "astrofin" / "mcp_tools"
 MCP_REGISTRY_URL = "https://smithery.ai/api/v1/tools"
-GITHUB_MCP_URL = (
-    "https://api.github.com/search/repositories?q=mcp-server+in:name+topic:mcp"
-)
+GITHUB_MCP_URL = "https://api.github.com/search/repositories?q=mcp-server+in:name+topic:mcp"
 
 
 @dataclass
@@ -27,14 +25,14 @@ class MCPTool:
     description: str
     category: str = "general"
     source: str = "smithery"  # smithery | github | local
-    install_command: Optional[str] = None
-    homepage: Optional[str] = None
+    install_command: str | None = None
+    homepage: str | None = None
     stars: int = 0
     verified: bool = False
-    local_path: Optional[str] = None
+    local_path: str | None = None
     enabled: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["installed"] = self.is_installed()
         return d
@@ -49,10 +47,8 @@ class MCPTool:
 class MCPConfig:
     """MCP configuration for a workspace."""
 
-    installed_tools: Dict[str, MCPTool] = field(default_factory=dict)
-    config_path: Path = field(
-        default_factory=lambda: Path.home() / ".config" / "astrofin" / "mcp.json"
-    )
+    installed_tools: dict[str, MCPTool] = field(default_factory=dict)
+    config_path: Path = field(default_factory=lambda: Path.home() / ".config" / "astrofin" / "mcp.json")
 
     def save(self):
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -76,12 +72,10 @@ class MCPConfig:
         return cfg
 
 
-def _http_get(url: str, timeout: int = 10) -> Optional[Dict]:
+def _http_get(url: str, timeout: int = 10) -> dict | None:
     """Make HTTP GET request with timeout."""
     try:
-        req = urllib.request.Request(
-            url, headers={"User-Agent": "AstroFin-Sentinel/5.0"}
-        )
+        req = urllib.request.Request(url, headers={"User-Agent": "AstroFin-Sentinel/5.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
     except (
@@ -93,7 +87,7 @@ def _http_get(url: str, timeout: int = 10) -> Optional[Dict]:
         return None
 
 
-def mcp_search(query: str, max_results: int = 10) -> List[MCPTool]:
+def mcp_search(query: str, max_results: int = 10) -> list[MCPTool]:
     """
     Search for MCP tools in Smithery registry.
 
@@ -104,7 +98,7 @@ def mcp_search(query: str, max_results: int = 10) -> List[MCPTool]:
     Returns:
         List of MCPTool objects
     """
-    tools: List[MCPTool] = []
+    tools: list[MCPTool] = []
 
     # Search Smithery
     try:
@@ -121,9 +115,7 @@ def mcp_search(query: str, max_results: int = 10) -> List[MCPTool]:
                             description=item.get("description", ""),
                             category=item.get("category", "general"),
                             source="smithery",
-                            install_command=item.get(
-                                "installCommand", item.get("install_command")
-                            ),
+                            install_command=item.get("installCommand", item.get("install_command")),
                             homepage=item.get("homepage", item.get("url")),
                         )
                     )
@@ -158,7 +150,7 @@ def mcp_search(query: str, max_results: int = 10) -> List[MCPTool]:
     return tools[:max_results]
 
 
-def mcp_install(tool_id: str, install_path: Optional[str] = None) -> Dict[str, Any]:
+def mcp_install(tool_id: str, install_path: str | None = None) -> dict[str, Any]:
     """
     Install an MCP tool and create a local wrapper.
 
@@ -249,7 +241,7 @@ if __name__ == "__main__":
     }
 
 
-def mcp_list(show_all: bool = False) -> List[Dict[str, Any]]:
+def mcp_list(show_all: bool = False) -> list[dict[str, Any]]:
     """
     List all available and installed MCP tools.
 
@@ -286,7 +278,7 @@ def mcp_list(show_all: bool = False) -> List[Dict[str, Any]]:
     return result
 
 
-def mcp_remove(tool_id: str) -> Dict[str, Any]:
+def mcp_remove(tool_id: str) -> dict[str, Any]:
     """Remove an installed MCP tool."""
     cfg = MCPConfig.load()
 
@@ -294,11 +286,7 @@ def mcp_remove(tool_id: str) -> Dict[str, Any]:
         return {"status": "not_found", "tool_id": tool_id}
 
     tool = cfg.installed_tools[tool_id]
-    tool_dir = (
-        Path(tool.local_path)
-        if tool.local_path
-        else CACHE_DIR / tool_id.replace("/", "_")
-    )
+    tool_dir = Path(tool.local_path) if tool.local_path else CACHE_DIR / tool_id.replace("/", "_")
 
     if tool_dir.exists():
         import shutil
@@ -311,7 +299,7 @@ def mcp_remove(tool_id: str) -> Dict[str, Any]:
     return {"status": "removed", "tool_id": tool_id, "name": tool.name}
 
 
-def get_mcp_wrapper(tool_id: str) -> Optional[str]:
+def get_mcp_wrapper(tool_id: str) -> str | None:
     """Get the path to a tool's wrapper script."""
     cfg = MCPConfig.load()
     if tool_id in cfg.installed_tools:

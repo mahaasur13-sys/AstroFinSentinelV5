@@ -85,9 +85,7 @@ async def compare(ci=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Compare backtest modes")
-    parser.add_argument(
-        "--ci", action="store_true", help="Run in CI mode with identical mock results"
-    )
+    parser.add_argument("--ci", action="store_true", help="Run in CI mode with identical mock results")
     args = parser.parse_args()
 
     result = asyncio.run(compare(ci=args.ci))

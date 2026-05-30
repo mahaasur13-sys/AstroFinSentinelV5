@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
-def build_comparison_table(session_records: List[Dict]) -> str:
+def build_comparison_table(session_records: list[dict]) -> str:
     """Build an HTML comparison table for selected strategies."""
     if not session_records:
         return "<p class='text-muted'>No strategies selected</p>"
@@ -17,13 +16,7 @@ def build_comparison_table(session_records: List[Dict]) -> str:
     for r in session_records:
         ev = r.get("evaluation", {})
         reward = r.get("reward", 0)
-        badge = (
-            "bg-success"
-            if reward > 0.7
-            else "bg-warning"
-            if reward > 0.4
-            else "bg-secondary"
-        )
+        badge = "bg-success" if reward > 0.7 else "bg-warning" if reward > 0.4 else "bg-secondary"
         rows.append(
             f"<tr><td><code>{r.get('id', '?')[:8]}</code></td>"
             f"<td>{r.get('generation', 0)}</td>"
@@ -39,7 +32,7 @@ def build_comparison_table(session_records: List[Dict]) -> str:
         <tbody>{"".join(rows)}</tbody></table>"""
 
 
-def build_comparison_chart(records_by_session: Dict[str, List[Dict]]) -> dict:
+def build_comparison_chart(records_by_session: dict[str, list[dict]]) -> dict:
     """Build a grouped bar chart comparing sessions."""
     fig = make_subplots(
         rows=1,
@@ -80,9 +73,7 @@ def build_comparison_chart(records_by_session: Dict[str, List[Dict]]) -> dict:
                 ev.get("win_rate", 0),
                 min(ev.get("trades", 1) / 50, 1),
                 1 - min(ev.get("max_drawdown", 0), 1),
-                abs(ev.get("risk_adjusted_pnl", 0))
-                if ev.get("risk_adjusted_pnl", 0) is not None
-                else 0,
+                abs(ev.get("risk_adjusted_pnl", 0)) if ev.get("risk_adjusted_pnl", 0) is not None else 0,
             ]
             labels = ["Sharpe", "Win%", "Trades", "Stability", "PnL"]
             fig.add_trace(
@@ -106,15 +97,13 @@ def build_comparison_chart(records_by_session: Dict[str, List[Dict]]) -> dict:
         margin=dict(l=40, r=20, t=40, b=30),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        legend=dict(
-            orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5
-        ),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
         barmode="group",
     )
     return fig.to_dict()
 
 
-def build_convergence_chart(gen_stats: List[Dict]) -> dict:
+def build_convergence_chart(gen_stats: list[dict]) -> dict:
     """Build a convergence line chart (mean + max reward per generation)."""
     if not gen_stats:
         return go.Figure().to_dict()
@@ -159,8 +148,8 @@ def build_convergence_chart(gen_stats: List[Dict]) -> dict:
     fig.add_trace(
         go.Scatter(
             x=gens + gens[::-1],
-            y=[m + s for m, s in zip(mean_rw, std_rw)]
-            + [m - s for m, s in zip(mean_rw[::-1], std_rw[::-1])],
+            y=[m + s for m, s in zip(mean_rw, std_rw, strict=False)]
+            + [m - s for m, s in zip(mean_rw[::-1], std_rw[::-1], strict=False)],
             fill="toself",
             opacity=0.15,
             fillcolor="#ffd600",

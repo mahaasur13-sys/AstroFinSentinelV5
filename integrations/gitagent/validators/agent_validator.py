@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 import yaml
 
@@ -39,9 +39,9 @@ class ValidationResult:
     agent_name: str
     file_path: Path
     valid: bool
-    errors: List[ValidationIssue] = field(default_factory=list)
-    warnings: List[ValidationIssue] = field(default_factory=list)
-    infos: List[ValidationIssue] = field(default_factory=list)
+    errors: list[ValidationIssue] = field(default_factory=list)
+    warnings: list[ValidationIssue] = field(default_factory=list)
+    infos: list[ValidationIssue] = field(default_factory=list)
 
 
 @dataclass
@@ -50,7 +50,7 @@ class ValidationReport:
     passed: int = 0
     failed: int = 0
     warning_count: int = 0
-    results: List[ValidationResult] = field(default_factory=list)
+    results: list[ValidationResult] = field(default_factory=list)
 
 
 # ─── Colors ──────────────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ def c(text: str, color: str) -> str:
 class AgentYamlValidator:
     """Validates agent.yaml files against JSON Schema."""
 
-    def __init__(self, schema_path: Optional[Path] = None):
+    def __init__(self, schema_path: Path | None = None):
         self.schema_path = schema_path or self._find_schema()
         self.schema = self._load_schema()
         self.checked_dirs: set = set()
@@ -264,13 +264,9 @@ class AgentYamlValidator:
                 )
                 result.valid = False
             else:
-                if len(data["capabilities"]) != len(
-                    set(str(c) for c in data["capabilities"])
-                ):
+                if len(data["capabilities"]) != len(set(str(c) for c in data["capabilities"])):
                     dupes = [
-                        c
-                        for c in data["capabilities"]
-                        if list(str(x) for x in data["capabilities"]).count(str(c)) > 1
+                        c for c in data["capabilities"] if list(str(x) for x in data["capabilities"]).count(str(c)) > 1
                     ]
                     result.warnings.append(
                         ValidationIssue(
@@ -406,14 +402,10 @@ class AgentYamlValidator:
 
         return result
 
-    def validate_directory(
-        self, dir_path: Path, recursive: bool = False
-    ) -> ValidationReport:
+    def validate_directory(self, dir_path: Path, recursive: bool = False) -> ValidationReport:
         """Validate all agent.yaml files in a directory."""
         report = ValidationReport()
-        for yaml_file in sorted(
-            dir_path.rglob("agent.yaml") if recursive else dir_path.glob("agent.yaml")
-        ):
+        for yaml_file in sorted(dir_path.rglob("agent.yaml") if recursive else dir_path.glob("agent.yaml")):
             result = self.validate_file(yaml_file)
             report.results.append(result)
             report.total += 1
@@ -424,7 +416,7 @@ class AgentYamlValidator:
             report.warning_count += len(result.warnings)
         return report
 
-    def validate_all(self, base_dir: Optional[Path] = None) -> ValidationReport:
+    def validate_all(self, base_dir: Path | None = None) -> ValidationReport:
         """Validate entire exported_agents/ folder."""
         base = Path(base_dir) if base_dir else self._find_exported_agents()
         return self.validate_directory(base, recursive=True)
@@ -489,9 +481,7 @@ class AgentYamlValidator:
         print()
 
 
-def run_validation(
-    strict: bool = False, all_agents: bool = False, dir_path: Optional[str] = None
-):
+def run_validation(strict: bool = False, all_agents: bool = False, dir_path: str | None = None):
     """CLI entry point."""
     try:
         v = AgentYamlValidator()
@@ -508,9 +498,7 @@ def run_validation(
         try:
             report = v.validate_all()
         except FileNotFoundError:
-            print(
-                f"{YELLOW}exported_agents/ not found. Validating integrations/gitagent/...{RESET}"
-            )
+            print(f"{YELLOW}exported_agents/ not found. Validating integrations/gitagent/...{RESET}")
             report = v.validate_all(Path("integrations/gitagent"))
 
     v.print_report(report, verbose=strict)
@@ -523,9 +511,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="GitAgent YAML Validator")
     parser.add_argument("--dir", "-d", help="Directory to validate")
-    parser.add_argument(
-        "--all", "-a", action="store_true", help="Validate exported_agents/"
-    )
+    parser.add_argument("--all", "-a", action="store_true", help="Validate exported_agents/")
     parser.add_argument("--strict", "-s", action="store_true", help="Verbose output")
     args = parser.parse_args()
 

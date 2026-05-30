@@ -43,9 +43,7 @@ class FundamentalAgent(BaseAgent[AgentResponse]):
         onchain_data = await self._fetch_onchain_data(symbol)
 
         # Analyze valuation
-        valuation = self._analyze_valuation(
-            crypto_metadata, onchain_data, current_price
-        )
+        valuation = self._analyze_valuation(crypto_metadata, onchain_data, current_price)
         earnings = self._analyze_earnings_quality(crypto_metadata, onchain_data)
         growth = self._analyze_growth_metrics(onchain_data)
 
@@ -111,15 +109,9 @@ class FundamentalAgent(BaseAgent[AgentResponse]):
                 return {
                     "name": data.get("name", ""),
                     "market_cap_rank": data.get("market_cap_rank", 999),
-                    "market_cap": data.get("market_data", {})
-                    .get("market_cap", {})
-                    .get("usd", 0),
-                    "volume_24h": data.get("market_data", {})
-                    .get("total_volume", {})
-                    .get("usd", 0),
-                    "price_change_24h": data.get("market_data", {}).get(
-                        "price_change_percentage_24h", 0
-                    ),
+                    "market_cap": data.get("market_data", {}).get("market_cap", {}).get("usd", 0),
+                    "volume_24h": data.get("market_data", {}).get("total_volume", {}).get("usd", 0),
+                    "price_change_24h": data.get("market_data", {}).get("price_change_percentage_24h", 0),
                     "ath": data.get("market_data", {}).get("ath", {}).get("usd", 0),
                     "atl": data.get("market_data", {}).get("atl", {}).get("usd", 0),
                 }
@@ -146,21 +138,15 @@ class FundamentalAgent(BaseAgent[AgentResponse]):
                         "mvrv_ratio": round(mvrv, 2),
                         "ath_distance_pct": round((ath - current) / ath * 100, 1),
                         "volatility_30d": round(
-                            (max(p[1] for p in prices) - min(p[1] for p in prices))
-                            / current
-                            * 100,
+                            (max(p[1] for p in prices) - min(p[1] for p in prices)) / current * 100,
                             1,
                         ),
                     }
         except Exception as e:
-            logger.warning(
-                f"[FundamentalAgent] Failed to fetch onchain data for {symbol}: {e}"
-            )
+            logger.warning(f"[FundamentalAgent] Failed to fetch onchain data for {symbol}: {e}")
         return {"mvrv_ratio": 1.0, "ath_distance_pct": 50.0, "volatility_30d": 10.0}
 
-    def _analyze_valuation(
-        self, metadata: dict, onchain: dict, current_price: float
-    ) -> dict:
+    def _analyze_valuation(self, metadata: dict, onchain: dict, current_price: float) -> dict:
         """Analyze valuation metrics."""
         mvrv = onchain.get("mvrv_ratio", 1.0)
         ath_distance = onchain.get("ath_distance_pct", 50)

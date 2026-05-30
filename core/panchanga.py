@@ -3,7 +3,6 @@ Muhurta, Nakshatra, Tithi, Yoga, Karana, Choghadiya
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
 
 SIDEREAL_YEAR = 365.25636
 LUNAR_MONTH = 27.3217
@@ -252,7 +251,7 @@ def _sunrise(dt: datetime, lat: float = 25.20, lon: float = 55.27) -> datetime:
     return base
 
 
-def get_nakshatra(moon_degree: float) -> Dict:
+def get_nakshatra(moon_degree: float) -> dict:
     """Return nakshatra for moon degree (0-360)."""
     nak_num = int(moon_degree * 27 / 360)
     nak_num = min(nak_num, 26)
@@ -263,13 +262,11 @@ def get_nakshatra(moon_degree: float) -> Dict:
         "number": nak_num + 1,
         "lord": lord,
         "pada": pada,
-        "degree_in_nakshatra": round(
-            (moon_degree * 27 / 360 - nak_num) * 360 / 13.33, 2
-        ),
+        "degree_in_nakshatra": round((moon_degree * 27 / 360 - nak_num) * 360 / 13.33, 2),
     }
 
 
-def get_tithi(moon_degree: float, sun_degree: float) -> Dict:
+def get_tithi(moon_degree: float, sun_degree: float) -> dict:
     """Return tithi from moon and sun degrees."""
     diff = moon_degree - sun_degree
     if diff < 0:
@@ -286,14 +283,14 @@ def get_tithi(moon_degree: float, sun_degree: float) -> Dict:
     }
 
 
-def get_yoga(moon_degree: float, sun_degree: float) -> Dict:
+def get_yoga(moon_degree: float, sun_degree: float) -> dict:
     """Return yoga from moon and sun degrees."""
     yoga_deg = moon_degree + sun_degree
     yoga_num = int(yoga_deg * 27 / 360) % 27
     return {"name": YOGA_NAMES[yoga_num], "number": yoga_num + 1}
 
 
-def get_karana(moon_degree: float) -> Dict:
+def get_karana(moon_degree: float) -> dict:
     """Return karana (half of tithi)."""
     tithi = int(moon_degree * 30 / 360) % 30
     karana_num = tithi % 7
@@ -305,7 +302,7 @@ def get_karana(moon_degree: float) -> Dict:
     }
 
 
-def get_choghadiya(dt: datetime) -> List[Dict]:
+def get_choghadiya(dt: datetime) -> list[dict]:
     """Return Choghadiya periods for the day (sunrise to sunset, 8 periods)."""
     sunrise = _sunrise(dt)
     results = []
@@ -347,9 +344,7 @@ def get_choghadiya(dt: datetime) -> List[Dict]:
     return results
 
 
-def get_muhurta_score(
-    choghadiya_name: str, nakshatra: Dict, tithi: Dict, yoga: Dict
-) -> Dict:
+def get_muhurta_score(choghadiya_name: str, nakshatra: dict, tithi: dict, yoga: dict) -> dict:
     """Calculate overall muhurta score (0-100)."""
     base = {
         "Amrit": 90,
@@ -381,20 +376,14 @@ def get_muhurta_score(
     score = min(100, max(0, base + nak_bonus + tith_bonus))
     return {
         "score": score,
-        "verdict": "Excellent"
-        if score >= 85
-        else "Good"
-        if score >= 70
-        else "Average"
-        if score >= 50
-        else "Poor",
+        "verdict": "Excellent" if score >= 85 else "Good" if score >= 70 else "Average" if score >= 50 else "Poor",
         "base_choghadiya": base,
         "nakshatra_bonus": nak_bonus,
         "tithi_bonus": tith_bonus,
     }
 
 
-def calculate_panchanga(dt: datetime) -> Dict:
+def calculate_panchanga(dt: datetime) -> dict:
     """Calculate full panchanga for a given datetime in Dubai."""
     from core.ephemeris import get_planetary_positions
 
@@ -408,11 +397,7 @@ def calculate_panchanga(dt: datetime) -> Dict:
     yog = get_yoga(moon_deg, sun_deg)
     kar = get_karana(moon_deg)
     choghadiya = get_choghadiya(dt)
-    muhurta_score = (
-        get_muhurta_score(choghadiya[0]["name"], nak, tit, yog)
-        if choghadiya
-        else {"score": 50}
-    )
+    muhurta_score = get_muhurta_score(choghadiya[0]["name"], nak, tit, yog) if choghadiya else {"score": 50}
     return {
         "datetime": dt.isoformat(),
         "nakshatra": nak,

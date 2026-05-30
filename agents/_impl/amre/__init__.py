@@ -56,7 +56,6 @@ from .reward import (
     compute_trajectory_reward,
     get_calibrator,
     get_dd_tracker,
-    get_default_buffer,
     get_global_buffer,
     get_reward_diagnostics,
     set_global_buffer,

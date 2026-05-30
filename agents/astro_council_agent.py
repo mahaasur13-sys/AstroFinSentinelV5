@@ -10,7 +10,7 @@ AstroFin Sentinel v5 — AstroCouncil Agent
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from agents._impl.ephemeris_decorator import require_ephemeris
 from agents._impl.synthesis_agent import AGENT_WEIGHTS, CATEGORY_WEIGHTS
@@ -36,7 +36,7 @@ _AGENT_CATEGORY_MAP = {
 }
 
 
-def _build_agent_weights() -> Dict[str, float]:
+def _build_agent_weights() -> dict[str, float]:
     """Derive agent-name → weight mapping from CATEGORY_WEIGHTS + AGENT_WEIGHTS.
 
     Priority: agent name in AGENT_WEIGHTS > category weight from CATEGORY_WEIGHTS.
@@ -82,7 +82,7 @@ class AstroCouncilAgent(BaseAgent):
         self._sub_agents[name] = agent
 
     @require_ephemeris
-    async def run(self, context: Dict[str, Any]) -> AgentResponse:
+    async def run(self, context: dict[str, Any]) -> AgentResponse:
         """
         Главный метод координации.
 
@@ -124,7 +124,7 @@ class AstroCouncilAgent(BaseAgent):
             },
         )
 
-    async def _run_sub_agents(self, context: Dict[str, Any]) -> List[AgentResponse]:
+    async def _run_sub_agents(self, context: dict[str, Any]) -> list[AgentResponse]:
         """Параллельно запускает Thompson-selected суб-агентов.
 
         If context contains "_thompson_selected_astro" (list of agent names),
@@ -135,11 +135,7 @@ class AstroCouncilAgent(BaseAgent):
 
         selected = context.get("_thompson_selected_astro")
         if selected:
-            agents_to_run = {
-                name: agent
-                for name, agent in self._sub_agents.items()
-                if name in selected
-            }
+            agents_to_run = {name: agent for name, agent in self._sub_agents.items() if name in selected}
         else:
             agents_to_run = self._sub_agents
 
@@ -156,7 +152,7 @@ class AstroCouncilAgent(BaseAgent):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         responses = []
-        for name, result in zip(names, results):
+        for name, result in zip(names, results, strict=False):
             if isinstance(result, Exception):
                 responses.append(
                     AgentResponse(
@@ -199,7 +195,7 @@ class AstroCouncilAgent(BaseAgent):
             # Если агенты не найдены, используем пустой dict
             self._sub_agents = {}
 
-    def _call_ephemeris(self, dt: datetime) -> Dict[str, Any]:
+    def _call_ephemeris(self, dt: datetime) -> dict[str, Any]:
         """Критичный вызов Swiss Ephemeris."""
         try:
             from core.ephemeris import (
@@ -260,7 +256,7 @@ class AstroCouncilAgent(BaseAgent):
 # ─── Convenience runner ────────────────────────────────────────────────────────
 
 
-async def run_astro_council(context: Dict[str, Any]) -> Dict[str, Any]:
+async def run_astro_council(context: dict[str, Any]) -> dict[str, Any]:
     """Runner для оркестратора."""
     agent = AstroCouncilAgent()
     result = await agent.run(context)
