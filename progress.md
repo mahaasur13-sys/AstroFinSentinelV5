@@ -601,3 +601,7 @@ Logseq/
 
 ### Environment Health
   - healthcheck: unavailable
+
+## Реализовать параллельный запуск агентов через ProcessPoolExecutor
+- Статус: BLOCKED
+- Причина: не прошла проверки после 3 попыток

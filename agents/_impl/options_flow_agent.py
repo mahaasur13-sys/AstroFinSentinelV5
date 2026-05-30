@@ -53,7 +53,6 @@ class OptionsFlowAgent(BaseAgent[AgentResponse]):
             scores.append(0.65)
         elif gex_analysis["signal"] == "bearish":
             signals.append(SignalDirection.SHORT)
-            scores.append(0.65)
         else:
             signals.append(SignalDirection.NEUTRAL)
             scores.append(0.5)
