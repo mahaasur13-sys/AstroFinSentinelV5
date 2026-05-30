@@ -119,15 +119,18 @@ class TechnicalAgent(BaseAgent):
             return {"yoga": "unknown", "score": 50}
 
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
-        """Загрузка OHLCV с Binance."""
+        """Fetch OHLCV data from OKX asynchronously."""
+        import httpx
+
         try:
-            inst_id = symbol.replace("USDT", "") + "-USDT-SWAP"
-            url = f"https://www.okx.com/api/v5/market/candles?instId={inst_id}&bar={interval}&limit={limit}"
-            resp = requests.get(url, timeout=10)
-            data = resp.json()
-            return [[float(x[4]), float(x[5])] for x in data]  # [close, volume]
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                return [[float(x[4]), float(x[5])] for x in data.get("data", [])]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV for {symbol} with interval {interval} and limit {limit}")
+            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}")
             return []
 
     def _calculate_indicators(self, data: list, current_price: float) -> dict:
