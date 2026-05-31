@@ -6,9 +6,9 @@ import time
 
 @pytest.fixture(scope="session")
 def flask_app():
-    """Start Flask app in background with hardcoded API key."""
+    """Start Flask app in background with proper cleanup."""
     env = os.environ.copy()
-    env["API_KEY"] = "test-key"  # жёстко задаём ключ
+    env["API_KEY"] = "test-key"
     proc = subprocess.Popen(
         [".venv/bin/python", "-m", "web.wsgi"],
         stdout=subprocess.DEVNULL,
@@ -16,9 +16,14 @@ def flask_app():
         env=env,
     )
     time.sleep(2)
-    yield
-    proc.terminate()
-    proc.wait()
+    try:
+        yield
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 
 @pytest.fixture(scope="session")

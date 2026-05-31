@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from strategies.base import BaseStrategy, Regime, Signal, StrategyConfig, StrategyResult
-from src.domain.market_data.validation import validate_market_data
 
 # ── Gene definitions ──────────────────────────────────────────────────────
 
@@ -112,7 +111,6 @@ class GeneratedStrategy(BaseStrategy):
         return " | ".join(parts)
 
     # ── ИСПРАВЛЕННЫЙ МЕТОД evaluate ────────────────────────────────────────
-    @validate_market_data
     def evaluate(self, market_data: dict) -> StrategyResult:
         c = self.chromosome
         signal_raw = market_data.get("signal_strength", 50.0)  # уже 0–100

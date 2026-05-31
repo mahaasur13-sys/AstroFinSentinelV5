@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from meta_rl.config import HYPEROPT_ENABLED
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -88,7 +87,7 @@ class EvolutionEngine:
     def stats_history(self) -> list[EvolutionStats]:
         return list(self._history)
 
-    def run(self, ensemble_seeds: int = 3) -> tuple[list[ScoredStrategy], list[EvolutionStats]]:
+    def run(self) -> tuple[list[ScoredStrategy], list[EvolutionStats]]:
         logger.info(
             f"[META-RL-INTEGRATION] Starting: {self.max_generations} gens, "
             f"population={self.agent.config.population_size}, walk_forward={self.walk_forward_enabled}"
@@ -99,19 +98,6 @@ class EvolutionEngine:
         self._karl_state_history = []
 
         # 1. Initialize
-        # HyperOptimizer warm‑up (если включён)
-        if HYPEROPT_ENABLED:
-            from meta_rl.hyperopt import HyperOptimizer
-
-            logger.info("[META-RL] HyperOptimizer warm‑up…")
-            opt = HyperOptimizer(self.agent, self.market_data)
-            best_params = opt.optimize(n_trials=10)
-            logger.info(f"[META-RL] HyperOptimizer best params: {best_params}")
-            # Применяем найденные параметры к конфигу агента
-            self.agent.config.population_size = best_params.get("population_size", self.agent.config.population_size)
-            self.agent.config.mutation_rate = best_params.get("mutation_rate", self.agent.config.mutation_rate)
-            self.agent.config.crossover_rate = best_params.get("crossover_rate", self.agent.config.crossover_rate)
-
         population = self.agent.initialize_population()
         for scored in population:
             self.agent.pool.add(scored)

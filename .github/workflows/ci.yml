@@ -9,6 +9,14 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      REDIS_URL: redis://localhost:6379
+      API_KEY: test-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,4 +28,7 @@ jobs:
           pip install --break-system-packages -r requirements.txt || true
       - name: Run stable tests
         run: |
-          pytest tests/test_auth.py tests/test_cache.py tests/test_fetch_price.py tests/test_market_analyst_async.py tests/test_bull_researcher_async.py tests/test_bear_researcher_async.py tests/test_sentiment_agent_async.py tests/test_phase1_cleanup.py tests/test_rate_limit.py -v --tb=short
+      - name: Run tests
+        run: |
+          pip install redis
+          pytest tests/ tests/e2e/ -v --tb=short

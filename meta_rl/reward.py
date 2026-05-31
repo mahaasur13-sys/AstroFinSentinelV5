@@ -24,7 +24,7 @@ class RewardConfig:
     """
 
     # ── Component weights ────────────────────────────────────────────────
-    sharpe_weight: float = 0.35
+    sharpe_weight: float = 0.45
     pnl_weight: float = 0.30  # MUST be risk_adjusted_pnl (ATOM-META-RL-004)
     drawdown_penalty_scale: float = 2.5  # increased from 2.0 (ATOM-META-RL-004)
     execution_cost_weight: float = 0.10
@@ -33,7 +33,7 @@ class RewardConfig:
     base_reward: float = 0.0
 
     # ── Hard constraints ────────────────────────────────────────────────
-    min_trades: int = 3
+    min_trades: int = 5
     max_drawdown_soft: float = 0.50  # soft cap, heavy penalty above
 
     def __post_init__(self):

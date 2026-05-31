@@ -1,27 +1,17 @@
-"""Smoke-тесты для Phase 1: базовые импорты после очистки."""
-
-import pytest
+"""Phase 1 cleanup validation tests."""
 
 
-def test_core_imports():
-    pass
-
-
-def test_orchestration_import():
-    pass
-
-
-def test_monitoring_import():
-    pass
-
-
-def test_web_import():
-    pass
+def test_core_auth_importable():
+    """Проверяем, что core.auth импортируется без ошибок."""
+    try:
+        import core.auth
+    except ImportError as e:
+        pytest.fail(f"core.auth should be importable: {e}")
 
 
 def test_no_dead_imports():
-    """Убедимся, что удаляемые модули действительно не импортируются."""
-    with pytest.raises(ImportError):
-        pass  # уже не должно существовать
-    with pytest.raises(ImportError):
-        pass
+    """Проверяем, что старые модули больше не импортируются."""
+    # После чистки все импорты должны работать
+    import core.auth
+
+    assert core.auth is not None

@@ -36,7 +36,7 @@ class HyperOptimizer:
             if not elites:
                 return -999.0
             best = max(elites, key=lambda s: s.reward)
-            return best.reward
+            return best.reward + best.sharpe
         except Exception as e:
             logger.warning(f"[HYPEROPT] Trial failed: {e}")
             return -999.0

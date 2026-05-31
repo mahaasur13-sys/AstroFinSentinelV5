@@ -161,3 +161,6 @@ class MetaRLConfig:
             if abs(total - 1.0) > 0.001:
                 warnings.append(f"Composite weights sum to {total:.3f}, expected 1.0")
         return warnings
+
+
+HYPEROPT_ENABLED = True
