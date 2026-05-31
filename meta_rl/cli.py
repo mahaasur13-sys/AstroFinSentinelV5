@@ -101,7 +101,7 @@ def get_market_data_live(symbol: str, timeframe: str, limit: int, mode: str) -> 
 
     sandbox = mode != LIVE_MODE
     provider = LiveDataProvider(
-        exchange_id="binance",
+        exchange="binance",
         sandbox=sandbox,
     )
 

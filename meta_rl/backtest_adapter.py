@@ -45,16 +45,7 @@ class BacktestEngineAdapter:
         ohlcv: list,
         market_data: dict | None = None,
     ) -> EvaluationResult:
-        """Run production backtest via Backtester.
-
-        Args:
-            strategy: GeneratedStrategy (from strategies/generator.py)
-            ohlcv: list of OHLCV dicts or dataclasses with close/open/high/low/volume
-            market_data: optional dict with metadata (regime, signal_strength, etc.)
-
-        Returns:
-            EvaluationResult (never raises — always returns fail-safe result)
-        """
+        """Run production backtest via Backtester."""
         try:
             # 1. Build signals from strategy evaluation
             signals = self._build_signals(strategy, ohlcv, market_data)
@@ -85,7 +76,7 @@ class BacktestEngineAdapter:
 
         symbol = "BTCUSDT"
         regime = Regime.NEUTRAL_R
-        sym_data: dict = {}  # resolved per-symbol market metadata
+        sym_data: dict = {}
 
         if market_data:
             if "BTCUSDT" in market_data or "ETHUSDT" in market_data or "SPY" in market_data:
@@ -98,7 +89,6 @@ class BacktestEngineAdapter:
                 sym_data = market_data
                 symbol = market_data.get("symbol", "BTCUSDT")
 
-            # Resolve regime string → Regime enum (handles NEUTRAL_R mismatch)
             regime_str = sym_data.get("regime", "NEUTRAL_R")
             if regime_str == "NEUTRAL_R":
                 regime = Regime.NEUTRAL_R
@@ -108,6 +98,9 @@ class BacktestEngineAdapter:
                 regime = regime_str
             else:
                 regime = Regime.NEUTRAL_R
+
+        # Унификация символа – используется "BTCUSDT" для согласованности с _build_prices
+        symbol = "BTCUSDT" if symbol == "BTC/USDT" else symbol
 
         signals = []
         for idx, bar in enumerate(ohlcv):
@@ -132,10 +125,10 @@ class BacktestEngineAdapter:
                 ts_int = idx
             elif hasattr(ts, "timestamp"):
                 ts_int = int(ts.timestamp())
-            elif isinstance(ts, (int, float)) and ts > 1e9:  # noqa: UP038
+            elif isinstance(ts, (int, float)) and ts > 1e9:
                 ts_int = int(ts)
             else:
-                ts_int = idx  # fallback: bar index
+                ts_int = idx
 
             signals.append(
                 {
@@ -156,13 +149,12 @@ class BacktestEngineAdapter:
         for idx, bar in enumerate(ohlcv):
             ts = self._get_timestamp(bar)
             close = self._get_close(bar)
-            # Convert datetime to unix int for consistent comparison with _build_signals
             if hasattr(ts, "timestamp"):
                 ts_int = int(ts.timestamp())
-            elif isinstance(ts, (int, float)) and ts > 1e9:  # noqa: UP038
+            elif isinstance(ts, (int, float)) and ts > 1e9:
                 ts_int = int(ts)
             else:
-                ts_int = idx  # fallback: bar index
+                ts_int = idx
             series.append((ts_int, close))
         return {symbol: series}
 

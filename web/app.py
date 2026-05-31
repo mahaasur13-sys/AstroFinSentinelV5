@@ -27,17 +27,6 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import Input, Output, dcc, html
 
-# ── Security headers (Flask middleware) ────────────────────────────────────────
-try:
-    #    @server.after_request
-    #    def add_security_headers(response):
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    return response
-except Exception:
-    pass  # non-Flask environment
 
 # ── Config ──────────────────────────────────────────────────────────────────────
 DEBUG = os.getenv("DEBUG_MODE", "false").lower() == "true"

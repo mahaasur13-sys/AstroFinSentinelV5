@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 """
 Bradley Agent — Bradley Model (S&P 500 seasonality/cyccles).
 """

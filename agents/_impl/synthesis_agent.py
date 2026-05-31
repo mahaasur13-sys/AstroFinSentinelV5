@@ -1,3 +1,5 @@
+import uuid
+
 """
 AstroFin Sentinel v5 — Synthesis Agent
 AstroCouncil: координатор всех агентов, финальный синтез.
@@ -213,7 +215,7 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
                 price=current_price,
                 timeframe=timeframe,
                 n_signals=len(all_signals),
-                session_id=session_id,
+                session_id=state.get("session_id", str(uuid.uuid4())),
                 timestamp=datetime.now().isoformat(),
                 regime=regime.value if hasattr(regime, "value") else str(regime),
                 confidence=confidence,
@@ -236,7 +238,7 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
                 "issues": oap_result.issues,
             }
             record_decision(
-                decision_id=f"{session_id}_{symbol}",
+                decision_id=state.get("session_id", str(uuid.uuid4())) + "_" + symbol,
                 timestamp=datetime.now().isoformat(),
                 symbol=symbol,
                 signal=direction.value if hasattr(direction, "value") else str(direction),

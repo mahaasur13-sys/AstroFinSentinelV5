@@ -2,7 +2,7 @@
 
 import math
 
-from .trajectory import MarketState, Trajectory
+from .trajectory import MarketState, Trajectory, trajectory_from_state
 
 
 def trajectory_distance(t1: Trajectory, t2: Trajectory) -> float:

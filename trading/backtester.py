@@ -13,7 +13,7 @@ class BacktestConfig:
     risk_per_trade_pct: float = 2.0
     stop_loss_pct: float = 5.0
     take_profit_pct: float = 10.0
-    commission_pct: float = 0.1
+    commission_pct: float = 0.05
 
 
 @dataclass

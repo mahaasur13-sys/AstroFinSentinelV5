@@ -14,20 +14,7 @@ class EvaluationResult:
     avg_confidence: float = 0.0
     total_return_pct: float = 0.0
     score: float = 0.0
-    pnl: float = 0.0
-    risk_adjusted_pnl: float = 0.0
-    sharpe: float = 0.0
-    trades: int = 0
-    equity_curve: list[float] = field(default_factory=list)
-    execution_cost: float = 0.0
-    risk_adjustment_reason: str = ""
-    adjusted_drawdown: float = 0.0
     metadata: dict | None = None
-
-    @classmethod
-    def fail(cls) -> "EvaluationResult":
-        """Возвращает экземпляр с нулевыми метриками."""
-        return cls()
 
 
 @dataclass
@@ -65,3 +52,15 @@ class ScoredStrategy:
             "metrics": self.metrics.__dict__ if self.metrics else None,
             "metadata": self.metadata,
         }
+    @classmethod
+    def fail(cls) -> "EvaluationResult":
+        """Возвращает экземпляр с нулевыми метриками, сигнализирующий о провале."""
+        return cls(
+            win_rate=0.0,
+            sharpe_ratio=0.0,
+            max_drawdown=0.0,
+            total_trades=0,
+            avg_confidence=0.0,
+            total_return_pct=0.0,
+            score=0.0,
+        )

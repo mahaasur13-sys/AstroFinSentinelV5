@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 """
 Time Window Agent — entry timing and best trading windows.
 """

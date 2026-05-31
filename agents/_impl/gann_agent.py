@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 """
 Gann Agent — Gann angles and time/price analysis.
 """

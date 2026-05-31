@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 """agents/karl_synthesis.py — KARL-013: SynthesisAgent + AMRE Integration
 Оборачивает SynthesisAgent в AMRE-контур:
   DecisionRecord → OAP update → Backtest sample → Sync audit

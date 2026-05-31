@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from strategies.base import BaseStrategy, Regime, Signal, StrategyConfig, StrategyResult
+from src.domain.market_data.validation import validate_market_data
 
 # ── Gene definitions ──────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ class Gene:
 
 
 GENES = {
-    "confidence_threshold": Gene("confidence_threshold", "float", 60.0, 40.0, 85.0, mutation_scale=5.0),
+    "confidence_threshold": Gene("confidence_threshold", "float", 30.0, 15.0, 55.0, mutation_scale=5.0),
     "position_size_pct": Gene("position_size_pct", "float", 15.0, 5.0, 30.0, mutation_scale=3.0),
     "regime_filter": Gene("regime_filter", "choice", "ALL", options=["ALL", "BULL_ONLY", "BEAR_ONLY"]),
     "signal_weights_bull": Gene("signal_weights_bull", "float", 0.7, 0.0, 1.0),
@@ -89,6 +90,15 @@ class GeneratedStrategy(BaseStrategy):
         self.parent_fitness = parent_fitness
         self._fitness: float | None = None
 
+    @property
+    def name(self) -> str:
+        return self.config.name
+
+        # Авто-регистрация в реестре (Федеративная архитектура)
+        from src.domain.evolution.plugin_registry import PluginRegistry
+
+        PluginRegistry().register(self)
+
     def _build_description(self, c: dict) -> str:
         parts = [
             f"conf={c['confidence_threshold']:.0f}",
@@ -101,9 +111,11 @@ class GeneratedStrategy(BaseStrategy):
         ]
         return " | ".join(parts)
 
+    # ── ИСПРАВЛЕННЫЙ МЕТОД evaluate ────────────────────────────────────────
+    @validate_market_data
     def evaluate(self, market_data: dict) -> StrategyResult:
         c = self.chromosome
-        signal_raw = market_data.get("signal_strength", 0.0)
+        signal_raw = market_data.get("signal_strength", 50.0)  # уже 0–100
         regime = market_data.get("regime", Regime.NEUTRAL_R)
 
         # Regime filter
@@ -114,10 +126,7 @@ class GeneratedStrategy(BaseStrategy):
             return StrategyResult(Signal.NEUTRAL, 0, "Regime filter: not bear market", regime)
 
         # Signal computation
-        100 - c["confidence_threshold"]
-        c["confidence_threshold"]
-
-        signal_strength = signal_raw * 100
+        signal_strength = signal_raw
         momentum = market_data.get("momentum", 0.0)
         mean_reversion = market_data.get("mean_reversion_signal", 0.0)
 
@@ -149,7 +158,7 @@ class GeneratedStrategy(BaseStrategy):
 
         return StrategyResult(
             signal=signal,
-            confidence=conf,
+            confidence=int(conf),
             reasoning=reasoning,
             regime=regime,
             metadata={"chromosome": c, "score": score},
@@ -165,13 +174,9 @@ class GeneratedStrategy(BaseStrategy):
     # ── ATOM-META-RL-008: Serialization ────────────────────────────────
 
     def to_dict(self) -> dict:
-        """Serialize GeneratedStrategy to a portable dict.
-
-        Fully reversible — all fields preserved including chromosome,
-        generation, parent_fitness, and config.
-        """
+        """Serialize GeneratedStrategy to a portable dict."""
         return {
-            "chromosome": dict(self.chromosome),  # copy to prevent mutation
+            "chromosome": dict(self.chromosome),
             "generation": self.generation,
             "parent_fitness": self.parent_fitness,
             "config": {
@@ -187,17 +192,7 @@ class GeneratedStrategy(BaseStrategy):
 
     @classmethod
     def from_dict(cls, d: dict) -> "GeneratedStrategy":
-        """Deserialize a dict back into a fully-functional GeneratedStrategy.
-
-        Args:
-            d: dict from to_dict(). Must contain 'chromosome'.
-
-        Returns:
-            GeneratedStrategy instance ready for evaluate() and evolution.
-
-        Fail-safe: on any KeyError/TypeError, logs warning and returns
-        a random fresh strategy.
-        """
+        """Deserialize a dict back into a fully-functional GeneratedStrategy."""
         try:
             chromosome = d["chromosome"]
             generation = int(d.get("generation", 1))
@@ -219,7 +214,6 @@ class GeneratedStrategy(BaseStrategy):
                 generation=generation,
                 parent_fitness=parent_fitness,
             )
-            # Reconstruct config manually (override what __init__ set)
             strategy.config = cfg
             strategy._enabled = cfg.enabled
             return strategy
@@ -268,7 +262,6 @@ def evolve(
     mutation_rate: float = 0.20,
 ) -> list[GeneratedStrategy]:
     """Run genetic algorithm. Returns best strategies."""
-
     for i, s in enumerate(population):
         s.set_fitness(fitness_fn(s))
 
@@ -279,14 +272,8 @@ def evolve(
     history = [best_ever[1]]
 
     for gen in range(1, n_generations + 1):
-        # Elitism
         sorted_strategies = [
-            s
-            for s, f in sorted(
-                zip(pop.strategies, pop.fitnesses, strict=False),
-                key=lambda x: x[1],
-                reverse=True,
-            )
+            s for s, f in sorted(zip(pop.strategies, pop.fitnesses, strict=False), key=lambda x: x[1], reverse=True)
         ]
         new_pop = list(sorted_strategies[:elite_size])
         current_gen = sorted_strategies[0].generation
@@ -300,7 +287,6 @@ def evolve(
             new_pop.append(child)
 
         pop = GAPopulation(strategies=new_pop, fitnesses=[0.0] * len(new_pop))
-
         for s in pop.strategies:
             s.set_fitness(fitness_fn(s))
         pop.fitnesses = [s.fitness for s in pop.strategies]
@@ -316,14 +302,7 @@ def evolve(
             )
 
     print(f"\n  Best strategy fitness: {best_ever[1]:.2f}")
-    return [
-        s
-        for s, f in sorted(
-            zip(pop.strategies, pop.fitnesses, strict=False),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-    ]
+    return [s for s, f in sorted(zip(pop.strategies, pop.fitnesses, strict=False), key=lambda x: x[1], reverse=True)]
 
 
 def fitness_from_backtest(strategy: GeneratedStrategy, market_history: list) -> float:
@@ -347,11 +326,11 @@ def fitness_from_backtest(strategy: GeneratedStrategy, market_history: list) -> 
         if result.signal == Signal.LONG and result.confidence >= conf and pos == 0:
             pos = 1
             entry_price = bar["close"]
-            equity -= bar["close"] * 0.001  # cost
+            equity -= bar["close"] * 0.001
         elif result.signal == Signal.SHORT and result.confidence >= conf and pos == 0:
             pos = -1
             entry_price = bar["close"]
-            equity -= bar["close"] * 0.001  # cost
+            equity -= bar["close"] * 0.001
         elif result.signal == Signal.NEUTRAL and pos != 0:
             pnl = (bar["close"] - entry_price) * pos * 0.001
             equity += pnl
@@ -417,12 +396,12 @@ def generate_synthetic_history(n_days: int = 252) -> list:
                 "low": low_price,
                 "close": close_price,
                 "volume": volume,
-                "regime": regime,  # Regime enum (not string) — required by GeneratedStrategy.evaluate()
+                "regime": regime,
                 "signal_strength": signal_base + np.random.uniform(-15, 15),
                 "momentum": mom + (0.08 if regime == Regime.BULL else -0.06 if regime == Regime.BEAR else 0),
                 "mean_reversion_signal": mr,
                 "atr": close_price * 0.02,
-                "timestamp": i,  # bar index for _get_timestamp
+                "timestamp": i,
             }
         )
 

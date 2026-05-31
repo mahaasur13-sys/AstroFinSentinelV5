@@ -8,7 +8,6 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import requests
 
 from agents._impl.ephemeris_decorator import require_ephemeris
 from core.base_agent import AgentResponse, BaseAgent

@@ -3,6 +3,7 @@ Quant Agent — backtesting, strategy optimization, ML predictions.
 """
 
 import numpy as np
+from core.http_client import get_http_client
 
 from agents._impl.ephemeris_decorator import require_ephemeris
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection
@@ -116,8 +117,6 @@ class QuantAgent(BaseAgent[AgentResponse]):
     async def _fetch_price_history(self, symbol: str, timeframe: str) -> list:
         """Fetch OHLCV data from Binance."""
         try:
-            import requests
-
             interval_map = {
                 "1H": "1h",
                 "4H": "4h",
@@ -127,7 +126,7 @@ class QuantAgent(BaseAgent[AgentResponse]):
             }
             interval = interval_map.get(timeframe, "1d")
             url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit=100"
-            resp = requests.get(url, timeout=10)
+            resp = await get_http_client().get(url)
             data = resp.json()
             return [[float(x[4]), float(x[5]), float(x[2]), float(x[3])] for x in data]
         except Exception:
