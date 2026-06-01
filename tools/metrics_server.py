@@ -1,39 +1,36 @@
 #!/usr/bin/env python3
 """Prometheus metrics server for AstroFin Sentinel V5.
 
-Re-exports metrics from meta_rl.metrics so that code importing from
-tools.metrics_server continues to work (backward compatibility), while
-the actual metric definitions live in meta_rl.metrics as the single source of truth.
+Optional authentication via METRICS_AUTH_ENABLED / METRICS_API_KEY.
 """
+
 import argparse
+import os
+
 from aiohttp import web
 from prometheus_client import REGISTRY, generate_latest
 
-# Re-export everything from meta_rl.metrics for backward compatibility
-from meta_rl.metrics import (
-    # Evolution
-    EVOLUTION_RUNS, EVOLUTION_COMPLETED, EVOLUTION_ABORTED,
-    GENERATION_CURRENT, BEST_REWARD, MEAN_REWARD, REWARD_STD, POPULATION_SIZE, TOP_STRATEGY_ID,
-    GENERATIONS_TOTAL, STRATEGIES_CREATED, STRATEGIES_EVALUATED,
-    EVOLUTION_DURATION, GENERATION_DURATION, SIGNALS_TOTAL,
-    # App
-    REQUEST_COUNT, REQUEST_LATENCY, REQUEST_ERRORS,
-    CACHE_HITS, CACHE_MISSES,
-    OLLAMA_STATUS, OLLAMA_ERRORS, OLLAMA_LATENCY,
-    BROKER_ERRORS, BROKER_MESSAGES, BROKER_PUBLISH_LATENCY,
-    RAG_CHUNK_COUNT, RAG_QUERY_CACHE_HITS, RAG_QUERY_CACHE_MISSES, RAG_RELEVANCE_SCORE,
-    BACKTEST_RUNS, BACKTEST_DURATION, BACKTEST_SYNTHETIC_RUNS, BACKTEST_SYNTHETIC_DURATION,
-    AGENT_EXECUTION_COUNT, AGENT_EXECUTION_DURATION, AGENT_SELECTION_COUNTS, THOMPSON_PARAMS,
-)
+METRICS_AUTH_ENABLED = os.getenv("METRICS_AUTH_ENABLED", "false").lower() == "true"
+METRICS_API_KEY = os.getenv("METRICS_API_KEY", "")
 
 
 async def metrics_handler(request):
+    # Check authentication if enabled
+    if METRICS_AUTH_ENABLED:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer ") or auth_header.split(" ", 1)[1] != METRICS_API_KEY:
+            return web.Response(text="Unauthorized", status=401)
     return web.Response(body=generate_latest(REGISTRY), content_type="text/plain")
+
+
+async def health_handler(request):
+    return web.Response(text="OK", content_type="text/plain")
 
 
 def run_server(port: int = 9091, host: str = "0.0.0.0"):
     app = web.Application()
     app.router.add_get("/metrics", metrics_handler)
+    app.router.add_get("/health", health_handler)
     web.run_app(app, port=port, host=host, print=lambda *_: None)
 
 
