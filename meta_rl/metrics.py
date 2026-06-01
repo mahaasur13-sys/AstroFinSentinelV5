@@ -1,7 +1,8 @@
-"""Prometheus metrics for AstroFin Meta-RL.
+"""Prometheus metrics for AstroFin Sentinel V5.
 
-Single source of truth — imported by both metrics_server.py (exposition)
-and evolution.py / agent.py (recording). All share the default REGISTRY.
+metrics_server.py is the single source of truth. This module re-exports
+evolution-specific metrics so that meta_rl/ can import them without circular
+imports. Both modules share the same global REGISTRY.
 """
 from prometheus_client import Counter, Gauge, Histogram
 
