@@ -20,6 +20,7 @@ from meta_rl.meta_agent import KARL_META_UPDATE_ENABLED, MetaAgent
 from meta_rl.persistence import get_persistence
 from meta_rl.strategy_pool import ScoredStrategy
 from meta_rl.metrics import (
+    EVOLUTION_RUNS,
     GENERATION_CURRENT,
     BEST_REWARD,
     MEAN_REWARD,
@@ -27,6 +28,7 @@ from meta_rl.metrics import (
     POPULATION_SIZE,
     STRATEGIES_CREATED,
     STRATEGIES_EVALUATED,
+    STRATEGY_EVALUATED_TOTAL,
     GENERATIONS_TOTAL,
     GENERATION_DURATION,
 )
