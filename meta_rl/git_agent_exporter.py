@@ -25,6 +25,7 @@ class ExportResult:
     path: str
     validated: bool
     errors: list[str]
+    deduplicated: bool = False
 
 
 def _slug_safe(text: str) -> str:
@@ -35,13 +36,18 @@ def _slug_safe(text: str) -> str:
 
 
 def _slug_for_strategy(strategy: Any) -> str:
-    chrom = getattr(strategy, "chromosome", {})
-    conf = chrom.get("confidence_threshold", 60.0)
-    pos = chrom.get("position_size_pct", 15.0)
-    atr = chrom.get("atr_multiplier", 2.0)
-    seed_str = f"{conf:.0f}_{pos:.0f}_{atr:.1f}_{random.random():.4f}"
-    short_hash = hashlib.md5(seed_str.encode()).hexdigest()[:8]
-    return short_hash
+    """Generate a deterministic slug from chromosome hash or UUID."""
+    if hasattr(strategy, "chromosome_hash"):
+        seed = strategy.chromosome_hash
+    elif hasattr(strategy, "uuid"):
+        seed = str(strategy.uuid)
+    else:
+        chrom = getattr(strategy, "chromosome", {})
+        conf = chrom.get("confidence_threshold", 60.0)
+        pos = chrom.get("position_size_pct", 15.0)
+        atr = chrom.get("atr_multiplier", 2.0)
+        seed = f"{conf:.0f}_{pos:.0f}_{atr:.1f}"
+    return hashlib.sha256(seed.encode()).hexdigest()[:12]
 
 
 def _regime_label(rf: str) -> str:
@@ -63,6 +69,19 @@ def export_strategy(strategy: Any, version_tag: str = None, output_dir: str = No
         if version_tag:
             slug = f"{slug}-{version_tag}"
         pkg = Path(output_dir) / slug
+        # Deduplication: skip if identical agent.yaml already exists
+        existing_yaml = pkg / "agent.yaml"
+        if existing_yaml.exists():
+            try:
+                import json
+
+                existing_hash = hashlib.sha256(existing_yaml.read_bytes()).hexdigest()
+                new_yaml_str = json.dumps(agent_yaml, sort_keys=True)
+                new_hash = hashlib.sha256(new_yaml_str.encode()).hexdigest()
+                if existing_hash == new_hash:
+                    return ExportResult(slug=slug, path=str(pkg), validated=True, errors=[], deduplicated=True)
+            except Exception:
+                pass  # fall through to re-export
         pkg.mkdir(parents=True, exist_ok=True)
         sub = pkg / "sub_agents" / slug
         sub.mkdir(parents=True)
