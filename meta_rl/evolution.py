@@ -19,6 +19,17 @@ from meta_rl.config import (
 from meta_rl.meta_agent import KARL_META_UPDATE_ENABLED, MetaAgent
 from meta_rl.persistence import get_persistence
 from meta_rl.strategy_pool import ScoredStrategy
+from meta_rl.metrics import (
+    GENERATION_CURRENT,
+    BEST_REWARD,
+    MEAN_REWARD,
+    REWARD_STD,
+    POPULATION_SIZE,
+    STRATEGIES_CREATED,
+    STRATEGIES_EVALUATED,
+    GENERATIONS_TOTAL,
+    GENERATION_DURATION,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +108,11 @@ class EvolutionEngine:
         self._history = []
         self._prev_best = -float("inf")
         self._karl_state_history = []
+        GENERATION_CURRENT.set(0)
+        BEST_REWARD.set(0.0)
 
         # 1. Initialize
+        EVOLUTION_RUNS.inc()
         # HyperOptimizer warm‑up (если включён)
         if HYPEROPT_ENABLED:
             from meta_rl.hyperopt import HyperOptimizer
@@ -115,10 +129,13 @@ class EvolutionEngine:
         population = self.agent.initialize_population()
         for scored in population:
             self.agent.pool.add(scored)
+            STRATEGIES_CREATED.inc()
 
         # 2. Initial evaluation
         eval_market = self._get_walk_forward_data(generation=0)
         population = self.agent.evaluate_population(population, eval_market)
+        for scored in population:
+            STRATEGY_EVALUATED_TOTAL.inc()
         stats = self._compute_stats(population, karl_updated=False)
         self._history.append(stats)
         self._log_stats(stats)
@@ -128,6 +145,7 @@ class EvolutionEngine:
         # 3. Evolution loop
         for gen_idx in range(1, self.max_generations + 1):
             try:
+                GENERATIONS_TOTAL.inc()
                 elites = self.agent.select(population)
                 if self._should_stop(elites):
                     logger.info(f"[META-RL-INTEGRATION] Early stopping at gen {gen_idx}")
@@ -215,6 +233,18 @@ class EvolutionEngine:
         )
         mean_r = sum(rewards) / len(rewards)
         std_r = (sum((r - mean_r) ** 2 for r in rewards) / len(rewards)) ** 0.5 if len(rewards) > 1 else 0.0
+
+        # Emit Prometheus metrics
+        GENERATION_CURRENT.set(self.agent.generation)
+        BEST_REWARD.set(float(max(rewards)))
+        MEAN_REWARD.set(float(mean_r))
+        REWARD_STD.set(float(std_r))
+        POPULATION_SIZE.set(len(population))
+        STRATEGIES_CREATED.inc(len(population))
+        STRATEGIES_EVALUATED.inc(len(population))
+        GENERATIONS_TOTAL.set(GENERATIONS_TOTAL.get() + 1)
+        GENERATION_DURATION.set(time.time() - self._start_time)
+
         return EvolutionStats(
             generation=self.agent.generation,
             mean_reward=float(mean_r),
