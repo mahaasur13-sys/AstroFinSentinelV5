@@ -39,5 +39,17 @@ def ab_compare():
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 
 
+# Защищённый эндпоинт для включения live-режима
+@server.route("/api/live/enable", methods=["POST"])
+@require_api_key
+def live_enable():
+    """Включает live-режим. Требует подтверждение и API-ключ."""
+    data = request.get_json(silent=True) or {}
+    confirmed = data.get("confirmed", False)
+    if not confirmed:
+        return jsonify({"error": "Confirmation required"}), 400
+    return jsonify({"status": "live_enabled", "mode": "live"})
+
+
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=8000, debug=False)

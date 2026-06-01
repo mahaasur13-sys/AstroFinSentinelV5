@@ -20,12 +20,17 @@ def require_api_key(func):
     def wrapper(*args, **kwargs):
         from flask import request
 
-        if not REQUIRE_AUTH:
+        require_auth = os.getenv("REQUIRE_AUTH", "true").lower() == "true"
+        if not require_auth:
             return func(*args, **kwargs)
+        api_key = os.getenv("API_KEY", "")
         key = request.headers.get("X-API-Key")
-        if not key or not secrets.compare_digest(key, API_KEY):
-            logger.warning("auth.failed endpoint=%s remote=%s", request.path, request.remote_addr)
+        if not key:
+            logger.warning("auth.failed endpoint=%s remote=%s missing key", request.path, request.remote_addr)
             return ({"error": "Unauthorized"}, 401)
+        if not secrets.compare_digest(key, api_key):
+            logger.warning("auth.failed endpoint=%s remote=%s wrong key", request.path, request.remote_addr)
+            return ({"error": "Forbidden"}, 403)
         logger.debug("auth.success endpoint=%s", request.path)
         return func(*args, **kwargs)
 
