@@ -78,3 +78,64 @@ SIGNALS_TOTAL = Counter(
     "Signals (LONG/SHORT/NEUTRAL) from the top strategy",
     ["signal"],
 )
+
+# ── App-level (agents, cache, broker, RAG, backtest) ───────────────────
+REQUEST_COUNT = Counter(
+    "astrofin_request_count_total", "Total HTTP requests",
+    ["method", "endpoint"],
+)
+REQUEST_LATENCY = Histogram(
+    "astrofin_request_latency_seconds", "Request latency",
+    ["method", "endpoint"], buckets=(0.01, 0.05, 0.1, 0.5, 1, 5),
+)
+REQUEST_ERRORS = Counter(
+    "astrofin_request_errors_total", "Failed requests",
+    ["method", "endpoint"],
+)
+CACHE_HITS = Counter("astrofin_cache_hits_total", "Cache hits")
+CACHE_MISSES = Counter("astrofin_cache_misses_total", "Cache misses")
+OLLAMA_STATUS = Gauge("astrofin_ollama_status", "Ollama API health (1=up, 0=down)")
+OLLAMA_ERRORS = Counter("astrofin_ollama_errors_total", "Ollama errors")
+OLLAMA_LATENCY = Histogram(
+    "astrofin_ollama_latency_seconds", "Ollama API latency",
+    buckets=(0.1, 0.5, 1, 2, 5, 10),
+)
+BROKER_ERRORS = Counter("astrofin_broker_errors_total", "Message broker errors")
+BROKER_MESSAGES = Counter(
+    "astrofin_broker_messages_total", "Messages published",
+    ["topic", "direction"],
+)
+BROKER_PUBLISH_LATENCY = Histogram(
+    "astrofin_broker_publish_latency_seconds", "Publish latency",
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1),
+)
+RAG_CHUNK_COUNT = Gauge("astrofin_rag_chunk_count", "Indexed RAG chunks")
+RAG_QUERY_CACHE_HITS = Counter("astrofin_rag_query_cache_hits_total", "RAG query cache hits")
+RAG_QUERY_CACHE_MISSES = Counter("astrofin_rag_query_cache_misses_total", "RAG query cache misses")
+RAG_RELEVANCE_SCORE = Gauge("astrofin_rag_relevance_score", "Avg RAG retrieval relevance score")
+BACKTEST_RUNS = Counter("astrofin_backtest_runs_total", "Backtest runs")
+BACKTEST_DURATION = Histogram(
+    "astrofin_backtest_duration_seconds", "Backtest duration",
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600),
+)
+BACKTEST_SYNTHETIC_RUNS = Counter("astrofin_backtest_synthetic_runs_total", "Synthetic backtest runs")
+BACKTEST_SYNTHETIC_DURATION = Histogram(
+    "astrofin_backtest_synthetic_duration_seconds", "Synthetic backtest duration",
+    buckets=(0.1, 0.5, 1, 5, 10, 30),
+)
+AGENT_EXECUTION_COUNT = Counter(
+    "astrofin_agent_execution_count_total", "Agent executions",
+    ["agent_name"],
+)
+AGENT_EXECUTION_DURATION = Histogram(
+    "astrofin_agent_execution_duration_seconds", "Agent async duration",
+    ["agent_name"], buckets=(0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30),
+)
+AGENT_SELECTION_COUNTS = Counter(
+    "astrofin_agent_selection_counts_total", "Agent selection by Thompson sampling",
+    ["agent_name", "pool"],
+)
+THOMPSON_PARAMS = Gauge(
+    "astrofin_thompson_params", "Thompson sampling params",
+    ["agent_name", "param"],
+)
