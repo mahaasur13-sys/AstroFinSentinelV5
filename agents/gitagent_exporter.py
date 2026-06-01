@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """agents/gitagent_exporter.py — Export all agents to GitAgent format (fixed YAML)"""
 
-import sys
 from pathlib import Path
 from typing import Union
 import yaml
@@ -215,6 +214,53 @@ AGENTS = {
         "sources": ["Volatility models", "ATR", "Historical drawdown"],
     },
 }
+
+
+def _discover_agents():
+    """Return merged agents dict: static base + dynamic discovery from agents/_impl/."""
+    agents = dict(AGENTS)  # start with static definitions
+    import importlib, inspect, pkgutil
+    import agents._impl as impl_pkg
+
+    for _, modname, _ in pkgutil.iter_modules(impl_pkg.__path__):
+        if modname.startswith("_"):
+            continue
+        try:
+            mod = importlib.import_module(f"agents._impl.{modname}")
+            for name, obj in inspect.getmembers(mod, inspect.isclass):
+                if not name.endswith("Agent") or name == "BaseAgent":
+                    continue
+                key = name.lower()
+                if key not in agents:
+                    # Extract metadata from class
+                    try:
+                        instance = obj()
+                        agents[key] = {
+                            "name": getattr(instance, "name", name),
+                            "version": "1.0.0",
+                            "type": "analysis",
+                            "domain": getattr(instance, "domain", "unknown"),
+                            "weight": getattr(instance, "weight", 0.05),
+                            "description": (obj.__doc__ or "").strip().split(".")[0],
+                            "capabilities": [],
+                            "inputs": [],
+                            "outputs": [],
+                            "karl": {
+                                "reward_weight": getattr(instance, "weight", 0.05),
+                                "supports_ttc": False,
+                                "supports_selfq": False,
+                            },
+                            "sources": [],
+                        }
+                    except Exception:
+                        pass  # skip if instantiation fails
+        except ImportError:
+            pass
+    return agents
+
+
+# Replace direct AGENTS usage with _discover_agents()
+AGENTS = _discover_agents()
 
 
 def generate_agent_yaml(agent: dict) -> str:

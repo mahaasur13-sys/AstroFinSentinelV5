@@ -13,11 +13,9 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from meta_rl.metrics import STRATEGIES_CREATED, STRATEGIES_EVALUATED
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

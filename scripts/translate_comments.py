@@ -6,11 +6,10 @@ scripts/translate_comments.py
 Строковые литералы и docstring не изменяются.
 """
 
-import os
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
 try:
     from deep_translator import GoogleTranslator

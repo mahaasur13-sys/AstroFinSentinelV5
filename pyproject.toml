@@ -29,3 +29,6 @@ minversion = "8.0"
 testpaths = ["tests"]
 addopts = "-q --tb=short"
 asyncio_mode = "auto"
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = []

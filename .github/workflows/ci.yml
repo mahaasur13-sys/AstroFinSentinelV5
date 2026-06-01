@@ -1,34 +1,78 @@
 name: CI
-
-on:
-  push:
-    branches: [ master, phase2-rate-limiting ]
-  pull_request:
-    branches: [ master ]
-
+on: [push, pull_request]
 jobs:
-  test:
+  lint-and-test:
     runs-on: ubuntu-latest
     services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-    env:
-      REDIS_URL: redis://localhost:6379
-      API_KEY: test-key
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_USER: astrofin
+          POSTGRES_PASSWORD: astrofin
+          POSTGRES_DB: astrofin_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install --break-system-packages pytest pytest-asyncio httpx structlog prometheus-client fastapi uvicorn psutil pydantic redis faiss-cpu numpy pandas
-          pip install --break-system-packages -r requirements.txt || true
-      - name: Run stable tests
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Test with SQLite
+        env:
+          DB_BACKEND: sqlite
         run: |
-      - name: Run tests
+          pytest --cov=. --cov-report=xml -v
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+  test-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_USER: astrofin
+          POSTGRES_PASSWORD: astrofin
+          POSTGRES_DB: astrofin_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
         run: |
-          pip install redis
-          pytest tests/ tests/e2e/ -v --tb=short
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Integration tests with PostgreSQL
+        env:
+          DB_BACKEND: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: astrofin
+          POSTGRES_PASSWORD: astrofin
+          POSTGRES_DB: astrofin_test
+        run: |
+          pytest -m "integration or db" --cov=.
+  validate-data-room:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check Data Room integrity
+        run: bash scripts/ci_validate_data_room.sh

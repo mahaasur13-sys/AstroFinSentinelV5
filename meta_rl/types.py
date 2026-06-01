@@ -8,9 +8,7 @@ class EvaluationResult:
     """Результат оценки стратегии."""
 
     win_rate: float = 0.0
-    sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
-    total_trades: int = 0
     avg_confidence: float = 0.0
     total_return_pct: float = 0.0
     score: float = 0.0
@@ -35,9 +33,7 @@ class BasketMetrics:
     """Метрики корзины стратегий."""
 
     win_rate: float = 0.0
-    sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
-    total_trades: int = 0
     avg_confidence: float = 0.0
     total_return_pct: float = 0.0
     num_strategies: int = 1

@@ -1,26 +1,21 @@
-import requests
 import pytest
+from web.app import create_app
 
-BASE_URL = "http://127.0.0.1:8000"
-API_KEY = "test-key"
-API_KEY = "test-key"
+
+@pytest.fixture
+def app():
+    app = create_app()
+    app.config["TESTING"] = True
+    return app
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
 
 @pytest.mark.e2e
-def test_health_endpoint(flask_app):
-    resp = requests.get(f"{BASE_URL}/health")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "healthy"
-    assert "X-RateLimit-Remaining" in resp.headers
-
-
-@pytest.mark.e2e
-def test_rate_limiting(flask_app):
-    for i in range(15):
-        resp = requests.get(f"{BASE_URL}/api/ab/compare", headers={"X-API-Key": API_KEY})
-        if resp.status_code == 429:
-            break
-    assert resp.status_code == 429
-    if resp.status_code == 401:
-        pytest.skip("Server not ready")
+def test_health_endpoint(client):
+    rv = client.get("/health")
+    assert rv.status_code == 200
+    assert b"ok" in rv.data

@@ -6,10 +6,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import sys
 import uuid
 from datetime import datetime, timezone
-from typing import Any
 
 from agents._impl.bear_researcher import run_bear_researcher
 from agents._impl.bull_researcher import run_bull_researcher
@@ -23,7 +21,7 @@ from agents._impl.sentiment_agent import run_sentiment_agent
 from agents._impl.synthesis_agent import SynthesisAgent
 from agents.astro_council_agent import run_astro_council
 from agents.base_agent import AgentResponse, SignalDirection
-from agents.karl_synthesis import KARLSynthesisAgent, get_karl_agent
+from agents.karl_synthesis import KARLSynthesisAgent
 from core.belief import update_beliefs_from_session
 from core.history_db import save_session
 from core.thompson import (
