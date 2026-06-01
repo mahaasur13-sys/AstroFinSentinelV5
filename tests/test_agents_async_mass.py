@@ -15,11 +15,13 @@ AGENTS = [
     ("agents._impl.fundamental_agent", "FundamentalAgent"),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("module_name,class_name", AGENTS)
 async def test_agent_uses_async_http(module_name, class_name):
     # Динамически импортируем класс агента
     import importlib
+
     module = importlib.import_module(module_name)
     agent_cls = getattr(module, class_name)
     agent = agent_cls()
@@ -30,12 +32,14 @@ async def test_agent_uses_async_http(module_name, class_name):
         mock_get.return_value = Mock(
             status_code=200,
             raise_for_status=Mock(),
-            json=Mock(return_value={
-                "data": [
-                    ["1672531200000", "45000", "46000", "44000", "45500", "100.5"],
-                    ["1672617600000", "45500", "46500", "45000", "46000", "200.3"],
-                ]
-            })
+            json=Mock(
+                return_value={
+                    "data": [
+                        ["1672531200000", "45000", "46000", "44000", "45500", "100.5"],
+                        ["1672617600000", "45500", "46500", "45000", "46000", "200.3"],
+                    ]
+                }
+            ),
         )
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
