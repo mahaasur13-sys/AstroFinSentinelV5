@@ -26,7 +26,7 @@
       },
       {
         "title": "Cache Hit Rate",
-        "type": "graph",
+        "type": "timeseries",
         "targets": [
           {
             "expr": "rate(astrofin_cache_hits_total[5m]) / (rate(astrofin_cache_hits_total[5m]) + rate(astrofin_cache_misses_total[5m]))",
@@ -37,7 +37,7 @@
       },
       {
         "title": "Backtest Runs",
-        "type": "graph",
+        "type": "timeseries",
         "targets": [
           {
             "expr": "rate(astrofin_backtest_real_runs_total[5m])",

@@ -1,58 +1,53 @@
 groups:
-  - name: astrofin
-    interval: 30s
+  - name: astrofin_domain
     rules:
-      # --- Heartbeat (тестовый алерт) ---
-      - alert: AlertPipelineHealthy
-        expr: vector(1)
-        for: 0m
-        labels:
-          severity: info
-        annotations:
-          summary: "Alertmanager pipeline is healthy"
-          description: "This is a heartbeat alert to test end-to-end notification delivery."
-
-      # ... остальные правила (DatabaseDown, RedisDown, HighErrorRate)
-      # Database Connection Issues
-      - alert: DatabaseDown
-        expr: pg_up == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "PostgreSQL is down"
-          description: "Database has been unreachable for 1 minute"
-
-      # Redis Down
-      - alert: RedisDown
-        expr: redis_up == 0
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Redis is down"
-          description: "Cache layer has been unreachable for 1 minute"
-
-      # High Error Rate (mapped to broker_errors_total)
-      - alert: HighErrorRate
-        expr: rate(astrofin_broker_errors_total[5m]) > 0.1
+      - alert: HighOOSFailRate
+        expr: astrofin_oos_fail_rate > 0.4
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High error rate: {{ $value }}/s"
-          description: "Broker/execution error rate is elevated"
+          summary: "OOS failure rate > 40%"
+          description: "Out-of-sample fail rate is {{ $value | humanizePercentage }}"
 
-      # --- TODO: Domain metrics to implement in P1 ---
-      # - alert: HighOOSFailRate
-      #   expr: astrofin_oos_fail_rate > 0.35
-      #   ...
-      # - alert: KARLDrift
-      #   expr: astrofin_drift_status == 1
-      #   ...
-      # - alert: LowWinRate
-      #   expr: astrofin_win_rate < 0.50
-      #   ...
-      # - alert: HighDrawdown
-      #   expr: astrofin_max_drawdown > 0.15
-      #   ...
+      - alert: KARLDrift
+        expr: astrofin_karl_drift_detected == 1
+        labels:
+          severity: warning
+        annotations:
+          summary: "KARL model drift detected"
+          description: "KARL synthesis agent detected concept drift"
+
+      - alert: LowWinRate
+        expr: astrofin_meta_rl_win_rate < 0.45
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Win rate below 45%"
+          description: "Meta-RL win rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighDrawdown
+        expr: astrofin_drawdown_percent > 0.08
+        labels:
+          severity: critical
+        annotations:
+          summary: "Drawdown exceeds 8%"
+          description: "Current drawdown is {{ $value | humanizePercentage }}"
+
+      - alert: DataRoomConflictUnresolved
+        expr: data_room_conflicts_unresolved > 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unresolved data room conflicts"
+          description: "There are {{ $value }} unresolved conflicts in the Data Room"
+
+      - alert: DataRoomIncomplete
+        expr: time() - data_room_last_inventory_update > 86400
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data room inventory not updated in 24h"
+          description: "Last inventory update was more than 24 hours ago"
