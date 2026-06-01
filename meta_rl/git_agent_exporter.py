@@ -17,7 +17,7 @@ import yaml
 
 logger = logging.getLogger(__name__)
 GIT_EXPORT_ENABLED = True
-EXPORT_ON_EVOLUTION = False
+EXPORT_ON_EVOLUTION = True
 
 
 @dataclass
