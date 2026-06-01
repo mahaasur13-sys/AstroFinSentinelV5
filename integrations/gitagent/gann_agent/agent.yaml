@@ -1,0 +1,43 @@
+name: GannAgent
+version: 1.0.0
+type: analysis
+domain: astro
+
+description: |
+  Gann angles (1x1, 1x2), square of price/time, time clusters
+
+capabilities:
+  - gann_angle_calculation
+  - price_time_square
+  - time_cluster_detection
+  - support_resistance_gann
+
+inputs:
+  - price_data
+  - date
+
+outputs:
+  - gann_levels
+  - time_clusters
+  - signal
+
+sources:
+  - Gann theory
+  - Price-time relationships
+
+karl_integration:
+  reward_weight: 0.03
+  supports_ttc: true
+  supports_selfq: true
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - astro
+  - core
+  - karl_integrated

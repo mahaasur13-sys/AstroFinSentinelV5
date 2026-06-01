@@ -56,3 +56,7 @@ backtest/_archived_dbs/.env
 *.env
 .env.*
 logging\nos\nrequests
+data/meta_rl/sessions/
+os
+sys
+re

@@ -1,0 +1,63 @@
+agent: MarketAnalyst
+version: 1.0.0
+test_suite:
+- name: full_regression
+  cases:
+  - name: neutral_market
+    input:
+      domain: technical
+      price_data: sideways
+    expected:
+      signal: NEUTRAL
+      confidence_range:
+      - 35
+      - 65
+  - name: strong_bullish
+    input:
+      domain: technical
+      price_data: strong_uptrend
+    expected:
+      signal: LONG
+      confidence_min: 65
+  - name: strong_bearish
+    input:
+      domain: technical
+      price_data: strong_downtrend
+    expected:
+      signal: SHORT
+      confidence_min: 65
+  - name: no_data_available
+    input:
+      domain: technical
+      price_data: null
+    expected:
+      signal: NEUTRAL
+      confidence_max: 55
+- name: karl_integration
+  cases:
+  - name: uncertainty_quantified
+    input:
+      ambiguous_data: true
+    expected:
+      metadata_contains: uncertainty
+  - name: metadata_present
+    input:
+      data: valid
+    expected:
+      metadata_contains: features_used
+- name: boundary
+  cases:
+  - name: confidence_max_100
+    input:
+      extreme_data: true
+    expected:
+      confidence_max: 100
+  - name: confidence_min_0
+    input:
+      no_data: true
+    expected:
+      confidence_min: 0
+karl_validation:
+  replay_buffer_ready: true
+  oap_track: true
+  supports_selfq: true

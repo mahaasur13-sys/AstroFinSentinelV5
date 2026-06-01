@@ -1,0 +1,43 @@
+name: BullResearcher
+version: 1.0.0
+type: analysis
+domain: research
+
+description: |
+  Identifies bullish factors and positive narratives for trading decisions
+
+capabilities:
+  - bullish_narrative_discovery
+  - positive_momentum_identification
+  - opportunity_mapping
+
+inputs:
+  - market_state
+  - news
+  - social_sentiment
+
+outputs:
+  - bullish_signals
+  - opportunities
+
+sources:
+  - News API
+  - Social Media
+  - On-chain data
+
+karl_integration:
+  reward_weight: 0.05
+  supports_ttc: true
+  supports_selfq: true
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - research
+  - core
+  - karl_integrated

@@ -1,0 +1,20 @@
+"""schema.py — Pydantic output schema for Sentiment"""
+
+from pydantic import BaseModel, Field
+from typing import List, Literal
+
+
+class SentimentMetadata(BaseModel):
+    features_used: List[str] = Field(default_factory=list)
+    decision_path: List[str] = Field(default_factory=list)
+    uncertainty: float = Field(0.5, ge=0.0, le=1.0)
+    karl_eligible: bool = Field(True)
+
+
+class SentimentOutput(BaseModel):
+    agent_name: str = Field(default="Sentiment")
+    signal: Literal["LONG", "SHORT", "NEUTRAL", "AVOID"]
+    confidence: int = Field(..., ge=0, le=100)
+    reasoning: str = Field(...)
+    sources: List[str] = Field(default_factory=list)
+    metadata: SentimentMetadata = Field(default_factory=SentimentMetadata)

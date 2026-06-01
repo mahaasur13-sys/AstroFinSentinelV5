@@ -1,0 +1,43 @@
+name: InsiderAgent
+version: 1.0.0
+type: analysis
+domain: fundamental
+
+description: |
+  Tracks insider transactions and institutional activity from SEC 13F filings
+
+capabilities:
+  - insider_tracking
+  - sec_13f_analysis
+  - institutional_holding_changes
+
+inputs:
+  - sec_filings
+  - insider_transactions
+
+outputs:
+  - insider_signal
+  - confidence
+  - institutional_flow
+
+sources:
+  - SEC EDGAR
+  - Form 13F
+  - Insider tracking services
+
+karl_integration:
+  reward_weight: 0.05
+  supports_ttc: false
+  supports_selfq: false
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - fundamental
+  - core
+  - karl_integrated

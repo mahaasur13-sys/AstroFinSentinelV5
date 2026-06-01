@@ -1,0 +1,43 @@
+name: ElliotAgent
+version: 1.0.0
+type: analysis
+domain: technical
+
+description: |
+  Elliott Wave analysis for wave counting and trend prediction
+
+capabilities:
+  - wave_counting
+  - impulse_waves
+  - corrective_waves
+  - wave_personality
+
+inputs:
+  - price_data
+  - current_wave
+
+outputs:
+  - wave_count
+  - next_target
+  - signal
+
+sources:
+  - Elliott Wave theory
+  - Price action
+
+karl_integration:
+  reward_weight: 0.05
+  supports_ttc: true
+  supports_selfq: true
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - technical
+  - core
+  - karl_integrated

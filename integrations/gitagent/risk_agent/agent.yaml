@@ -1,0 +1,45 @@
+name: RiskAgent
+version: 1.0.0
+type: risk_management
+domain: risk
+
+description: |
+  Dynamic risk assessment, position sizing, stop-loss recommendations
+
+capabilities:
+  - risk_assessment
+  - position_sizing
+  - stop_loss_calculation
+  - volatility_regime_detection
+
+inputs:
+  - price_data
+  - regime
+  - volatility
+
+outputs:
+  - risk_score
+  - position_size
+  - stop_loss
+
+sources:
+  - Volatility models
+  - ATR
+  - Historical drawdown
+
+karl_integration:
+  reward_weight: 0.0
+  supports_ttc: false
+  supports_selfq: false
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - risk
+  - core
+  - karl_integrated

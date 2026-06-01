@@ -1,0 +1,43 @@
+name: CycleAgent
+version: 1.0.0
+type: analysis
+domain: astro
+
+description: |
+  Market cycle analysis: 20/40/80 day cycles, phase detection, turn points
+
+capabilities:
+  - cycle_detection
+  - phase_analysis
+  - turn_point_prediction
+  - jupiter_saturn_cycles
+
+inputs:
+  - price_history
+  - ephemeris
+
+outputs:
+  - cycle_phase
+  - turn_probability
+  - confidence
+
+sources:
+  - Price cycles
+  - Ephemeris data
+
+karl_integration:
+  reward_weight: 0.05
+  supports_ttc: true
+  supports_selfq: true
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - astro
+  - core
+  - karl_integrated

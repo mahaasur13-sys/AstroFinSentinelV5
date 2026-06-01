@@ -1,0 +1,43 @@
+name: MarketAnalyst
+version: 1.0.0
+type: analysis
+domain: technical
+
+description: |
+  Market structure analysis: support/resistance, patterns, order blocks
+
+capabilities:
+  - market_structure
+  - support_resistance
+  - pattern_recognition
+  - order_block_identification
+
+inputs:
+  - price_data
+  - volume_profile
+
+outputs:
+  - structure_signal
+  - key_levels
+  - confidence
+
+sources:
+  - Price action
+  - Volume profile
+
+karl_integration:
+  reward_weight: 0.05
+  supports_ttc: true
+  supports_selfq: true
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - technical
+  - core
+  - karl_integrated

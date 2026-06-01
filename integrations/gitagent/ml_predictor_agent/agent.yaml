@@ -1,0 +1,44 @@
+name: MLPredictorAgent
+version: 1.0.0
+type: prediction
+domain: quant
+
+description: |
+  ML-based price prediction using historical patterns and features
+
+capabilities:
+  - price_prediction
+  - pattern_recognition
+  - feature_based_ml
+  - regime_detection
+
+inputs:
+  - price_history
+  - features
+  - regime
+
+outputs:
+  - predicted_direction
+  - confidence
+  - features_used
+
+sources:
+  - Historical data
+  - Feature engineering
+
+karl_integration:
+  reward_weight: 0.08
+  supports_ttc: true
+  supports_selfq: true
+  oap_track: true
+  replay_buffer_ready: true
+
+constraints:
+  - NEVER hallucinate indicators or data
+  - ALWAYS reference input data in reasoning
+  - MUST return structured output with confidence
+
+tags:
+  - quant
+  - core
+  - karl_integrated
