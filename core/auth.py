@@ -1,8 +1,8 @@
-import secrets
-
 """API Key authentication."""
+
 import logging
 import os
+import secrets
 from functools import wraps
 
 from fastapi import HTTPException, Request
@@ -13,22 +13,31 @@ REQUIRE_AUTH = os.getenv("REQUIRE_AUTH", "true").lower() == "true"
 API_KEY = os.getenv("API_KEY", "")
 
 
+def validate_startup():
+    """Raise RuntimeError if auth is required but API_KEY is missing."""
+    if REQUIRE_AUTH and (not API_KEY or API_KEY.strip() == ""):
+        raise RuntimeError("REQUIRE_AUTH is true but API_KEY is empty or unset")
+
+
 def require_api_key(func):
-    """Декоратор для Flask: проверяет X-API-Key."""
+    """Decorator for Flask: checks X-API-Key header."""
 
     @wraps(func)
     def wrapper(*args, **kwargs):
         from flask import request
 
-        require_auth = os.getenv("REQUIRE_AUTH", "true").lower() == "true"
-        if not require_auth:
+        if REQUIRE_AUTH and (not API_KEY or API_KEY.strip() == ""):
+            logger.critical("Server misconfiguration: API key required but not set")
+            return ({"error": "Server misconfiguration"}, 500)
+
+        if not REQUIRE_AUTH:
             return func(*args, **kwargs)
-        api_key = os.getenv("API_KEY", "")
+
         key = request.headers.get("X-API-Key")
         if not key:
             logger.warning("auth.failed endpoint=%s remote=%s missing key", request.path, request.remote_addr)
             return ({"error": "Unauthorized"}, 401)
-        if not secrets.compare_digest(key, api_key):
+        if not secrets.compare_digest(key, API_KEY):
             logger.warning("auth.failed endpoint=%s remote=%s wrong key", request.path, request.remote_addr)
             return ({"error": "Forbidden"}, 403)
         logger.debug("auth.success endpoint=%s", request.path)
@@ -38,7 +47,10 @@ def require_api_key(func):
 
 
 async def fastapi_require_api_key(request: Request):
-    """FastAPI dependency: проверяет X-API-Key."""
+    """FastAPI dependency: checks X-API-Key."""
+    if REQUIRE_AUTH and (not API_KEY or API_KEY.strip() == ""):
+        logger.critical("Server misconfiguration: API key required but not set")
+        raise HTTPException(status_code=500, detail="Server misconfiguration")
     if not REQUIRE_AUTH:
         return
     key = request.headers.get("X-API-Key")

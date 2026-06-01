@@ -7,6 +7,7 @@ Production-ready Dash app with:
   - Configurable via environment variables
   - Security headers (via Flask middleware)
   - Health check endpoint
+  - Data Room API endpoints
 
 Run:
     Development: python app.py
@@ -27,12 +28,17 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import Input, Output, dcc, html
 
+from web.data_room import data_room_bp
+
 
 # ── Config ──────────────────────────────────────────────────────────────────────
 DEBUG = os.getenv("DEBUG_MODE", "false").lower() == "true"
 PORT = int(os.getenv("PORT", "8050"))
 SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(16).hex())
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
+from core.auth import validate_startup
+
+validate_startup()
 
 # ── App setup ──────────────────────────────────────────────────────────────────
 app = dash.Dash(
@@ -48,12 +54,21 @@ app = dash.Dash(
             "name": "description",
             "content": "AstroFinSentinelV5 Meta-RL Strategy Discovery Engine",
         },
-        {"name": "viewport", "content": "width=device-width, initial-scale=1"},
+        {
+            "name": "viewport",
+            "content": "width=device-width, initial-scale=1",
+        },
     ],
 )
+
 app.title = "AstroFinSentinelV5 • Meta-RL Engine"
 app.secret_key = SECRET_KEY
-server = app.server  # expose for gunicorn
+
+# Flask server for Gunicorn
+server = app.server
+
+# Register Flask blueprints
+server.register_blueprint(data_room_bp)
 
 _log = logging.getLogger("werkzeug")
 _log.setLevel(logging.WARNING if not DEBUG else logging.INFO)
@@ -78,10 +93,22 @@ app.layout = dbc.Container(
                         html.Div(
                             [
                                 html.Span("🧬", className="fs-3 me-2"),
-                                html.H1("AstroFinSentinelV5", className="d-inline fs-4"),
-                                html.Span(" • ", className="text-muted"),
-                                html.Span("Meta-RL Engine", className="text-info"),
-                                html.Span(" • ", className="text-muted"),
+                                html.H1(
+                                    "AstroFinSentinelV5",
+                                    className="d-inline fs-4",
+                                ),
+                                html.Span(
+                                    " • ",
+                                    className="text-muted",
+                                ),
+                                html.Span(
+                                    "Meta-RL Engine",
+                                    className="text-info",
+                                ),
+                                html.Span(
+                                    " • ",
+                                    className="text-muted",
+                                ),
                                 html.Span(
                                     "ATOM-META-RL-006",
                                     className="text-warning",
@@ -115,22 +142,47 @@ app.layout = dbc.Container(
             id="main-tabs",
             value="tab-dashboard",
             children=[
-                dcc.Tab(label="📊 Dashboard", value="tab-dashboard"),
-                dcc.Tab(label="▶ Evolution", value="tab-evolution"),
-                dcc.Tab(label="📋 Sessions", value="tab-sessions"),
-                dcc.Tab(label="🔬 Explorer", value="tab-explorer"),
-                dcc.Tab(label="📡 Live", value="tab-live"),
+                dcc.Tab(
+                    label="📊 Dashboard",
+                    value="tab-dashboard",
+                ),
+                dcc.Tab(
+                    label="▶ Evolution",
+                    value="tab-evolution",
+                ),
+                dcc.Tab(
+                    label="📋 Sessions",
+                    value="tab-sessions",
+                ),
+                dcc.Tab(
+                    label="🔬 Explorer",
+                    value="tab-explorer",
+                ),
+                dcc.Tab(
+                    label="📡 Live",
+                    value="tab-live",
+                ),
             ],
         ),
-        html.Div(id="tab-content", className="mt-3"),
-        dcc.Interval(id="clock-interval", interval=60000, n_intervals=0),
+        html.Div(
+            id="tab-content",
+            className="mt-3",
+        ),
+        dcc.Interval(
+            id="clock-interval",
+            interval=60000,
+            n_intervals=0,
+        ),
     ],
     fluid=True,
     className="pe-4 ps-4 pt-3",
 )
 
 
-@app.callback(Output("header-time", "children"), Input("clock-interval", "n_intervals"))
+@app.callback(
+    Output("header-time", "children"),
+    Input("clock-interval", "n_intervals"),
+)
 def update_clock(_):
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -145,5 +197,10 @@ register_sessions_callbacks(app)
 _log.info(f"[DASH] AstroFinSentinelV5 ready → http://0.0.0.0:{PORT}")
 _log.info(f"[DASH] Config: DEBUG={DEBUG} PORT={PORT} URL_BASE={os.getenv('URL_BASE_PATHNAME', '/')}")
 
+
 if __name__ == "__main__":
-    app.run(debug=DEBUG, host="0.0.0.0", port=PORT)
+    app.run(
+        debug=DEBUG,
+        host="0.0.0.0",
+        port=PORT,
+    )
