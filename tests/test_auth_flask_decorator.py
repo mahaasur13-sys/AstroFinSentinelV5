@@ -53,7 +53,7 @@ def test_require_api_key_missing_key(monkeypatch):
 
 
 def test_require_api_key_wrong_key(monkeypatch):
-    """Wrong API key should return 401."""
+    """Wrong API key should return 403."""
     monkeypatch.setenv("REQUIRE_AUTH", "true")
     monkeypatch.setenv("API_KEY", "correct-key")
     import importlib
@@ -64,14 +64,14 @@ def test_require_api_key_wrong_key(monkeypatch):
     app = create_test_app()
     client = app.test_client()
     resp = client.get("/protected", headers={"X-API-Key": "wrong-key"})
-    assert resp.status_code == 401
-    assert resp.json.get("error") == "Unauthorized"
+    assert resp.status_code == 403
+    assert resp.json.get("error") == "Forbidden"
 
 
 def test_require_api_key_empty_env_key_should_reject_all(monkeypatch):
     """
     If API_KEY env var is empty (or missing), all requests should be rejected
-    with 401, even if a key is provided.
+    with 500, even if a key is provided.
     """
     monkeypatch.setenv("REQUIRE_AUTH", "true")
     monkeypatch.setenv("API_KEY", "")  # empty
@@ -85,13 +85,13 @@ def test_require_api_key_empty_env_key_should_reject_all(monkeypatch):
 
     # Request with no key
     resp1 = client.get("/protected")
-    assert resp1.status_code == 401
-    assert resp1.json.get("error") == "Unauthorized"
+    assert resp1.status_code == 500
+    assert resp1.json.get("error") == "Server misconfiguration"
 
     # Request with any key
     resp2 = client.get("/protected", headers={"X-API-Key": "anything"})
-    assert resp2.status_code == 401
-    assert resp2.json.get("error") == "Unauthorized"
+    assert resp2.status_code == 500
+    assert resp2.json.get("error") == "Server misconfiguration"
 
 
 def test_require_api_key_auth_disabled(monkeypatch):

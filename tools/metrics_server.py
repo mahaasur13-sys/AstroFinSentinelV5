@@ -55,3 +55,9 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="0.0.0.0")
     args = parser.parse_args()
     run_server(args.port, args.host)
+
+# ── Missing metrics for backtest and observability ─────────────────────────────
+BACKTEST_REAL_RUNS = Counter("astrofin_backtest_real_runs", "Real data backtest runs")
+BACKTEST_SYNTHETIC_RUNS = Counter("astrofin_backtest_synthetic_runs", "Synthetic data backtest runs")
+AGENT_SELECTION_COUNTS = Counter("astrofin_agent_selection_counts", "Agent selection counts", ["agent"])
+THOMPSON_PARAMS = Gauge("astrofin_thompson_params", "Thompson Sampling parameters", ["pool"])

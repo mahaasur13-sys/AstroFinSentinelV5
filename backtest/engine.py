@@ -335,7 +335,7 @@ class BacktestEngine:
 
                 chosen = None
                 for r in signals_for_bar:
-                    if r.signal != "NEUTRAL":
+                    if r and r.signal != "NEUTRAL":
                         chosen = r
                         break
                 if chosen is None:

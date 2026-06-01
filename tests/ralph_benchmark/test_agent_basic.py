@@ -1,3 +1,6 @@
+import pytest
+
+pytestmark = pytest.mark.skip(reason="Requires external Ralph agent")
 """Бенчмарк для Ralph Loop – минимальная задача, которую агент должен решить."""
 
 import os

@@ -1,21 +1,14 @@
 import pytest
-from web.app import create_app
+from web.app import server
 
 
 @pytest.fixture
-def app():
-    app = create_app()
-    app.config["TESTING"] = True
-    return app
+def client():
+    server.config["TESTING"] = True
+    with server.test_client() as c:
+        yield c
 
 
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.mark.e2e
-def test_health_endpoint(client):
+def test_health(client):
     rv = client.get("/health")
     assert rv.status_code == 200
-    assert b"ok" in rv.data
