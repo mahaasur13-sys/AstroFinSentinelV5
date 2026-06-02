@@ -1,0 +1,8 @@
+version = 1
+revision = 1
+requires-python = ">=3.10"
+
+[[package]]
+name = "astrofin-sentinel-v5"
+version = "5.0.0"
+source = { editable = "." }
