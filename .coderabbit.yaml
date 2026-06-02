@@ -1,80 +1,126 @@
-# .coderabbit.yaml
-# Оптимизированная конфигурация для AstroFinSentinelV5
+# CodeRabbit configuration for AstroFin Sentinel V5
+# Language: Russian, assertive style, P1-blocking, quarterly review cycle
+# See docs/CODE_REVIEW.md for integration rationale
 
 language: ru
-
+early_access: false
 reviews:
-  profile: assertive              # строгий и профессиональный стиль
+  request_changes_workflow: true
   high_level_summary: true
-  suggest_code_changes: true
   poem: false
-  humor: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DNM"
+    drafts: false
+    base_branches:
+      - master
+      - develop
+  path_instructions:
+    # Rule R1, R5, R9: Agent code
+    - path: "agents/_impl/**/*.py"
+      instructions: |
+        Проверь наследование от BaseAgent (R1). Убедись, что агент зарегистрирован в AGENT_AGENTS (R5).
+        Проверь наличие экспорта run_<agent_name> (R9). Внутри run() должен быть try/except для graceful degradation (A9).
+    # Rule R2: Ephemeris usage
+    - path: "**/ephemeris*.py"
+      instructions: |
+        Если модуль использует swisseph или расчёты эфемерид, обязательно наличие декоратора @require_ephemeris (R2).
+        При отсутствии декоратора или импорта swisseph — выдать P1-ошибку (ссылка на KI-002).
+    # Rule R4: Web auth
+    - path: "web/**/*.py"
+      instructions: |
+        Для всех непубличных маршрутов (кроме /health, /metrics) проверь наличие декоратора @require_auth (R4).
+        Отсутствие — P1-нарушение.
+    # Rule R3: Data Room compliance (NO direct requests)
+    - path: "agents/**/*.py"
+      instructions: |
+        Запрещён прямой import requests или вызов requests.* вне data_room/ (R3, KI-001).
+        Если обнаружен — P1-блокер. Предложи использовать data_room.blueprint.get_price(...) или аналоги.
+    - path: "core/**/*.py"
+      instructions: |
+        То же правило R3: нельзя import requests за пределами data_room/. Исключение — файлы, которые явно являются частью Data Room (data_room/*, deploy/monitoring/health_endpoints.py).
+    # Rule R6, R7, R8: prints, SQL, secrets
+    - path: "**/*.py"
+      instructions: |
+        R6: запрещён print на верхнем уровне (использовать logging).
+        R7: запрещены f-строки в SQL-запросах (использовать параметризованные запросы).
+        R8: запрещены жёстко заданные секреты (пароли, токены, ключи API). Проверь паттерны: "password=", "api_key=", "secret=".
+        Нарушения R7 и R8 — P1-блокеры.
+    # Тесты: BlackRock Six
+    - path: "agents/_impl/*.py"
+      instructions: |
+        При изменении файла агента проверь существование tests/test_<имя_агента>.py.
+        Убедись, что тест покрывает шесть обязательных случаев (happy path + 5 edge): 
+        - успешный вызов,
+        - отсутствие эфемерид,
+        - таймаут data room,
+        - некорректные входные данные,
+        - деградация при недоступности внешнего источника.
+    - path: "tests/test_*.py"
+      instructions: |
+        Для асинхронных агентов проверь наличие суффикса _async в имени тестовой функции.
+        Убедись, что используется pytest-asyncio и мокирование httpx.AsyncClient.
 
-# ==================== ОСНОВНЫЕ ИНСТРУКЦИИ ====================
-knowledge_base:
-  instructions: |
-    Ты — Senior AI Engineer и Quantitative Researcher.
-    Проект AstroFinSentinelV5 — это продвинутая автономная AI-торговая система на базе multi-agent архитектуры, Meta-Reinforcement Learning и высокопроизводительного backtesting.
+  # Ссылка на известные проблемы (P1-блокеры)
+  knowledge_base:
+    - "docs/KNOWN_ISSUES.md"
+    - "docs/ARCHITECTURE.md"
 
-    Ключевые приоритеты при код-ревью:
-    1. Отсутствие look-ahead bias и data leakage
-    2. Производительность и оптимизация (особенно в backtest и inference)
-    3. Воспроизводимость экспериментов (seed, logging, конфиги)
-    4. Чистая архитектура и слабая связанность модулей
-    5. Надёжная обработка ошибок и edge-кейсы
-    6. Качественные type hints и документация
-    7. Безопасность (не логировать API-ключи, чувствительные данные)
+  # Определение P1-паттернов для блокировки слияния
+  blocking_patterns:
+    - pattern: "import requests"
+      level: error
+      message: "KI-001: Прямой вызов requests вне Data Room запрещён (R3). Используй data_room.blueprint."
+    - pattern: "@require_ephemeris"
+      level: error
+      message: "Отсутствует @require_ephemeris в коде, использующем swisseph (R2, KI-002)."
+    - pattern: "class \\w+\\(.*\\):"
+      # проверка наследования от BaseAgent (упрощённо)
+      level: error
+      message: "Класс агента должен наследовать BaseAgent (R1)."
+    - pattern: "AGENT_AGENTS\\["
+      level: error
+      message: "Агент не зарегистрирован в agents/gitagent_registry.py (R5)."
+    - pattern: "def run_\\w+"
+      level: error
+      message: "Отсутствует функция run_<agent_name> для экспорта (R9)."
+    - pattern: "(password|api_key|secret|token)\\s*=\\s*['\"][^'\"]+['\"]"
+      level: error
+      message: "Жёстко заданный секрет (R8). Вынеси в переменные окружения."
 
-# ==================== ИНСТРУКЦИИ ПО ПАПКАМ ====================
-path_instructions:
-  - path: "backtest/**"
-    instructions: "Особое внимание на отсутствие look-ahead bias, правильную работу с временными рядами, корректность метрик и валидацию."
+  # Мягкие правила (только предупреждения)
+  warning_patterns:
+    - pattern: "def \\w+\\(.*\\):"
+      level: warning
+      message: "S1: Добавь docstring к функции/классу."
+    - pattern: "print\\("
+      level: warning
+      message: "Используй logging вместо print (R6)."
 
-  - path: "agents/**"
-    instructions: "Анализируй логику принятия решений, управление состоянием, взаимодействие между агентами и robustness."
+  # Игнорируемые пути (совпадают с pre-commit)
+  ignore_paths:
+    - "__pycache__/"
+    - ".pytest_cache/"
+    - ".mypy_cache/"
+    - "data/raw/**"
+    - "data/processed/**"
+    - "*.log"
+    - ".env*"
+    - "venv/"
+    - "node_modules/"
+    - "agents/_archived/**"
+    - "*.bak"
 
-  - path: "meta_rl/**"
-    instructions: "Проверяй мета-обучение, стабильность, эффективность и потенциальные проблемы с переобучением."
+  # Автоисправления
+  suggest_fixes: true
+  auto_fix_patterns:
+    - pattern: "@require_auth\\s*$"
+      replacement: "@require_auth\n"
+    - pattern: "from core.auth import require_auth"
 
-  - path: "mas_factory/**"
-    instructions: "Оценивай качество фабрики мультиагентных систем, конфигурацию и расширяемость."
-
-  - path: "core/**"
-    instructions: "Проверяй чистую архитектуру, dependency injection, модульность и разделение ответственности."
-
-  - path: "trading/**"
-    instructions: "Особое внимание на торговую логику, управление рисками, позиционирование и исполнение ордеров."
-
-  - path: "**/*.py"
-    instructions: "Используй современный Python (type hints, dataclasses, pydantic где уместно). Избегай глобального состояния."
-
-  - path: "data/**"
-    instructions: "Не комментировать содержимое данных, только код обработки."
-
-# ==================== ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ====================
-focus_areas:
-  - "look-ahead bias & data leakage"
-  - "performance & optimization"
-  - "reproducibility"
-  - "error handling & robustness"
-  - "type safety"
-  - "architecture quality"
-
-exclude:
-  - "**/__pycache__/**"
-  - "**/.pytest_cache/**"
-  - "**/.mypy_cache/**"
-  - "**/data/raw/**"
-  - "**/data/processed/**"
-  - "**/*.log"
-  - "**/.env*"
-  - "**/venv/**"
-  - "**/node_modules/**"
-
-# Для планов (если используешь "New Plan")
-plan:
-  include:
-    - "architecture"
-    - "roadmap"
-    - "risks"
-    - "scalability"
+  # Цикл пересмотра правил
+  review_cycle: quarterly

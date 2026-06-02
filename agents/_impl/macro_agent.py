@@ -10,7 +10,6 @@ Indicators:
 import logging
 from typing import Optional
 
-import numpy as np
 
 from agents._impl.ephemeris_decorator import require_ephemeris
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection

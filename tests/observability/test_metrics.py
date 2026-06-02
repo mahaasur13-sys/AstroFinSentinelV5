@@ -1,9 +1,13 @@
 """Smoke tests for observability/metrics.py."""
+
 import asyncio
 import time
 import pytest
 from observability.metrics import (
-    record_agent_run, record_data_room_resolve, time_block, with_agent_timing,
+    record_agent_run,
+    record_data_room_resolve,
+    time_block,
+    with_agent_timing,
 )
 
 
@@ -34,5 +38,6 @@ def test_with_agent_timing_decorator_passes_through():
     @with_agent_timing("DecoratedAgent", signal_getter=lambda r: "LONG", confidence_getter=lambda r: 75)
     async def fake_run(state):
         return {"signal": "LONG", "confidence": 75}
+
     result = asyncio.run(fake_run({"x": 1}))
     assert result == {"signal": "LONG", "confidence": 75}

@@ -1,6 +1,5 @@
 """Smoke test for Data Room API blueprint."""
 
-import json
 from flask import Flask
 from web.data_room import data_room_bp
 
