@@ -3,6 +3,7 @@ AstroFin Sentinel v5 — Base Agent
 RAG-first agent implementation with knowledge retrieval.
 """
 
+import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -11,6 +12,30 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from knowledge.rag_retriever import RAGRetriever
+
+logger = logging.getLogger(__name__)
+
+
+# ─── Standard degradation reason constants ───────────────────────────────────
+# All machine-readable; agents must use these (or extend the list with a new
+# constant) when calling self._degraded(...) so dashboards and the
+# compliance linter can reason about it.
+
+EPHEMERIS_UNAVAILABLE: str = "EPHEMERIS_UNAVAILABLE"
+DATA_ROOM_TIMEOUT: str = "DATA_ROOM_TIMEOUT"
+DATA_ROOM_ERROR: str = "DATA_ROOM_ERROR"
+RAG_UNAVAILABLE: str = "RAG_UNAVAILABLE"
+TIMEOUT: str = "TIMEOUT"
+UNKNOWN: str = "UNKNOWN"
+
+VALID_DEGRADATION_REASONS: frozenset[str] = frozenset({
+    EPHEMERIS_UNAVAILABLE,
+    DATA_ROOM_TIMEOUT,
+    DATA_ROOM_ERROR,
+    RAG_UNAVAILABLE,
+    TIMEOUT,
+    UNKNOWN,
+})
 
 
 class SignalDirection(str, Enum):
@@ -63,6 +88,12 @@ class BaseAgent(ABC, Generic[T]):
     1. Имеет instructions.md (загружается при инициализации)
     2. Может запрашивать RAG через self.retrieve()
     3. Возвращает AgentResponse
+
+    Встроенные помощники:
+        - self._degraded(reason, msg): стандартный «пониженный» AgentResponse.
+          Используйте его в `run()`/`analyze()` на любом except, чтобы одна
+          ошибка не вывела из строя весь оркестратор. Reasons — из
+          `core.base_agent` (EPHEMERIS_UNAVAILABLE / DATA_ROOM_TIMEOUT / UNKNOWN / ...).
     """
 
     def __init__(
@@ -84,6 +115,40 @@ class BaseAgent(ABC, Generic[T]):
                     self.instructions_md = f.read()
             except FileNotFoundError:
                 self.instructions_md = f"# {name}\n\nInstructions not found."
+
+    def _degraded(self, reason: str, msg: str = "") -> "AgentResponse":
+        """
+        Build a uniform degraded AgentResponse.
+
+        Args:
+            reason: One of the standard constants
+                    (EPHEMERIS_UNAVAILABLE, DATA_ROOM_TIMEOUT, UNKNOWN, ...).
+            msg:    Human-readable detail (kept in reasoning, not metadata).
+
+        Returns:
+            AgentResponse(signal=NEUTRAL, confidence=0,
+                          metadata={"degraded": True,
+                                    "degradation_reason": reason}).
+
+        Notes:
+            Centralized in BaseAgent so every agent inherits it. Use from
+            `run()` on any exception — never re-raise from the public entry
+            point. If your failure is unusual, add a new constant to
+            `core/base_agent.py` rather than passing a free-form string.
+        """
+        if reason not in VALID_DEGRADATION_REASONS:
+            logger.warning(
+                "agent_used_non_standard_degradation_reason",
+                extra={"agent": self.name, "reason": reason},
+            )
+        return AgentResponse(
+            agent_name=self.name,
+            signal=SignalDirection.NEUTRAL,
+            confidence=0,
+            reasoning=f"Degraded: {reason}: {msg}" if msg else f"Degraded: {reason}",
+            sources=[],
+            metadata={"degraded": True, "degradation_reason": reason},
+        )
 
     def retrieve(
         self,

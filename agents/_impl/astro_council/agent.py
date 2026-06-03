@@ -19,7 +19,7 @@ AGENT_WEIGHTS = {
 }
 
 
-class AstroCouncilAgent(BaseAgent):
+class AstroCouncilAgent(BaseAgent[AgentResponse]):
     """Совет астро-агентов с взвешенным голосованием."""
 
     def __init__(self):

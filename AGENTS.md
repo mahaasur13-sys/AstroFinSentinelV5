@@ -379,3 +379,13 @@ python -m orchestration.sentinel_v5 "Analyze BTC" BTCUSDT SWING
 4. **Port Conflict Resolution**: Before starting the dashboard, check port 8050 (`ss -tlnp | grep 8050`). Kill any stale process occupying it.
 5. **Dependency Management**: New third-party packages must be added to `requirements.txt` and recorded in `progress.md`.
 6. **PostgreSQL Fallback**: If PostgreSQL is unavailable, the system may fallback to SQLite. The healthcheck will attempt `docker-compose up -d postgres redis` if Docker is present.
+
+### CodeRabbit Review Contract
+
+7. **CodeRabbit Review Contract**: PRs trigger CodeRabbit via `.coderabbit.yaml` (Russian, assertive). CodeRabbit checks **architectural reasoning** (R1–R9 alignment, KNOWN_ISSUES.md P1 blockers); pre-commit handles **syntactic** checks (Ruff, Bandit, detect-secrets, architecture_linter.py). Never duplicate pre-commit logic in CodeRabbit instructions. See `docs/CODE_REVIEW.md`.
+8. **Architecture linter is the source of truth**: For new agents, run `python scripts/validate_agent.py agents/_impl/new_agent.py` before requesting a PR review. All 9 checks must pass.
+9. **Quarterly review cycle**: The `.coderabbit.yaml` rule set is reviewed quarterly (next: 2026-09-02) to align with ADR review cadence in `docs/ARCHITECTURE.md`.
+
+---
+
+## CI Checks

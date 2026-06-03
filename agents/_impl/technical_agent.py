@@ -15,7 +15,7 @@ from core.base_agent import AgentResponse, BaseAgent
 logger = logging.getLogger(__name__)
 
 
-class TechnicalAgent(BaseAgent):
+class TechnicalAgent(BaseAgent[AgentResponse]):
     """
     TechnicalAgent — технический анализ (используется как фильтр).
     85% technical + 15% астрологический бонус.

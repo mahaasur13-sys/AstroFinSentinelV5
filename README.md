@@ -44,4 +44,8 @@ text
 - Architecture details: see docstrings in `orchestration/sentinel_v5.py`
 
 ## CI/CD
+[![CI](https://github.com/m)](https://github.com/m)
 GitHub Actions run linting, security scan, and tests on every push. See `.github/workflows/ci.yml`.
+compose stack.
+
+### 7 workflow files.
