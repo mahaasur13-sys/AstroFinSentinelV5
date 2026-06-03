@@ -12,8 +12,9 @@ from typing import Optional
 
 import numpy as np
 
-from agents._impl.ephemeris_decorator import require_ephemeris
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError, require_ephemeris
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 from knowledge.rag_retriever import RAGRetriever
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ DXY_STRONG_THRESHOLD = 105.0  # сильный доллар → давление
 DXY_WEAK_THRESHOLD = 95.0  # слабый доллар → поддержка рисковых активов
 
 
-class MacroAgent(BaseAgent):
+class MacroAgent(BaseAgent[AgentResponse]):
     """
     MacroAgent — фундаментальный макроэкономический анализ.
 
@@ -51,8 +52,16 @@ class MacroAgent(BaseAgent):
                 logger.warning("Failed to init RAG for MacroAgent: %s", e)
         return self.rag
 
-    async def run(self, state):
-        """Alias for analyze()."""
+    @track_agent_metrics
+    async def run(self, state: dict) -> AgentResponse:
+        """Public entry point. Delegates to analyze() with defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("macro_agent_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
 
     @require_ephemeris
     async def analyze(self, state: dict) -> AgentResponse:

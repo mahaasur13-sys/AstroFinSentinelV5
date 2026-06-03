@@ -138,12 +138,8 @@ async def test_data_source_unavailable_marks_degraded(agent: TemplateAgent, happ
 @pytest.mark.asyncio
 async def test_missing_ephemeris_returns_degraded(agent: TemplateAgent, happy_state: dict) -> None:
     """@require_ephemeris must convert to a degraded response, not a crash."""
-    with patch("agents._impl._template_agent.HAS_SWISS_EPHEMERIS", False):
-        with patch(
-            "agents._impl.ephemeris_decorator.HAS_SWISS_EPHEMERIS",
-            False,
-        ):
-            response = await agent.run(happy_state)
+    with patch("agents._impl.ephemeris_decorator.HAS_SWISS_EPHEMERIS", False):
+        response = await agent.run(happy_state)
     assert response.metadata.get("degraded") is True
     assert response.metadata.get("degradation_reason") == "EPHEMERIS_UNAVAILABLE"
     assert response.signal == SignalDirection.NEUTRAL

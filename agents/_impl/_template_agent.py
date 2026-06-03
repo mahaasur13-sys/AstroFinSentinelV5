@@ -39,7 +39,7 @@ from typing import Any
 from prometheus_client import Counter, Histogram
 
 from agents._impl.ephemeris_decorator import EphemerisUnavailableError, require_ephemeris
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 
 logger = logging.getLogger(__name__)
 
@@ -164,26 +164,16 @@ class TemplateAgent(BaseAgent[AgentResponse]):
                 return await self.analyze(state)
             except EphemerisUnavailableError as e:
                 # @require_ephemeris raised before we got to analyze.
-                return self._degraded("EPHEMERIS_UNAVAILABLE", str(e))
+                return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
             except Exception as e:  # noqa: BLE001 — last-resort guard
                 logger.exception("agent_run_unhandled", extra={"agent": self.name})
-                return self._degraded("UNKNOWN", repr(e))
+                return self._degraded(UNKNOWN, repr(e))
 
-    def _degraded(self, reason: str, msg: str) -> AgentResponse:
-        """
-        Build a uniform degraded AgentResponse.
-
-        Reasons are machine-readable. Add new ones to the enum in
-        `agents/_impl/ephemeris_decorator.py` if you need more.
-        """
-        return AgentResponse(
-            agent_name=self.name,
-            signal=SignalDirection.NEUTRAL,
-            confidence=0,
-            reasoning=f"Degraded: {reason}: {msg}",
-            sources=[],
-            metadata={"degraded": True, "degradation_reason": reason},
-        )
+    # NOTE: `_degraded(reason, msg)` is inherited from BaseAgent.
+    # Standard reason constants live in core/base_agent.py:
+    #   EPHEMERIS_UNAVAILABLE, DATA_ROOM_TIMEOUT, DATA_ROOM_ERROR,
+    #   RAG_UNAVAILABLE, TIMEOUT, UNKNOWN
+    # Do NOT redefine it locally.
 
 
 # ─── Convenience runner ──────────────────────────────────────────────────────

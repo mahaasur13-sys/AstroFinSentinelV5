@@ -6,8 +6,9 @@ import logging
 
 import httpx
 
-from agents._impl.ephemeris_decorator import require_ephemeris
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError, require_ephemeris
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +73,15 @@ class SentimentAgent(BaseAgent[AgentResponse]):
             },
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
-        return await self.analyze(state)
+        """Public entry point. Wraps analyze() with the latency histogram and defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:
+            return self._degraded(UNKNOWN, repr(e))
 
     async def _fetch_fear_greed(self) -> dict:
         """Fetch Fear & Greed Index asynchronously."""
