@@ -24,8 +24,8 @@ async def test_options_flow_agent_uses_async_http():
         )
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        # предполагаем, что метод называется _fetch_ohlcv (как у остальных)
-        data = await agent._fetch_ohlcv(symbol, "1d", 60)
+        # OptionsFlowAgent exposes _fetch_options_data, not _fetch_ohlcv
+        data = await agent._fetch_options_data(symbol, "1d", 60)
 
         mock_get.assert_called_once()
         assert isinstance(data, list)
