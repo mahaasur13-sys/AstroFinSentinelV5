@@ -114,6 +114,7 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
             weight=0.0,
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
         """
         Финальный синтез всех агентов.
@@ -124,6 +125,15 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
         Returns:
             AgentResponse с финальным сигналом
         """
+        try:
+            return await self._synthesize(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("synthesis_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
+
+    async def _synthesize(self, state: dict) -> AgentResponse:
         all_signals = state.get("all_signals", [])
         thompson_selections = state.get("thompson_selections", {})
         called_agents = (
