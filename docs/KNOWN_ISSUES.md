@@ -69,6 +69,7 @@
 - **Symptom:** Two files; one is a stale backup. Risk of confusion.
 - **Target:** Next release.
 - **Mitigation:** **To be removed in this plan's commit.** Linter refuses `.bak` files in `core/`.
+- **Resolution:** ✅ Fixed in `ddc173f` — `core/base_agent.py.bak` deleted; `git ls-files | grep '\.bak' | grep -v amre/audit.py.bak-006` is now empty.
 
 ## KI-008 — `web/wsgi.py.bak` exists
 
@@ -77,6 +78,7 @@
 - **Symptom:** Stale backup file.
 - **Target:** Next release.
 - **Mitigation:** **To be removed in this plan's commit.**
+- **Resolution:** ✅ Fixed in `ddc173f` — `web/wsgi.py.bak` deleted. (Also the nested duplicate at `AstroFinSentinelV5/web/wsgi.py.bak` was tracked and removed in the same commit.)
 
 ## KI-009 — No central config file for agent weights
 

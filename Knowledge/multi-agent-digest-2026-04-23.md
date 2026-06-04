@@ -1,6 +1,6 @@
 # Multi-Agent AI Daily Digest — 2026-04-23
 
-**Источники:** GitHub, arXiv, X/Twitter, Reddit, Hugging Face  
+**Источники:** GitHub, arXiv, X/Twitter, Reddit, Hugging Face
 **Период:** последние 7 дней
 
 ---

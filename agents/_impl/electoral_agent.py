@@ -6,7 +6,8 @@ Electional astrology for trading entry timing.
 import logging
 from datetime import datetime, timedelta
 
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents.metrics import track_agent_metricsics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 
 logger = logging.getLogger(__name__)
 
@@ -30,93 +31,97 @@ class ElectoralAgent(BaseAgent[AgentResponse]):
             weight=0.10,
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
         """
         Scan for best trading muhurta.
 
         Returns recommendation: ENTER / WAIT / AVOID
         """
-        from astrology.vedic import (
-            get_choghadiya,
-            get_current_nakshatra,
-        )
-
-        now = datetime.utcnow()
-        symbol = state.get("symbol", "BTCUSDT")
-
-        # Current state
-        current_nakshatra = get_current_nakshatra(now)
-        current_choghadiya = get_choghadiya(now)
-
-        # Scan next 24 hours for best window
-        best_window = None
-        best_score = 0
-
-        for hour_offset in range(24):
-            check_time = now + timedelta(hours=hour_offset)
-            ch = get_choghadiya(check_time)
-            nak = get_current_nakshatra(check_time)
-
-            # Calculate muhurta score
-            score = self._calculate_muhurta_score(ch, nak)
-
-            if score > best_score:
-                best_score = score
-                best_window = {
-                    "start": check_time,
-                    "end": check_time + timedelta(hours=1.5),
-                    "choghadiya": ch,
-                    "nakshatra": nak,
-                    "score": score,
-                }
-
-        # Determine recommendation
-        if current_choghadiya["name"] in ["Marana", "Vyatipata", "Parivesha"]:
-            recommendation = SignalDirection.AVOID
-            confidence = 75
-            reasoning = (
-                f"Current Choghadiya: {current_choghadiya['name']} — "
-                f"Marana period. Trading NOT recommended. "
-                f"Next favorable window: {best_window['start'].strftime('%H:%M')} "
-                f"({best_window['choghadiya']['name']})"
+        try:
+            from astrology.vedic import (
+                get_choghadiya,
+                get_current_nakshatra,
             )
-        elif best_window and best_window["score"] >= 7:
-            recommendation = SignalDirection.LONG
-            confidence = int(best_window["score"] * 10)
-            reasoning = (
-                f"Best window found: {best_window['start'].strftime('%H:%M')}–"
-                f"{best_window['end'].strftime('%H:%M')} "
-                f"({best_window['choghadiya']['name']}, "
-                f"Nakshatra: {best_window['nakshatra']['name']}). "
-                f"Muhurta Score: {best_window['score']:.1f}/10"
-            )
-        else:
-            recommendation = SignalDirection.NEUTRAL
-            confidence = 45
-            bw_info = (
-                (
-                    f"Best available: {best_window['choghadiya']['name']} "
-                    f"at {best_window['start'].strftime('%H:%M')} "
-                    f"(score: {best_window['score']:.1f}/10)"
+
+            now = datetime.utcnow()
+            symbol = state.get("symbol", "BTCUSDT")
+
+            # Current state
+            current_nakshatra = get_current_nakshatra(now)
+            current_choghadiya = get_choghadiya(now)
+
+            # Scan next 24 hours for best window
+            best_window = None
+            best_score = 0
+
+            for hour_offset in range(24):
+                check_time = now + timedelta(hours=hour_offset)
+                ch = get_choghadiya(check_time)
+                nak = get_current_nakshatra(check_time)
+
+                # Calculate muhurta score
+                score = self._calculate_muhurta_score(ch, nak)
+
+                if score > best_score:
+                    best_score = score
+                    best_window = {
+                        "start": check_time,
+                        "end": check_time + timedelta(hours=1.5),
+                        "choghadiya": ch,
+                        "nakshatra": nak,
+                        "score": score,
+                    }
+
+            # Determine recommendation
+            if current_choghadiya["name"] in ["Marana", "Vyatipata", "Parivesha"]:
+                recommendation = SignalDirection.AVOID
+                confidence = 75
+                reasoning = (
+                    f"Current Choghadiya: {current_choghadiya['name']} — "
+                    f"Marana period. Trading NOT recommended. "
+                    f"Next favorable window: {best_window['start'].strftime('%H:%M')} "
+                    f"({best_window['choghadiya']['name']})"
                 )
-                if best_window
-                else "No window found"
-            )
-            reasoning = f"No strong muhurta in next 24h. {bw_info}."
+            elif best_window and best_window["score"] >= 7:
+                recommendation = SignalDirection.LONG
+                confidence = int(best_window["score"] * 10)
+                reasoning = (
+                    f"Best window found: {best_window['start'].strftime('%H:%M')}–"
+                    f"{best_window['end'].strftime('%H:%M')} "
+                    f"({best_window['choghadiya']['name']}, "
+                    f"Nakshatra: {best_window['nakshatra']['name']}). "
+                    f"Muhurta Score: {best_window['score']:.1f}/10"
+                )
+            else:
+                recommendation = SignalDirection.NEUTRAL
+                confidence = 45
+                bw_info = (
+                    (
+                        f"Best available: {best_window['choghadiya']['name']} "
+                        f"at {best_window['start'].strftime('%H:%M')} "
+                        f"(score: {best_window['score']:.1f}/10)"
+                    )
+                    if best_window
+                    else "No window found"
+                )
+                reasoning = f"No strong muhurta in next 24h. {bw_info}."
 
-        return AgentResponse(
-            agent_name="ElectoralAgent",
-            signal=recommendation,
-            confidence=confidence,
-            reasoning=reasoning,
-            sources=["astrology/choghadiya.md", "astrology/muhurta.md"],
-            metadata={
-                "current_choghadiya": current_choghadiya,
-                "current_nakshatra": current_nakshatra,
-                "best_window": best_window,
-                "symbol": symbol,
-            },
-        )
+            return AgentResponse(
+                agent_name="ElectoralAgent",
+                signal=recommendation,
+                confidence=confidence,
+                reasoning=reasoning,
+                sources=["astrology/choghadiya.md", "astrology/muhurta.md"],
+                metadata={
+                    "current_choghadiya": current_choghadiya,
+                    "current_nakshatra": current_nakshatra,
+                    "best_window": best_window,
+                    "symbol": symbol,
+                },
+            )
+        except Exception as e:
+            return self._degraded(UNKNOWN, repr(e))
 
     def _calculate_muhurta_score(self, choghadiya: dict, nakshatra: dict) -> float:
         """Calculate 0-10 muhurta score."""

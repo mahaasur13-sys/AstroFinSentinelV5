@@ -166,6 +166,7 @@ class DESCEventLogger:
 
 # ─── DRL / CCL / F2 / DESC Adapter Interfaces ───────────────────────────────
 
+
 class LayerStateAdapter:
     """
     Adapter that normalizes layer-specific state into SBS-compatible format.

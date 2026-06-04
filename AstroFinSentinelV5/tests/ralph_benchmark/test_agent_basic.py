@@ -1,4 +1,5 @@
 """Бенчмарк для Ralph Loop – минимальная задача, которую агент должен решить."""
+
 import os
 import subprocess
 import sys
@@ -7,6 +8,7 @@ import pytest
 BENCHMARK_DIR = os.path.dirname(__file__)
 TARGET_FILE = os.path.join(BENCHMARK_DIR, "_temp_add.py")
 TEST_FILE = os.path.join(BENCHMARK_DIR, "_test_temp_add.py")
+
 
 @pytest.fixture(autouse=True)
 def cleanup():
@@ -18,6 +20,7 @@ def cleanup():
     for f in (TARGET_FILE, TEST_FILE):
         if os.path.exists(f):
             os.remove(f)
+
 
 def test_agent_can_create_add_function():
     """Проверяем, что после Ralph Loop агент создал нужный файл."""
