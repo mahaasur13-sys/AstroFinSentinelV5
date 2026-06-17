@@ -1,14 +1,19 @@
-import logging
-
-logger = logging.getLogger(__name__)
 """
 Time Window Agent — entry timing and best trading windows.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 
 from agents._impl.ephemeris_decorator import require_ephemeris
+from agents.metrics import track_agent_metrics
+
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TimeWindowAgent(BaseAgent[AgentResponse]):

@@ -1,8 +1,8 @@
+from __future__ import annotations
+
 from meta_rl.strategy_evaluator import StrategyEvaluator  # F821 fix
 
 """meta_rl/basket.py -- ATOM-META-RL-010: Multi-symbol Basket Evaluation"""
-
-from __future__ import annotations
 
 import logging
 from typing import Any

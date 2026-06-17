@@ -1,12 +1,17 @@
-import logging
-
-logger = logging.getLogger(__name__)
 """
 Bradley Agent — Bradley Model (S&P 500 seasonality/cyccles).
 """
 
+from __future__ import annotations
+
 from agents._impl.ephemeris_decorator import require_ephemeris
+from agents.metrics import track_agent_metrics
+
 from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BradleyAgent(BaseAgent[AgentResponse]):
