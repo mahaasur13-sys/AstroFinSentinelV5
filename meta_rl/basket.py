@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 """meta_rl/basket.py -- ATOM-META-RL-010: Multi-symbol Basket Evaluation"""
+from __future__ import annotations
 
 import logging
 from typing import Any

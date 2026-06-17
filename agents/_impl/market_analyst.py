@@ -5,7 +5,9 @@ Technical analysis: RSI, MACD, Bollinger, Volume.
 
 import logging
 
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 from core.metrics import track_agent_duration
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,20 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             weight=0.25,
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
+        """Public entry point. Wraps analyze() with the latency histogram
+        and defensive error handling so a single agent can never crash
+        the orchestrator."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("agent_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
+
+    async def analyze(self, state: dict) -> AgentResponse:
         symbol = state.get("symbol", "BTCUSDT")
         current_price = state.get("current_price", 50000)
 
