@@ -78,3 +78,12 @@ repos:
         types: [python]
         files: ^agents/(gitagent_registry\.py|_impl/.*\.py)$
         pass_filenames: false
+
+      - id: pattern-a-check
+        name: Pattern A invariants (validate_agent.py A1–A11)
+        entry: python scripts/validate_agent.py
+        language: system
+        types: [python]
+        files: ^agents/_impl/.*\.py$
+        pass_filenames: true
+        stages: [pre-commit]

@@ -20,6 +20,14 @@ pass). It checks:
     A8. The agent returns an AgentResponse (not a dict, not None).
     A9. The agent's `run` method is wrapped in a try/except that returns a
         degraded AgentResponse, not a raise.
+    A10. Pattern A invariants (canonical in _template_agent.py):
+         - `@track_agent_metrics` decorator on the agent class.
+         - `_degraded()` helper defined in the same module.
+         - The runner handles `except EphemerisUnavailableError` (if the
+           module references ephemeris symbols).
+    A11. If the file uses `from __future__ import annotations`, it must be
+         the first statement of the module (after the docstring is fine, but
+         before any other import).
 
 Optionally runs the corresponding test file (if it exists) with pytest.
 
@@ -287,6 +295,118 @@ def check_A9_graceful(run: ast.FunctionDef | ast.AsyncFunctionDef | None, src_te
     return Check("A9", "graceful degradation", False, "run() has no try/except; consider wrapping external calls")
 
 
+# ─── Pattern A invariants (A10, A11) ────────────────────────────────────────
+
+_EPHEMERIS_TOKENS = (
+    "ephemeris",
+    "Ephemeris",
+    "EPHEMERIS",
+    "swisseph",
+    "julian_day",
+    "planet_position",
+    "houses",
+)
+
+
+def _module_references_ephemeris(src_text: str) -> bool:
+    return any(tok in src_text for tok in _EPHEMERIS_TOKENS)
+
+
+def check_A10_pattern_a(klass: ast.ClassDef, src_text: str) -> Check:
+    """Pattern A: @track_agent_metrics on run(), _degraded(), except EphemerisUnavailableError.
+
+    Note: in the canonical migration @track_agent_metrics is applied to the
+    `run` method (not the class), so we scan every method's decorator_list.
+    """
+
+    # 1) @track_agent_metrics on the class OR on any method (canonical: on run)
+    def _has_metrics_decorator(node: ast.AST) -> bool:
+        for d in node.decorator_list:
+            if isinstance(d, ast.Name) and d.id == "track_agent_metrics":
+                return True
+            if isinstance(d, ast.Attribute) and d.attr == "track_agent_metrics":
+                return True
+        return False
+
+    has_metrics = _has_metrics_decorator(klass) or any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _has_metrics_decorator(node)
+        for node in klass.body
+    )
+    if not has_metrics:
+        return Check(
+            "A10",
+            "Pattern A: @track_agent_metrics + _degraded + EphemerisUnavailableError handler",
+            False,
+            f"class {klass.name} is missing @track_agent_metrics (on class or run method)",
+        )
+
+    # 2) _degraded() — either defined locally or used as self._degraded (inherited
+    #    from BaseAgent, per the canonical template's note at line 173).
+    if "def _degraded(" not in src_text and "self._degraded(" not in src_text:
+        return Check(
+            "A10",
+            "Pattern A: @track_agent_metrics + _degraded + EphemerisUnavailableError handler",
+            False,
+            "module has neither `def _degraded(...)` nor any `self._degraded(` call",
+        )
+
+    # 3) except EphemerisUnavailableError — only required if the file uses ephemeris
+    if _module_references_ephemeris(src_text):
+        if "EphemerisUnavailableError" not in src_text or "except" not in src_text:
+            return Check(
+                "A10",
+                "Pattern A: @track_agent_metrics + _degraded + EphemerisUnavailableError handler",
+                False,
+                "module references ephemeris symbols but does not handle EphemerisUnavailableError",
+            )
+
+    return Check(
+        "A10",
+        "Pattern A: @track_agent_metrics + _degraded + EphemerisUnavailableError handler",
+        True,
+        "all Pattern A invariants present",
+    )
+
+
+def check_A11_future_import_position(tree: ast.Module) -> Check:
+    """If `from __future__ import annotations` is used, it must be the first import-like statement."""
+    future_imports = []
+    other_imports: list[tuple[int, ast.AST]] = []
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            future_imports.append(node)
+        elif isinstance(node, (ast.Import, ast.ImportFrom, ast.Assign, ast.Expr)):
+            # Docstrings are ast.Expr(value=Constant(str)) — skip those.
+            is_docstring = (
+                isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+            )
+            if is_docstring:
+                continue
+            if future_imports:
+                other_imports.append((node.lineno, node))
+
+    if not future_imports:
+        return Check("A11", "from __future__ import annotations placement", True, "n/a (not used)")
+
+    first_future_line = future_imports[0].lineno
+    first_other = other_imports[0] if other_imports else None
+    if first_other and first_other[0] < first_future_line:
+        return Check(
+            "A11",
+            "from __future__ import annotations placement",
+            False,
+            f"line {first_future_line} comes after statement at line {first_other[0]}",
+        )
+    return Check(
+        "A11",
+        "from __future__ import annotations placement",
+        True,
+        f"line {first_future_line} is first (after docstring, before other imports)",
+    )
+
+
 # ─── Driver ────────────────────────────────────────────────────────────────
 
 
@@ -313,6 +433,8 @@ def validate(src: Path) -> list[Check]:
         check_A7_docstrings(klass, run),
         check_A8_return_type(run),
         check_A9_graceful(run, text),
+        check_A10_pattern_a(klass, text),
+        check_A11_future_import_position(tree),
     ]
 
 
