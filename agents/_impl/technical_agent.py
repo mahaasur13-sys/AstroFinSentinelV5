@@ -4,6 +4,8 @@ AstroFin Sentinel v5 — Technical Agent
 Вес в гибридном сигнале: 10% (как фильтр).
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from typing import Any

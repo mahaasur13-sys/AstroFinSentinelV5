@@ -3,6 +3,8 @@ AstroFin Sentinel v5 — ElectoralAgent
 Electional astrology for trading entry timing.
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timedelta
 
@@ -121,6 +123,8 @@ class ElectoralAgent(BaseAgent[AgentResponse]):
                     "symbol": symbol,
                 },
             )
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, repr(e))
         except Exception as e:
             return self._degraded(UNKNOWN, repr(e))
 

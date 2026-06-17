@@ -158,7 +158,6 @@ def rank_all_sessions(n_top: int = 20) -> list[dict]:
         engine = CompositeRankingEngine()
         ranked = engine.rank_strategies(all_strategies)
         return ranked[:n_top] if ranked else []
-        return ranked[:n_top] if ranked else []
     except Exception as e:
         logger.warning(f"[RANKING] rank_all_sessions failed: {e}")
         return []
