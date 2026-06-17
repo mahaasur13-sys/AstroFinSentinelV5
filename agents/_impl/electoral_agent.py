@@ -6,7 +6,8 @@ Electional astrology for trading entry timing.
 import logging
 from datetime import datetime, timedelta
 
-from agents.metrics import track_agent_metricsics
+from agents.metrics import track_agent_metrics
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError
 from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 
 logger = logging.getLogger(__name__)
