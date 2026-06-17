@@ -1,0 +1,46 @@
+
+exit 0
+
+$ cd ~/AstroFinSentinelV5 && cat > .github/workflows/ci.yml << 'EOF'
+name: CI
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run mypy core/ libs/ agents/ scripts/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run pytest tests/ -v --tb=short
+EOF
+python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo "✅ YAML valid" && git add .github/workflows/ci.yml && git status --short && git commit -m "ci: add real .github/workflows/ci.yml (fix typo'd path from previous commit)" 2>&1 | tail -3
+
+✅ YAML valid
+A  .github/workflows/ci.yml
+D  "file '.github/workflows/ci.yml'"
+ 2 files changed, 33 insertions(+), 60 deletions(-)
+ create mode 100644 .github/workflows/ci.yml
+ delete mode 100644 file '.github/workflows/ci.yml'
