@@ -1,0 +1,60 @@
+$ cd ~/AstroFinSentinelV5 && cat .github/workflows/ci.yml
+
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, "chore/*", "feature/*" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run mypy core/ libs/ agents/ scripts/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run pytest tests/ -v --tb=short
+
+  dead-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run vulture . --min-confidence=80 --exclude "tests/,venv/,build/,dist/" --ignore-decorators "@track_agent_metrics,@require_ephemeris"
+
+  pattern-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Pattern A (A10 + A11)
+        run: |
+          python scripts/validate_agent.py --all
+
+  architecture-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check imports structure
+        run: |
+          # Проверка, что агенты не импортируют друг друга напрямую (кроме core/libs)
+          ! grep -r "from agents\." agents/_impl/ --include="*.py" || (echo "Agents should not import from other agents" && exit 1)
