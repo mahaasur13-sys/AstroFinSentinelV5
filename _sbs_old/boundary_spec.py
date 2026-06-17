@@ -88,10 +88,7 @@ class SystemBoundarySpec:
                 or system_state.get("partitions", 0)
             )
             if partition_count > self.max_partitions:
-                violations.append(
-                    f"SPLIT_BRAIN: partitions={partition_count} "
-                    f"(max={self.max_partitions})"
-                )
+                violations.append(f"SPLIT_BRAIN: partitions={partition_count} (max={self.max_partitions})")
 
         # 2. Quorum safety
         # Read from nested layer state where collect_state() places them
@@ -101,17 +98,13 @@ class SystemBoundarySpec:
             or system_state.get("quorum_ratio", 0.0)
         )
         if quorum_ratio < self.quorum_threshold:
-            violations.append(
-                f"QUORUM_VIOLATION: ratio={quorum_ratio:.3f} "
-                f"(required={self.quorum_threshold:.3f})"
-            )
+            violations.append(f"QUORUM_VIOLATION: ratio={quorum_ratio:.3f} (required={self.quorum_threshold:.3f})")
 
         # 3. Uncommitted read check
         uncommitted_reads = system_state.get("uncommitted_reads", 0)
         if uncommitted_reads > 0 and not self.allow_uncommitted_read:
             violations.append(
-                f"UNCOMMITTED_READ: count={uncommitted_reads} "
-                "(reads from uncommitted state are prohibited)"
+                f"UNCOMMITTED_READ: count={uncommitted_reads} (reads from uncommitted state are prohibited)"
             )
 
         # 4. Duplicate ACK / Byzantine signal
@@ -123,18 +116,14 @@ class SystemBoundarySpec:
             clock_skew_ms = system_state.get("clock_skew_ms", 0.0)
             if clock_skew_ms > self.clock_skew_threshold_ms:
                 violations.append(
-                    f"TEMPORAL_DRIFT: skew={clock_skew_ms:.1f}ms "
-                    f"(threshold={self.clock_skew_threshold_ms:.1f}ms)"
+                    f"TEMPORAL_DRIFT: skew={clock_skew_ms:.1f}ms (threshold={self.clock_skew_threshold_ms:.1f}ms)"
                 )
 
         # 6. Event sequence integrity
         if not self.allow_event_reorder:
             gaps = system_state.get("event_sequence_gaps", 0)
             if gaps > 0:
-                violations.append(
-                    f"SEQUENCE_VIOLATION: gaps={gaps} "
-                    "(reorder detected in event log)"
-                )
+                violations.append(f"SEQUENCE_VIOLATION: gaps={gaps} (reorder detected in event log)")
 
         # Mutate frozen object's non-comparable field via object.__setattr__
         object.__setattr__(self, "_violations", tuple(violations))

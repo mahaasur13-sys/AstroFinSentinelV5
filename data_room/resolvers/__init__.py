@@ -10,6 +10,7 @@ Concrete resolvers. Each one wraps a single external data source.
 
 All resolvers expose a coroutine `async def resolve(symbol, asof) -> T`.
 """
+
 from data_room.resolvers.base import Resolver, ResolverError  # noqa: F401
 
 __all__ = ["Resolver", "ResolverError"]

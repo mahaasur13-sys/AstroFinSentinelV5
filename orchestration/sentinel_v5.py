@@ -49,6 +49,32 @@ logger = logging.getLogger(__name__)
 
 KARL_ENABLED = os.getenv("KARL_ENABLED", "true").lower() == "true"
 
+FLOW_TASK_TIMEOUT_S = 15.0
+INNER_FLOW_TIMEOUT_S = 5.0
+INNER_FLOW_BACKSTOP_S = 30.0
+
+
+async def _gather_with_timeout(tasks, timeout: float, label: str):
+    """Wraps asyncio.gather with a per-batch timeout.
+
+    On timeout, pending tasks are cancelled and TimeoutError is returned
+    as an exception in the results list so callers can gracefully fall back.
+    Never raises: returns a list aligned with the input tasks.
+    """
+    if not tasks:
+        return []
+    try:
+        return await asyncio.wait_for(
+            asyncio.gather(*tasks, return_exceptions=True),
+            timeout=timeout,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"[Timeout] {label} exceeded {timeout}s — cancelling")
+        for t in tasks:
+            if not t.done():
+                t.cancel()
+        return [asyncio.TimeoutError(f"{label} timeout {timeout}s") for _ in tasks]
+
 
 def _compute_oap_adjustments(oap_state, agents: list) -> dict:
     if not hasattr(oap_state, "agent_stats") or not oap_state.agent_stats:
@@ -92,7 +118,7 @@ async def run_technical_flow(state: dict, selected_agents: list | None = None) -
         names.append("BearResearcher")
     if not tasks:
         return {}
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    results = await _gather_with_timeout(tasks, INNER_FLOW_TIMEOUT_S, "TechFlow")
     merged = {}
     for name, r in zip(names, results, strict=False):
         if isinstance(r, dict):
@@ -139,7 +165,7 @@ async def run_macro_flow(state: dict, selected_agents: list | None = None) -> di
         names.append("SentimentAgent")
     if not tasks:
         return {}
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    results = await _gather_with_timeout(tasks, INNER_FLOW_TIMEOUT_S, "MacroFlow")
     merged = {}
     for name, r in zip(names, results, strict=False):
         if isinstance(r, dict):
@@ -263,7 +289,7 @@ async def run_sentinel_v5(
     if include_electional:
         flow_tasks.append(run_electoral_flow(state))
     if flow_tasks:
-        flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+        flow_results = await _gather_with_timeout(flow_tasks, FLOW_TASK_TIMEOUT_S, "MainFlow")
         for result in flow_results:
             if isinstance(result, dict):
                 for key, value in result.items():
@@ -415,7 +441,7 @@ async def run_karl_sentinel_v5(
     if include_electional:
         flow_tasks.append(run_electoral_flow(state))
     if flow_tasks:
-        flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+        flow_results = await _gather_with_timeout(flow_tasks, FLOW_TASK_TIMEOUT_S, "MainFlow")
         for result in flow_results:
             if isinstance(result, dict):
                 for key, value in result.items():

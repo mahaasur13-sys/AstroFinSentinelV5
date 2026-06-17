@@ -3,6 +3,8 @@ Registry: централизованный доступ ко всем агент
 Output Adapter: единый нормализатор после registry.run().
 """
 
+from __future__ import annotations
+
 import asyncio
 import builtins
 import logging

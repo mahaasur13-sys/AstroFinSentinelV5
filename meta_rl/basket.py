@@ -1,7 +1,4 @@
-from meta_rl.strategy_evaluator import StrategyEvaluator  # F821 fix
-
 """meta_rl/basket.py -- ATOM-META-RL-010: Multi-symbol Basket Evaluation"""
-
 from __future__ import annotations
 
 import logging
@@ -11,6 +8,7 @@ import numpy as np
 
 # lazy import inside methods to avoid circular
 from meta_rl.backtest_adapter import BacktestEngineAdapter
+from meta_rl.strategy_evaluator import StrategyEvaluator
 from meta_rl.types import BasketMetrics, SymbolMetrics
 from trading.risk_v2 import RiskEngineV2
 

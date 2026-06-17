@@ -1,4 +1,3 @@
-import pytest
 from flask import Flask, jsonify
 from core.auth import require_api_key
 

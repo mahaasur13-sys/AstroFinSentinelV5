@@ -1,208 +1,126 @@
-# .coderabbit.yaml — AstroFin Sentinel V5
-# CodeRabbit настроен как **дополнительный** ревьюер к pre-commit хукам.
-# Подробная матрица ответственности — в docs/CODE_REVIEW.md.
+# CodeRabbit configuration for AstroFin Sentinel V5
+# Language: Russian, assertive style, P1-blocking, quarterly review cycle
+# See docs/CODE_REVIEW.md for integration rationale
 
-# ==================== REVIEW PROFILE ====================
 language: ru
+early_access: false
 reviews:
-  profile: assertive              # строгий стиль, обращается к автору напрямую
+  request_changes_workflow: true
   high_level_summary: true
-  suggest_code_changes: true      # предлагать конкретные исправления
   poem: false
-  humor: false
-  request_changes_workflow: true # PR нельзя слить, пока CodeRabbit ставит request_changes
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DNM"
+    drafts: false
+    base_branches:
+      - master
+      - develop
+  path_instructions:
+    # Rule R1, R5, R9: Agent code
+    - path: "agents/_impl/**/*.py"
+      instructions: |
+        Проверь наследование от BaseAgent (R1). Убедись, что агент зарегистрирован в AGENT_AGENTS (R5).
+        Проверь наличие экспорта run_<agent_name> (R9). Внутри run() должен быть try/except для graceful degradation (A9).
+    # Rule R2: Ephemeris usage
+    - path: "**/ephemeris*.py"
+      instructions: |
+        Если модуль использует swisseph или расчёты эфемерид, обязательно наличие декоратора @require_ephemeris (R2).
+        При отсутствии декоратора или импорта swisseph — выдать P1-ошибку (ссылка на KI-002).
+    # Rule R4: Web auth
+    - path: "web/**/*.py"
+      instructions: |
+        Для всех непубличных маршрутов (кроме /health, /metrics) проверь наличие декоратора @require_auth (R4).
+        Отсутствие — P1-нарушение.
+    # Rule R3: Data Room compliance (NO direct requests)
+    - path: "agents/**/*.py"
+      instructions: |
+        Запрещён прямой import requests или вызов requests.* вне data_room/ (R3, KI-001).
+        Если обнаружен — P1-блокер. Предложи использовать data_room.blueprint.get_price(...) или аналоги.
+    - path: "core/**/*.py"
+      instructions: |
+        То же правило R3: нельзя import requests за пределами data_room/. Исключение — файлы, которые явно являются частью Data Room (data_room/*, deploy/monitoring/health_endpoints.py).
+    # Rule R6, R7, R8: prints, SQL, secrets
+    - path: "**/*.py"
+      instructions: |
+        R6: запрещён print на верхнем уровне (использовать logging).
+        R7: запрещены f-строки в SQL-запросах (использовать параметризованные запросы).
+        R8: запрещены жёстко заданные секреты (пароли, токены, ключи API). Проверь паттерны: "password=", "api_key=", "secret=".
+        Нарушения R7 и R8 — P1-блокеры.
+    # Тесты: BlackRock Six
+    - path: "agents/_impl/*.py"
+      instructions: |
+        При изменении файла агента проверь существование tests/test_<имя_агента>.py.
+        Убедись, что тест покрывает шесть обязательных случаев (happy path + 5 edge): 
+        - успешный вызов,
+        - отсутствие эфемерид,
+        - таймаут data room,
+        - некорректные входные данные,
+        - деградация при недоступности внешнего источника.
+    - path: "tests/test_*.py"
+      instructions: |
+        Для асинхронных агентов проверь наличие суффикса _async в имени тестовой функции.
+        Убедись, что используется pytest-asyncio и мокирование httpx.AsyncClient.
 
-# ==================== TRIGGER ====================
-# CodeRabbit работает ТОЛЬКО на pull_request (не на push, не на /review вручную).
-# Цель: дать обратную связь автору ДО merge в master/develop.
+  # Ссылка на известные проблемы (P1-блокеры)
+  knowledge_base:
+    - "docs/KNOWN_ISSUES.md"
+    - "docs/ARCHITECTURE.md"
 
-# ==================== KNOWLEDGE BASE ====================
-knowledge_base:
-  instructions: |
-    Ты — Senior AI Engineer, Quantitative Researcher и Principal Software Architect
-    в BlackRock-стиле для проекта AstroFin Sentinel V5 — продвинутой автономной
-    AI-торговой системы на multi-agent архитектуре, Meta-RL и backtesting.
+  # Определение P1-паттернов для блокировки слияния
+  blocking_patterns:
+    - pattern: "import requests"
+      level: error
+      message: "KI-001: Прямой вызов requests вне Data Room запрещён (R3). Используй data_room.blueprint."
+    - pattern: "@require_ephemeris"
+      level: error
+      message: "Отсутствует @require_ephemeris в коде, использующем swisseph (R2, KI-002)."
+    - pattern: "class \\w+\\(.*\\):"
+      # проверка наследования от BaseAgent (упрощённо)
+      level: error
+      message: "Класс агента должен наследовать BaseAgent (R1)."
+    - pattern: "AGENT_AGENTS\\["
+      level: error
+      message: "Агент не зарегистрирован в agents/gitagent_registry.py (R5)."
+    - pattern: "def run_\\w+"
+      level: error
+      message: "Отсутствует функция run_<agent_name> для экспорта (R9)."
+    - pattern: "(password|api_key|secret|token)\\s*=\\s*['\"][^'\"]+['\"]"
+      level: error
+      message: "Жёстко заданный секрет (R8). Вынеси в переменные окружения."
 
-    ## Главная цель ревью
-    "Enforce architecture compliance (R1–R9), catch security issues, and ensure
-    Data Room pattern adherence before merge."
+  # Мягкие правила (только предупреждения)
+  warning_patterns:
+    - pattern: "def \\w+\\(.*\\):"
+      level: warning
+      message: "S1: Добавь docstring к функции/классу."
+    - pattern: "print\\("
+      level: warning
+      message: "Используй logging вместо print (R6)."
 
-    ## Правила архитектурного линтера (scripts/architecture_linter.py)
-    Архитектурный линтер уже проверяет AST-синтаксис и базовые паттерны. Твоя
-    задача — ДОБАВИТЬ рассуждения, контекст и cross-file impact, а не дублировать
-    то, что делает Ruff/Bandit/architecture_linter.
+  # Игнорируемые пути (совпадают с pre-commit)
+  ignore_paths:
+    - "__pycache__/"
+    - ".pytest_cache/"
+    - ".mypy_cache/"
+    - "data/raw/**"
+    - "data/processed/**"
+    - "*.log"
+    - ".env*"
+    - "venv/"
+    - "node_modules/"
+    - "agents/_archived/**"
+    - "*.bak"
 
-    | Правило | Что проверяет | Твоя дополнительная ценность |
-    |---------|---------------|-----------------------------|
-    | **R1** | Все агенты наследуют BaseAgent | Проверь, что weight/domain выставлены осмысленно |
-    | **R2** | @require_ephemeris на астрологических агентах | Укажи, КАКОЙ planet weight соответствует агенту |
-    | **R3** | НЕТ прямых requests.* в агентах | Покажи, как мигрировать на data_room.blueprint.get_price() |
-    | **R4** | @require_auth на non-public routes | Проверь, что FastAPI роуты не leak'ают внутренние данные |
-    | **R5** | Каждый агент в AGENT_AGENTS | Предложи оптимальный domain и weight |
-    | **R6** | НЕТ top-level print | Замени на logger.info/debug |
-    | **R7** | НЕТ f-string SQL | Покажи, как переписать на parameterized query |
-    | **R8** | НЕТ hardcoded secrets | Покажи правильное использование Settings/env |
-    | **R9** | run_<agent_name> экспортируется | Проверь async-сигнатуру и return type |
+  # Автоисправления
+  suggest_fixes: true
+  auto_fix_patterns:
+    - pattern: "@require_auth\\s*$"
+      replacement: "@require_auth\n"
+    - pattern: "from core.auth import require_auth"
 
-    ## P1 blockers (docs/KNOWN_ISSUES.md)
-    При ревью ОБЯЗАТЕЛЬНО упоминай эти P1-блокеры, если релевантно:
-
-    - **KI-001** — Data Room pattern: любой `import requests` или `requests.get/post(...)`
-      в `agents/` — нарушение. Агенты должны идти через `data_room.blueprint`.
-    - **KI-007** — `.bak` файлы в `core/`, `web/`, `meta_rl/`, `agents/`: предупреди
-      и предложи `git rm` или `git mv ... .archive/`.
-    - **KI-011** — backwards-compat stubs в `agents/__init__.py` (см. R5 registry coverage).
-    - **KI-012** — `.env` файлы, hardcoded API keys, tokens. Требуй `Settings()` или
-      переменные окружения через `os.environ`.
-
-    ## Style ревью
-    1. **Русский язык** — все комментарии на русском, кратко, по делу.
-    2. **Assertive** — обращайся к автору напрямую: "Вы нарушили R3", "Замените
-       на data_room.get_price()".
-    3. **С кодом** — каждый finding содержит сниппет "как должно быть".
-    4. **Блокирующее** — P1 violations (R1, R3, R5, R8, R9) → request_changes.
-    5. **Soft (S1–S3)** — docstring, ARCHITECTURE.md, style — комментарии, но
-       НЕ блокируют merge.
-
-    ## Чего НЕ делать
-    - НЕ дублируй Ruff formatting, Bandit AST checks, detect-secrets baseline.
-      Это уже делает pre-commit (см. docs/CODE_REVIEW.md для overlap matrix).
-    - НЕ комментируй data/raw, data/processed (это шум).
-    - НЕ критикуй agents/_archived/ (deprecated, no active imports).
-
-# ==================== PATH INSTRUCTIONS ====================
-path_instructions:
-  # Агенты
-  - path: "agents/_impl/**/*.py"
-    instructions: |
-      Проверь для каждого агента:
-      1. **R1**: класс наследует BaseAgent[AgentResponse] (не ABC, не Protocol).
-      2. **R5**: агент зарегистрирован в agents/gitagent_registry.py:AGENT_AGENTS
-         с корректным domain и weight ∈ [0, 1].
-      3. **R9**: top-level функция run_<agent_name>(state) — async, возвращает
-         AgentResponse. Запусти `python scripts/validate_agent.py <path>`.
-      4. **A9**: run() содержит try/except и возвращает graceful AgentResponse
-         (NEUTRAL signal + reasoning) при сбое, а не raise.
-      5. **BlackRock Six тесты**: `tests/test_<agent>.py` существует и покрывает
-         6 случаев: happy path, ephemeris missing, timeout, malformed state,
-         signal bounds, registry entry.
-      6. ASTROLOGICAL вес агента в комментарии соответствует astro_weights
-         в synthesis (Bradley ~50%, Gann ~40%, Cycle ~40%, остальные 15–30%).
-
-  - path: "agents/_impl/**/ephemeris*.py"
-    instructions: |
-      Проверь **R2**: методы, использующие Swiss Ephemeris, помечены
-      @require_ephemeris (из agents/_impl/ephemeris_decorator).
-      НЕ предлагай обернуть методы, которые НЕ используют ephemeris.
-
-  - path: "agents/technical_agent.py"
-    instructions: |
-      Этот агент вне _impl/. Проверь, что его НЕ дублирует _impl/technical_agent
-      и что он не импортируется из _archived/.
-
-  - path: "agents/_archived/**"
-    instructions: |
-      DEPRECATED. Не ревьюь, не предлагай изменения. Любой import отсюда —
-      нарушение R5/KI-011.
-
-  # Web / API
-  - path: "web/**/*.py"
-    instructions: |
-      Проверь **R4**: все FastAPI/Flask routes, кроме явно public (login,
-      health, docs), имеют @require_auth или аналогичный декоратор.
-      Особое внимание на:
-      - /api/admin/* (admin routes)
-      - /api/agents/* (gating by role)
-      - /api/backtest/* (rate-limit обязателен)
-
-  # Core / shared
-  - path: "core/**/*.py"
-    instructions: |
-      **R3** CRITICAL: core/ — это data plane. Если core/ начинает делать
-      requests.* — это регрессия Data Room pattern (KI-001).
-      Предложи: вынести в data_room/resolvers/<name>.py.
-
-  - path: "**/*.py"
-    instructions: |
-      Применить универсальные правила:
-      - **R6**: НЕТ top-level `print()`. Заменить на `logger.info()`.
-      - **R7**: НЕТ f-string SQL. Параметризованные queries.
-      - **R8**: НЕТ hardcoded API keys, tokens, passwords. Settings() или env.
-      - type hints: `Optional[X]` → `X | None` (3.12+).
-      - не использовать `import *`.
-
-  - path: "data_room/**"
-    instructions: |
-      Data Room — единственный путь к external data. При добавлении нового
-      resolver проверь:
-      - наследование от data_room/resolvers/base.py
-      - регистрация в data_room/blueprint.py
-      - inventory в data_room/inventory/sources_inventory.json
-      - circuit breaker настроен (data_room/circuit_breaker.py)
-
-  - path: "tests/**"
-    instructions: |
-      BlackRock Six test cases ОБЯЗАТЕЛЬНЫ для каждого нового агента:
-      1. happy_path
-      2. ephemeris_missing (если астрологический)
-      3. timeout
-      4. malformed_state
-      5. signal_bounds (LONG/SHORT/NEUTRAL/AVOID)
-      6. registry_entry
-      Шаблон: tests/_template_agent_test.py.
-
-  - path: "docs/**"
-    instructions: |
-      При structural changes в agents/, core/, data_room/ — флаг "обновите
-      docs/ARCHITECTURE.md". При появлении нового P1 issue — флаг
-      "добавьте запись в docs/KNOWN_ISSUES.md".
-
-# ==================== FOCUS AREAS ====================
-focus_areas:
-  - "architecture compliance (R1–R9)"
-  - "Data Room pattern enforcement"
-  - "security: secrets, auth, SQL"
-  - "graceful degradation (try/except in run)"
-  - "test coverage: BlackRock Six"
-  - "documentation freshness (ARCHITECTURE.md, KNOWN_ISSUES.md)"
-
-# ==================== EXCLUSIONS ====================
-# Расширено по сравнению с pre-commit hooks (см. docs/CODE_REVIEW.md)
-exclude:
-  - "**/__pycache__/**"
-  - "**/.pytest_cache/**"
-  - "**/.mypy_cache/**"
-  - "**/data/raw/**"
-  - "**/data/processed/**"
-  - "**/*.log"
-  - "**/.env*"
-  - "**/venv/**"
-  - "**/node_modules/**"
-  - "**/agents/_archived/**"   # deprecated
-  - "**/*.bak"                  # KI-007/KI-008
-  - "**/dist/**"
-  - "**/build/**"
-  - "**/.eggs/**"
-  - "**/roma-execution-bridge/**"  # nested git repo, не наш
-
-# ==================== PLAN MODE ====================
-plan:
-  include:
-    - "architecture"
-    - "roadmap"
-    - "risks"
-    - "scalability"
-
-# ==================== CHAT (in-app Zo) ====================
-chat:
-  auto_reply: false
-
-# ==================== INTEGRATION ====================
-# CodeRabbit дополняет pre-commit. Не дублирует.
-# Pre-commit: ruff format, ruff lint, bandit, detect-secrets, architecture_linter.py,
-#             validate_registry.py, end-of-file fixer, large files.
-# CodeRabbit:   architectural reasoning, KNOWN_ISSUES context, cross-file impact,
-#             test coverage gaps, soft rules (S1–S3 docstrings).
-#
-# Review cycle: quarterly — пересмотр правил и path_instructions каждые 3 месяца.
-# Reviewers: @architect + @lead
+  # Цикл пересмотра правил
+  review_cycle: quarterly

@@ -1,7 +1,5 @@
-import logging
-
-logger = logging.getLogger(__name__)
 """agents/karl_synthesis.py — KARL-013: SynthesisAgent + AMRE Integration
+
 Оборачивает SynthesisAgent в AMRE-контур:
   DecisionRecord → OAP update → Backtest sample → Sync audit
 
@@ -10,10 +8,15 @@ logger = logging.getLogger(__name__)
     result = await karl_agent.run(state)
 """
 
+from __future__ import annotations
+
+import logging
 import hashlib
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 from agents._impl.amre import (
     SelfQuestioningEngine,

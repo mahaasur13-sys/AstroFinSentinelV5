@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 
 """
@@ -11,8 +13,14 @@ from pathlib import Path
 
 import yaml
 
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 from core.volatility import VolatilityEngine, VolatilityRegime
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ─── Fallback guard ─────────────────────────────────────────────────────────────
 MIN_AGENTS_FALLBACK = 2  # minimum agents needed for a reliable synthesis
@@ -114,6 +122,7 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
             weight=0.0,
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
         """
         Финальный синтез всех агентов.
@@ -124,6 +133,15 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
         Returns:
             AgentResponse с финальным сигналом
         """
+        try:
+            return await self._synthesize(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("synthesis_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
+
+    async def _synthesize(self, state: dict) -> AgentResponse:
         all_signals = state.get("all_signals", [])
         thompson_selections = state.get("thompson_selections", {})
         called_agents = (
