@@ -3,10 +3,13 @@ AstroFin Sentinel v5 — Market Analyst Agent
 Technical analysis: RSI, MACD, Bollinger, Volume.
 """
 
+from __future__ import annotations
+
 import logging
 
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
-from core.metrics import track_agent_duration
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError, require_ephemeris
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +28,12 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             weight=0.25,
         )
 
-    async def run(self, state: dict) -> AgentResponse:
+    @require_ephemeris
+    async def analyze(self, state: dict) -> AgentResponse:
+        """Core analysis: compute RSI/MACD/Bollinger/Volume and produce the signal."""
         symbol = state.get("symbol", "BTCUSDT")
         current_price = state.get("current_price", 50000)
 
-        # Fetch market data
         price_data = await self._fetch_ohlcv(symbol, "1d", 50)
         if not price_data:
             return AgentResponse(
@@ -40,17 +44,14 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
                 sources=[],
             )
 
-        # Calculate indicators
         rsi = self._calculate_rsi(price_data)
         macd = self._calculate_macd(price_data)
         bb = self._calculate_bollinger(price_data)
         volume_profile = self._calculate_volume_profile(price_data)
 
-        # Determine signal
         signals = []
         confidences = []
 
-        # RSI
         if rsi < 30:
             signals.append(SignalDirection.LONG)
             confidences.append(70)
@@ -58,7 +59,6 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             signals.append(SignalDirection.NEUTRAL)
             confidences.append(50)
 
-        # MACD
         if macd["histogram"] > 0:
             signals.append(SignalDirection.LONG)
             confidences.append(60)
@@ -66,7 +66,6 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             signals.append(SignalDirection.SHORT)
             confidences.append(60)
 
-        # Bollinger
         if current_price < bb["lower"]:
             signals.append(SignalDirection.LONG)
             confidences.append(65)
@@ -77,7 +76,6 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             signals.append(SignalDirection.NEUTRAL)
             confidences.append(40)
 
-        # Aggregate
         long_count = signals.count(SignalDirection.LONG)
         short_count = signals.count(SignalDirection.SHORT)
 
@@ -113,6 +111,17 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
             },
         )
 
+    @track_agent_metrics
+    async def run(self, state: dict) -> AgentResponse:
+        """Public entry point. Wraps `analyze` with metrics + defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("market_analyst_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
+
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         """Fetch OHLCV data from OKX asynchronously."""
         import httpx
@@ -123,7 +132,6 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
                 resp = await client.get(url, timeout=10)
                 resp.raise_for_status()
                 data = resp.json()
-                # OKX возвращает [timestamp, open, high, low, close, volume]
                 return [[float(x[4]), float(x[5])] for x in data.get("data", [])]
         except Exception:
             logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT")
@@ -169,7 +177,7 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         ema_fast = ema(closes, fast)
         ema_slow = ema(closes, slow)
         macd_line = ema_fast - ema_slow
-        signal_line = macd_line * 0.9  # упрощённая сигнальная линия
+        signal_line = macd_line * 0.9
 
         return {
             "macd": macd_line,
@@ -213,7 +221,6 @@ class MarketAnalystAgent(BaseAgent[AgentResponse]):
         return {"trend": trend, "recent_avg": recent_vol, "older_avg": older_vol}
 
 
-@track_agent_duration("MarketAnalyst")
 async def run_market_analyst(state: dict) -> dict:
     """Runner for orchestrator."""
     agent = MarketAnalystAgent()

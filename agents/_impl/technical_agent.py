@@ -4,13 +4,16 @@ AstroFin Sentinel v5 — Technical Agent
 Вес в гибридном сигнале: 10% (как фильтр).
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from typing import Any
 
 
-from agents._impl.ephemeris_decorator import require_ephemeris
-from core.base_agent import AgentResponse, BaseAgent
+from agents._impl.ephemeris_decorator import require_ephemeris, EphemerisUnavailableError
+from agents.metrics import track_agent_metrics
+from core.base_agent import AgentResponse, BaseAgent, EPHEMERIS_UNAVAILABLE, UNKNOWN
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +32,19 @@ class TechnicalAgent(BaseAgent[AgentResponse]):
             weight=0.10,
         )
 
-    @require_ephemeris
+    @track_agent_metrics
     async def run(self, state: dict[str, Any]) -> AgentResponse:
+        """Public entry point. Wraps `analyze` with metrics + defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("technical_agent_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
+
+    @require_ephemeris
+    async def analyze(self, state: dict[str, Any]) -> AgentResponse:
         symbol = state.get("symbol", "BTCUSDT")
         current_price = state.get("current_price") or state.get("price") or 50000
         dt = state.get("datetime") or datetime.utcnow()

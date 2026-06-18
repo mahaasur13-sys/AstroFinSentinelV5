@@ -3,10 +3,14 @@ AstroFin Sentinel v5 — ElectoralAgent
 Electional astrology for trading entry timing.
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timedelta
 
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError, require_ephemeris
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +34,7 @@ class ElectoralAgent(BaseAgent[AgentResponse]):
             weight=0.10,
         )
 
-    async def run(self, state: dict) -> AgentResponse:
+    async def analyze(self, state: dict) -> AgentResponse:
         """
         Scan for best trading muhurta.
 
@@ -117,6 +121,17 @@ class ElectoralAgent(BaseAgent[AgentResponse]):
                 "symbol": symbol,
             },
         )
+
+    @track_agent_metrics
+    async def run(self, state: dict) -> AgentResponse:
+        """Public entry point. Wraps `analyze` with metrics + defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("electoral_agent_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
 
     def _calculate_muhurta_score(self, choghadiya: dict, nakshatra: dict) -> float:
         """Calculate 0-10 muhurta score."""
