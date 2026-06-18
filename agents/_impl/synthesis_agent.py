@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 
 """
@@ -6,13 +8,18 @@ AstroCouncil: координатор всех агентов, финальный
 Вес в финальном сигнале = 100% (координатор)
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
 from core.volatility import VolatilityEngine, VolatilityRegime
+
+logger = logging.getLogger(__name__)
 
 # ─── Fallback guard ─────────────────────────────────────────────────────────────
 MIN_AGENTS_FALLBACK = 2  # minimum agents needed for a reliable synthesis
@@ -114,7 +121,18 @@ class SynthesisAgent(BaseAgent[AgentResponse]):
             weight=0.0,
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
+        """Public entry point. Wraps `analyze` with metrics + defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("synthesis_agent_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
+
+    async def analyze(self, state: dict) -> AgentResponse:
         """
         Финальный синтез всех агентов.
 

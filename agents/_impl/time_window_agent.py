@@ -1,14 +1,17 @@
-import logging
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
 """
 Time Window Agent — entry timing and best trading windows.
 """
 
+import logging
 from datetime import datetime
 
-from agents._impl.ephemeris_decorator import require_ephemeris
-from core.base_agent import AgentResponse, BaseAgent, SignalDirection
+from agents._impl.ephemeris_decorator import EphemerisUnavailableError, require_ephemeris
+from agents.metrics import track_agent_metrics
+from core.base_agent import EPHEMERIS_UNAVAILABLE, UNKNOWN, AgentResponse, BaseAgent, SignalDirection
+
+logger = logging.getLogger(__name__)
 
 
 class TimeWindowAgent(BaseAgent[AgentResponse]):
@@ -95,8 +98,16 @@ class TimeWindowAgent(BaseAgent[AgentResponse]):
             },
         )
 
+    @track_agent_metrics
     async def run(self, state: dict) -> AgentResponse:
-        return await self.analyze(state)
+        """Public entry point. Wraps `analyze` with metrics + defensive error handling."""
+        try:
+            return await self.analyze(state)
+        except EphemerisUnavailableError as e:
+            return self._degraded(EPHEMERIS_UNAVAILABLE, str(e))
+        except Exception as e:  # noqa: BLE001 — last-resort guard
+            logger.exception("time_window_agent_run_unhandled", extra={"agent": self.name})
+            return self._degraded(UNKNOWN, repr(e))
 
     async def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list:
         """Fetch OHLCV data from OKX asynchronously."""
