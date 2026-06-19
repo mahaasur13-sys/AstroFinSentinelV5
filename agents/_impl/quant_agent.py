@@ -125,7 +125,9 @@ class QuantAgent(BaseAgent[AgentResponse]):
                 "SWING": "1d",
             }
             interval = interval_map.get(timeframe, "1d")
-            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit=100"
+            okx_symbol = symbol.replace("/", "").replace("-USDT", "").replace("-", "") + "-USDT"
+
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={okx_symbol}&interval={interval}&limit=100"
             resp = await get_http_client().get(url)
             data = resp.json()
             return [[float(x[4]), float(x[5]), float(x[2]), float(x[3])] for x in data]

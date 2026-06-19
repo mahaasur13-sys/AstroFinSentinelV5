@@ -116,7 +116,9 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
         import httpx
 
         try:
-            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
+            okx_symbol = symbol.replace("/", "").replace("-USDT", "").replace("-", "") + "-USDT"
+
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={okx_symbol}&interval={interval}&limit={limit}"
             async with httpx.AsyncClient() as client:
                 resp = await client.get(url, timeout=10)
                 resp.raise_for_status()
@@ -132,7 +134,7 @@ class BearResearcherAgent(BaseAgent[AgentResponse]):
                     for x in data.get("data", [])
                 ]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT on {interval} with limit {limit}")
+            logger.warning(f"Failed to fetch OHLCV data for {okx_symbol} on {interval} with limit {limit}")
             return []
 
     def _detect_bearish_patterns(self, data: list) -> dict:

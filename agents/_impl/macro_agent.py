@@ -9,6 +9,7 @@ Indicators:
 
 import logging
 from typing import Optional
+from pathlib import Path
 
 import numpy as np
 
@@ -47,7 +48,7 @@ class MacroAgent(BaseAgent[AgentResponse]):
         """Lazy init RAG retriever."""
         if self.rag is None:
             try:
-                self.rag = RAGRetriever(index_name="macro")
+                self.rag = RAGRetriever(knowledge_dir=str(Path(__file__).parent.parent / "knowledge"))
             except Exception as e:
                 logger.warning("Failed to init RAG for MacroAgent: %s", e)
         return self.rag

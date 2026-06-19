@@ -112,14 +112,16 @@ class GannAgent(BaseAgent[AgentResponse]):
         import httpx
 
         try:
-            url = f"https://www.okx.com/api/v5/market/candles?symbol={symbol}-USDT&interval={interval}&limit={limit}"
+            okx_symbol = symbol.replace("/", "").replace("-USDT", "").replace("-", "") + "-USDT"
+
+            url = f"https://www.okx.com/api/v5/market/candles?symbol={okx_symbol}&interval={interval}&limit={limit}"
             async with httpx.AsyncClient() as client:
                 resp = await client.get(url, timeout=10)
                 resp.raise_for_status()
                 data = resp.json()
                 return [[float(x[4]), float(x[5])] for x in data.get("data", [])]
         except Exception:
-            logger.warning(f"Failed to fetch OHLCV data for {symbol}-USDT with interval {interval} and limit {limit}")
+            logger.warning(f"Failed to fetch OHLCV data for {okx_symbol} with interval {interval} and limit {limit}")
             return []
 
     def _calculate_gann_angles(self, low: float, high: float, close: float) -> dict:
